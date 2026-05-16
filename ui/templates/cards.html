@@ -1,0 +1,214 @@
+{% extends "base.html" if not partial|default(false) else "blank.html" %}
+
+{% block title %}Credit Cards{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;">
+        <div>
+            <h1 style="font-family: 'Outfit'; font-size: 2rem;">Credit Cards</h1>
+            <p class="text-muted">Monitor your credit health and upcoming payments</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <button class="btn-secondary" id="toggle-closed-btn" onclick="toggleClosedItems()" title="Toggle History">
+                <i class="ph ph-eye-slash" id="eye-icon"></i>
+            </button>
+            <button class="btn-primary" onclick="openDrawer('page-drawer')">
+                <i class="ph ph-plus"></i> Add Card
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-bottom: 40px;">
+        <div class="card" style="border-left: 4px solid var(--special-color);">
+            <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 8px;">Total Already Used Limit</div>
+            <div style="font-size: 2rem; font-weight: 800; font-family: 'Outfit'; color: var(--special-color);">
+                ₹{{ "%.2f"|format(cards|sum(attribute='outstanding')) if cards else '0.00' }}
+            </div>
+        </div>
+        <div class="card">
+            <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 8px;">Total Available Limit</div>
+            <div style="font-size: 2rem; font-weight: 800; font-family: 'Outfit';">
+                ₹{{ "%.2f"|format(cards|sum(attribute='card_limit') - cards|sum(attribute='outstanding')) if cards else '0.00' }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Card Grid -->
+    <div id="cards-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 24px;">
+        {% for card in cards %}
+        <div class="card card-item {{ card.status }}" style="position: relative; border-top: 4px solid var(--special-color);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <i class="ph ph-credit-card icon-lg" style="color: var(--special-color);"></i>
+                    <span style="font-weight: 700; font-size: 1.1rem;">{{ card.name }}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="text-muted" style="font-size: 0.75rem;">Due on {{ card.due_date }}th</div>
+                    <div class="action-reveal">
+                        <button class="dot-menu" onclick="showContextMenu(event, '{{ card.id }}', 'card')">
+                            <i class="ph ph-dots-three-vertical"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span class="text-muted" style="font-size: 0.85rem;">Utilization</span>
+                    <span style="font-weight: 700; font-size: 0.85rem;">{{ ((card.outstanding / card.card_limit * 100)|round|int) if card.card_limit > 0 else 0 }}%</span>
+                </div>
+                <div style="height: 6px; background: var(--bg-main); border-radius: 3px; overflow: hidden;">
+                    {% set util_pct = ((card.outstanding / card.card_limit * 100) if card.card_limit > 0 else 0) %}
+                    {% set bar_class = 'progress-high' if util_pct > 80 else 'progress-normal' %}
+                    <div class="{{ bar_class }}" style="height: 100%; width: {{ util_pct }}%;"></div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px;">
+                <div>
+                    <div class="text-muted" style="font-size: 0.75rem; margin-bottom: 4px;">Already Used Limit</div>
+                    <div style="font-size: 1.5rem; font-weight: 800; font-family: 'Outfit'; color: var(--expense-color);">₹{{ "%.2f"|format(card.outstanding) }}</div>
+                </div>
+                <div style="text-align: right;">
+                    <div class="text-muted" style="font-size: 0.75rem; margin-bottom: 4px;">Limit</div>
+                    <div style="font-weight: 600;">₹{{ "%.2f"|format(card.card_limit) }}</div>
+                </div>
+            </div>
+
+            <button class="btn-primary" style="width: 100%; justify-content: center; background: rgba(var(--primary-accent-rgb), 0.1); color: var(--primary-accent); border: 1px solid var(--primary-accent); box-shadow: none; margin-bottom: 8px;" onclick='openPayBillDrawer({{ card.id }}, {{ card.name|tojson }}, {{ card.outstanding }})'>
+                <i class="ph ph-hand-coins"></i> Pay Bill
+            </button>
+            
+            <button class="btn-secondary" style="width: 100%; justify-content: center; font-size: 0.8rem; border: none; background: transparent;" onclick='closeCard({{ card.id }}, {{ card.name|tojson }}, {{ card.outstanding }})'>
+                <i class="ph ph-archive"></i> Close Card Account
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .card-item.closed { display: none; opacity: 0.6; }
+    .show-closed .card-item.closed { display: block; }
+</style>
+
+<script>
+    function toggleClosedItems() {
+        const container = document.getElementById('cards-container');
+        const icon = document.getElementById('eye-icon');
+        container.classList.toggle('show-closed');
+        if (container.classList.contains('show-closed')) {
+            icon.classList.replace('ph-eye-slash', 'ph-eye');
+        } else {
+            icon.classList.replace('ph-eye', 'ph-eye-slash');
+        }
+    }
+
+    function closeCard(id, name, outstanding) {
+        const drawer = document.getElementById('page-drawer');
+        const content = document.getElementById('drawer-dynamic-content');
+        
+        content.innerHTML = `
+            <form action="/cards/close/${id}" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 20px;">
+                <h2 style="font-family: 'Outfit'; margin-bottom: 8px;">Close Card Account</h2>
+                <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 12px;">You are retiring <strong>${name}</strong>.</p>
+                
+                ${outstanding > 0 ? `
+                <div style="background: rgba(var(--primary-accent-rgb), 0.05); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 10px;">
+                    <label class="text-muted" style="display: block; margin-bottom: 8px;">Final Settlement Amount</label>
+                    <input type="number" step="0.01" name="amount" value="${outstanding}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 1.2rem; font-weight: 700;">
+                    
+                    <label class="text-muted" style="display: block; margin-top: 16px; margin-bottom: 8px;">Pay Final Balance From</label>
+                    <select name="account_id" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                        <option value="">None / External</option>
+                        {% for acc in accounts %}
+                        <option value="{{ acc.id }}">{{ acc.name }} (₹{{ "%.2f"|format(acc.balance) }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                ` : '<p style="color: var(--success-color); font-weight: 600;">No outstanding balance to settle.</p>'}
+
+                <div style="background: rgba(239, 68, 68, 0.05); padding: 16px; border-radius: 12px; border: 1px solid var(--expense-color);">
+                    <p style="color: var(--expense-color); font-size: 0.85rem; font-weight: 600;">Warning: Closing this card will hide it from your active dashboard. Its history will remain in archives.</p>
+                </div>
+
+                <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; background: var(--expense-color); box-shadow: none;">
+                    Settle & Close Card
+                </button>
+            </form>
+        `;
+        openDrawer('page-drawer');
+    }
+
+    function openPayBillDrawer(id, name, outstanding) {
+        const drawer = document.getElementById('page-drawer');
+        const content = document.getElementById('drawer-dynamic-content');
+        
+        content.innerHTML = `
+            <form action="/cards/pay_bill" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 20px;">
+                <h2 style="font-family: 'Outfit'; margin-bottom: 8px;">Pay Credit Card Bill</h2>
+                <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 12px;">Settling bill for <strong>${name}</strong></p>
+                
+                <input type="hidden" name="card_id" value="${id}">
+                
+                <div>
+                    <label class="text-muted" style="display: block; margin-bottom: 8px;">Payment Amount</label>
+                    <input type="number" step="0.01" name="amount" value="${outstanding}" required style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 1.5rem; font-weight: 700;">
+                    <p style="font-size: 0.75rem; color: var(--primary-accent); margin-top: 4px;">Outstanding: ₹${outstanding.toFixed(2)}</p>
+                </div>
+
+                <div>
+                    <label class="text-muted" style="display: block; margin-bottom: 8px;">Pay From Account</label>
+                    <select name="account_id" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                        <option value="">None / External</option>
+                        {% for acc in accounts %}
+                        <option value="{{ acc.id }}">{{ acc.name }} (₹{{ "%.2f"|format(acc.balance) }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; margin-top: 10px;">
+                    Confirm Bill Payment
+                </button>
+            </form>
+        `;
+        openDrawer('page-drawer');
+    }
+</script>
+{% endblock %}
+
+{% block drawer_content %}
+    <h2 style="font-family: 'Outfit'; margin-bottom: 24px;">Add New Card</h2>
+    <form action="{{ url_for('card.add_card') }}" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 20px;">
+        <div>
+            <label class="text-muted">Card Name</label>
+            <input type="text" name="name" required placeholder="e.g. SBI Prime, HDFC Millennia" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+        </div>
+        <div>
+            <label class="text-muted">Total Limit</label>
+            <input type="number" step="0.01" name="limit" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+        </div>
+        <div>
+            <label class="text-muted">Already Used Limit</label>
+            <input type="number" step="0.01" name="outstanding" value="0.00" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div>
+                <label class="text-muted">Billing Date</label>
+                <input type="number" name="billing_date" min="1" max="31" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+            </div>
+            <div>
+                <label class="text-muted">Due Date</label>
+                <input type="number" name="due_date" min="1" max="31" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+            </div>
+        </div>
+        <div>
+            <label class="text-muted">As of Date</label>
+            <input type="date" name="created_at" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+        </div>
+        <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center;">Save Card</button>
+    </form>
+{% endblock %}

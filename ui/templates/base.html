@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finance Pro | Smart Wealth Management</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/themes.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body data-theme="dark">
+    <!-- Global Spotlight Search -->
+    <div id="spotlight-modal" class="spotlight-overlay">
+        <div class="spotlight-content">
+            <div class="spotlight-header">
+                <i class="ph ph-magnifying-glass"></i>
+                <input type="text" id="spotlight-input" placeholder="Search anything... (Right Alt + Space)" autocomplete="off">
+                <div class="spotlight-shortcut-hint">ESC</div>
+            </div>
+            <div id="spotlight-results" class="spotlight-results-container">
+                <div class="spotlight-empty-state">
+                    <p>Start typing to search...</p>
+                    <div class="suggestion-chips">
+                        <span onclick="setSearch('Today')">Today</span>
+                        <span onclick="setSearch('Food')">Food</span>
+                        <span onclick="setSearch('SBI')">SBI</span>
+                    </div>
+                </div>
+            </div>
+            <div class="spotlight-footer">
+                <div style="display: flex; gap: 16px;">
+                    <span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
+                    <span><kbd>↵</kbd> Select</span>
+                </div>
+                <div class="text-muted">Right Alt + Space</div>
+            </div>
+        </div>
+    </div>
+    <!-- Context Menu -->
+    <div id="context-menu" class="context-menu"></div>
+
+    <div class="app-container">
+        <!-- Collapsible Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-brand">
+                <i class="ph-bold ph-wallet" style="font-size: 2rem;"></i>
+                <span class="brand-text">Finance Pro</span>
+            </div>
+
+            <nav style="flex: 1; overflow-y: auto;">
+                <div class="nav-group">
+                    <div class="nav-label">Main</div>
+                    <ul class="nav-items">
+                        <li class="nav-item"><a href="/" class="nav-link"><i class="ph ph-squares-four"></i> <span>Dashboard</span></a></li>
+                        <li class="nav-item"><a href="{{ url_for('transaction.transactions_page') }}" class="nav-link"><i class="ph ph-arrows-left-right"></i> <span>Transactions</span></a></li>
+                        <li class="nav-item"><a href="{{ url_for('account.accounts_page') }}" class="nav-link"><i class="ph ph-bank"></i> <span>Accounts</span></a></li>
+                    </ul>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-label">Finance</div>
+                    <ul class="nav-items">
+                        <li class="nav-item"><a href="{{ url_for('card.cards_page') }}" class="nav-link"><i class="ph ph-credit-card"></i> <span>Credit Cards</span></a></li>
+                        <li class="nav-item"><a href="{{ url_for('loan.loans_page') }}" class="nav-link"><i class="ph ph-hand-coins"></i> <span>Loans & EMI</span></a></li>
+                        <li class="nav-item"><a href="{{ url_for('person.ledger_page') }}" class="nav-link"><i class="ph ph-users-three"></i> <span>Lent / Borrow</span></a></li>
+                    </ul>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-label">Analytics</div>
+                    <ul class="nav-items">
+                        <li class="nav-item"><a href="{{ url_for('report.reports_page') }}" class="nav-link"><i class="ph ph-chart-line-up"></i> <span>Reports</span></a></li>
+                        <li class="nav-item"><a href="/ai-assistant" class="nav-link"><i class="ph ph-sparkle"></i> <span>AI Assistant</span></a></li>
+                    </ul>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-label">System</div>
+                    <ul class="nav-items">
+                        <li class="nav-item"><a href="{{ url_for('settings.settings_page') }}" class="nav-link"><i class="ph ph-gear"></i> <span>Settings</span></a></li>
+                    </ul>
+                </div>
+            </nav>
+
+            <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border-color);">
+                <button onclick="toggleSidebar()" class="nav-link" style="width: 100%; background: none; border: none; cursor: pointer;">
+                    <i class="ph ph-caret-left" id="collapse-icon"></i> <span>Collapse</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-wrapper">
+            <header class="topbar">
+                <div style="display: flex; align-items: center; gap: 20px; flex: 1;">
+                    <div class="search-container" style="max-width: 450px; width: 100%; position: relative;">
+                        <i class="ph ph-magnifying-glass" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-secondary);"></i>
+                        <input type="text" id="global-search" placeholder="Search anything... (Right Alt + Space)" 
+                               onclick="SpotlightEngine.toggle(true)" readonly
+                               style="width: 100%; padding: 12px 16px 12px 48px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); outline: none; transition: var(--transition); cursor: pointer;">
+                        <div id="search-results" class="card" style="display: none; position: absolute; top: 110%; left: 0; right: 0; z-index: 1001; max-height: 400px; overflow-y: auto; padding: 12px;"></div>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 24px;">
+                    <button class="btn-secondary" onclick="openDrawer('add-tx-drawer')" style="font-size: 0.85rem;">
+                        <i class="ph ph-plus"></i> <span>Quick Add</span>
+                    </button>
+                    <div style="display: flex; align-items: center; gap: 16px; border-left: 1px solid var(--border-color); padding-left: 24px;">
+                        <button onclick="toggleTheme()" style="background: none; border: none; cursor: pointer; color: var(--text-secondary); font-size: 1.25rem;">
+                            <i class="ph ph-moon"></i>
+                        </button>
+                        <div style="position: relative;">
+                            <button onclick="toggleNotifications()" style="background: none; border: none; cursor: pointer; color: var(--text-secondary); position: relative; display: flex; align-items: center;">
+                                <i class="ph ph-bell" style="font-size: 1.25rem;"></i>
+                                <div id="unread-badge" class="unread-count" style="display: none;">0</div>
+                            </button>
+                            
+                            <!-- Notification Dropdown -->
+                            <div id="notification-dropdown" class="notification-dropdown">
+                                <div class="notification-header">
+                                    <span style="font-weight: 700; font-family: 'Outfit';">Notifications</span>
+                                    <button onclick="forceCheckNotifications()" style="background: none; border: none; color: var(--primary-accent); font-size: 0.8rem; cursor: pointer;">Check Now</button>
+                                </div>
+                                <div id="notification-list" class="notification-list">
+                                    <!-- Notifications will be injected here -->
+                                    <div style="padding: 40px; text-align: center; color: var(--text-secondary);">
+                                        <i class="ph ph-bell-slash" style="font-size: 2rem; margin-bottom: 12px; display: block; opacity: 0.5;"></i>
+                                        No notifications yet
+                                    </div>
+                                </div>
+                                <div style="padding: 12px; border-top: 1px solid var(--border-color); text-align: center;">
+                                    <button onclick="clearAllNotifications()" style="background: none; border: none; color: var(--text-secondary); font-size: 0.8rem; cursor: pointer;">Clear All</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+                            <div style="text-align: right; line-height: 1;">
+                                <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary);">PRADYUMNA BEHERA</div>
+                                <div style="font-size: 0.75rem; color: var(--success-color);">Pro Member</div>
+                            </div>
+                            <div style="width: 40px; height: 40px; border-radius: 12px; background: var(--bg-main); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; color: var(--primary-accent); font-size: 1.5rem;">
+                                <i class="ph ph-user-circle"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="content" style="padding: 40px; max-width: 1600px; margin: 0 auto; width: 100%;">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <!-- Side Drawer & Backdrop -->
+    <div class="drawer-backdrop" id="drawer-backdrop" onclick="closeDrawer()"></div>
+    <!-- 1. Universal Transaction Drawer (For Sidebar Quick Add) -->
+    <div class="drawer-overlay" id="add-tx-drawer">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+            <h2 style="font-family: 'Outfit';">Quick Transaction</h2>
+            <button onclick="closeDrawer()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;">
+                <i class="ph ph-x"></i>
+            </button>
+        </div>
+        <div id="drawer-content-universal">
+            <form action="{{ url_for('transaction.add_transaction') }}" method="POST" class="ajax-form" autocomplete="off" style="display: flex; flex-direction: column; gap: 20px;">
+                <div>
+                    <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Type</label>
+                    <div class="tx-type-group" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                        <label style="cursor: pointer;">
+                            <input type="radio" name="type" value="income" style="display: none;">
+                            <div class="tx-type-btn" onclick="selectTxType(this)">Income</div>
+                        </label>
+                        <label style="cursor: pointer;">
+                            <input type="radio" name="type" value="expense" checked style="display: none;">
+                            <div class="tx-type-btn active" onclick="selectTxType(this)">Expense</div>
+                        </label>
+                        <label style="cursor: pointer;">
+                            <input type="radio" name="type" value="transfer" style="display: none;">
+                            <div class="tx-type-btn" onclick="selectTxType(this)">Transfer</div>
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Amount</label>
+                    <input type="number" step="0.01" name="amount" required placeholder="0.00" style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 1.25rem; font-weight: 700;">
+                </div>
+                <div id="universal-account-container">
+                    <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;" id="account-label">Account</label>
+                    <select id="universal-account-select" name="account_id" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                        <option value="">Loading accounts...</option>
+                    </select>
+                </div>
+
+                <div id="universal-to-account-container" style="display: none;">
+                    <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">To Account</label>
+                    <select id="universal-to-account-select" name="to_account_id" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                        <option value="">Select destination...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Category</label>
+                    <select id="universal-category-select" name="category" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                        <option value="">Select category...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Date</label>
+                    <input type="date" name="date" required id="universal-date-input" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                </div>
+
+                <!-- EMI Conversion Section -->
+                <div id="emi-container" style="display: none; background: rgba(var(--primary-accent-rgb), 0.05); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 12px;">
+                        <input type="checkbox" name="is_emi" id="is-emi-checkbox" onchange="toggleEmiFields()" style="width: 18px; height: 18px;">
+                        <span style="font-weight: 600; font-size: 0.9rem;">Convert to EMI</span>
+                    </label>
+                    
+                    <div id="emi-fields" style="display: none; flex-direction: column; gap: 12px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div>
+                                <label class="text-muted" style="font-size: 0.8rem; display: block; margin-bottom: 4px;">Tenure (Months)</label>
+                                <input type="number" name="emi_tenure" placeholder="12" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                            </div>
+                            <div>
+                                <label class="text-muted" style="font-size: 0.8rem; display: block; margin-bottom: 4px;">Due Date (Day)</label>
+                                <input type="number" name="emi_due_date" min="1" max="31" placeholder="1" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-muted" style="font-size: 0.8rem; display: block; margin-bottom: 4px;">Total to Pay (Principal + Interest)</label>
+                            <input type="number" step="0.01" name="emi_total_to_pay" placeholder="0.00" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-weight: 700;">
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; font-size: 1rem; margin-top: 10px;">
+                    Save Transaction
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2. Contextual Page Drawer (For Page-Specific Add Buttons) -->
+    <div class="drawer-overlay" id="page-drawer">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+            <h2 style="font-family: 'Outfit';">Action</h2>
+            <button onclick="closeDrawer()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;">
+                <i class="ph ph-x"></i>
+            </button>
+        </div>
+        <div id="drawer-dynamic-content">
+            {% block drawer_content %}{% endblock %}
+        </div>
+    </div>
+
+    <script>
+        // --- AppRouter: The SPA Engine ---
+        const AppRouter = {
+            async navigate(url, updateHistory = true) {
+                const contentArea = document.querySelector('.content');
+                contentArea.style.opacity = '0.5';
+
+                try {
+                    const separator = url.includes('?') ? '&' : '?';
+                    const response = await fetch(`${url}${separator}partial=1`);
+                    const html = await response.text();
+
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    
+                    // 1. Update Main Content
+                    const newMain = doc.querySelector('#partial-content');
+                    if (newMain) {
+                        contentArea.innerHTML = newMain.innerHTML;
+                    } else {
+                        contentArea.innerHTML = html;
+                    }
+
+                    // 2. Update Drawer Content
+                    const newDrawer = doc.querySelector('#partial-drawer');
+                    const dynamicDrawer = document.getElementById('drawer-dynamic-content');
+                    if (newDrawer && newDrawer.innerHTML.trim() !== "") {
+                        dynamicDrawer.innerHTML = newDrawer.innerHTML;
+                    } else if (dynamicDrawer) {
+                        const template = document.getElementById('default-drawer-template');
+                        dynamicDrawer.innerHTML = template.innerHTML;
+                    }
+
+                    if (updateHistory) history.pushState({}, '', url);
+                    
+                    this.initPageScripts();
+                    this.highlightActiveLink();
+                } catch (err) {
+                    console.error('Navigation failed:', err);
+                } finally {
+                    contentArea.style.opacity = '1';
+                }
+            },
+
+            async submitForm(form, successCallback) {
+                const formData = new FormData(form);
+                const url = form.action;
+                const method = form.method || 'POST';
+
+                try {
+                    const response = await fetch(url, {
+                        method: method,
+                        body: formData,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    
+                    if (response.ok) {
+                        if (successCallback) successCallback(await response.json());
+                        else this.navigate(window.location.pathname, false); // Refresh current view
+                    }
+                } catch (err) {
+                    console.error('Form submission failed:', err);
+                }
+            },
+
+            initPageScripts() {
+                // Re-run scripts found in the new content
+                const contentArea = document.querySelector('.content');
+                const scripts = contentArea.querySelectorAll('script');
+                scripts.forEach(oldScript => {
+                    const newScript = document.createElement('script');
+                    Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                    newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                    oldScript.parentNode.replaceChild(newScript, oldScript);
+                });
+            },
+
+            highlightActiveLink() {
+                if (typeof highlightActiveLink === 'function') {
+                    highlightActiveLink();
+                } else {
+                    const path = window.location.pathname;
+                    document.querySelectorAll('.nav-link').forEach(link => {
+                        link.classList.toggle('active', link.getAttribute('href') === path);
+                    });
+                }
+            }
+        };
+
+        // Intercept Navigation
+        document.addEventListener('click', (e) => {
+            const link = e.target.closest('a');
+            if (link && link.href.startsWith(window.location.origin) && !link.target && !link.hasAttribute('download')) {
+                e.preventDefault();
+                AppRouter.navigate(link.getAttribute('href'));
+            }
+        });
+
+        // Intercept Forms (Filtering & Adding)
+        document.addEventListener('submit', async (e) => {
+            const form = e.target;
+            
+            // 1. Handle Filter Forms (Standard Navigation)
+            if (form.id === 'filter-form') {
+                e.preventDefault();
+                const params = new URLSearchParams(new FormData(form)).toString();
+                AppRouter.navigate(`${form.action}?${params}`, true);
+                return;
+            }
+
+            // 2. Handle AJAX Forms (Drawers & Page Actions)
+            if (form.classList.contains('ajax-form') || form.closest('.drawer-overlay')) {
+                e.preventDefault();
+                if (form.getAttribute('data-submitting') === 'true') return;
+                form.setAttribute('data-submitting', 'true');
+
+                const submitBtn = form.querySelector('button[type="submit"]');
+                const originalText = submitBtn ? submitBtn.innerHTML : 'Save';
+
+                try {
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = '<i class="ph ph-circle-notch animate-spin"></i> Processing...';
+                    }
+
+                    const response = await fetch(form.action, {
+                        method: form.method || 'POST',
+                        body: new FormData(form),
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+
+                    if (response.ok) {
+                        closeDrawer();
+                        form.reset();
+                        await AppRouter.navigate(window.location.pathname, false);
+                    } else {
+                        const errorText = await response.text();
+                        console.error('Server Error:', errorText);
+                        alert('Error saving data. Please try again.');
+                    }
+                } catch (err) {
+                    console.error('Submission failed:', err);
+                    alert('Network error. Please check your connection.');
+                } finally {
+                    form.setAttribute('data-submitting', 'false');
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalText;
+                    }
+                }
+            }
+        });
+
+        // Handle Back/Forward buttons
+        window.addEventListener('popstate', () => {
+            AppRouter.navigate(window.location.pathname, false);
+        });
+
+        // Theme Loader
+        (function() {
+            const theme = localStorage.getItem('theme') || 'dark';
+            document.body.setAttribute('data-theme', theme);
+        })();
+
+        function toggleTheme() {
+            const body = document.body;
+            const currentTheme = body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            body.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Sidebar Collapse
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const icon = document.getElementById('collapse-icon');
+            sidebar.classList.toggle('collapsed');
+            icon.classList.toggle('ph-caret-right');
+            icon.classList.toggle('ph-caret-left');
+        }
+
+        // Drawer Control
+        function openDrawer(id) {
+            const drawer = document.getElementById(id);
+            if (!drawer) return;
+            
+            drawer.classList.add('active');
+            document.getElementById('drawer-backdrop').classList.add('active');
+
+            // Set all date inputs inside this drawer to TODAY by default if empty
+            const today = new Date().toISOString().split('T')[0];
+            drawer.querySelectorAll('input[type="date"]').forEach(input => {
+                if (!input.value) input.value = today;
+            });
+            
+            // Always ensure accounts are fresh when opening
+            if (id === 'add-tx-drawer') {
+                loadUniversalAccounts();
+                loadUniversalCategories();
+            }
+        }
+
+        let globalAccounts = []; // Cache accounts to filter locally
+
+        async function loadUniversalAccounts() {
+            const select = document.getElementById('universal-account-select');
+            if (!select) return;
+            
+            // If already loading or loaded, just re-filter
+            if (globalAccounts.length > 0) {
+                const currentType = document.querySelector('input[name="type"]:checked')?.value || 'expense';
+                filterAccounts(currentType);
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/accounts');
+                const data = await response.json();
+                globalAccounts = data;
+                
+                const currentType = document.querySelector('input[name="type"]:checked')?.value || 'expense';
+                filterAccounts(currentType);
+            } catch (err) {
+                console.error("Account load failed", err);
+                select.innerHTML = '<option value="">Error loading accounts</option>';
+            }
+        }
+
+        function selectTxType(el) {
+            if (!el) return;
+            const group = el.closest('.tx-type-group') || el.parentElement.parentElement;
+            group.querySelectorAll('.tx-type-btn').forEach(btn => btn.classList.remove('active'));
+            el.classList.add('active');
+            
+            // Sync radio input - find the radio in the same label
+            const radio = el.closest('label').querySelector('input[type="radio"]');
+            if (radio) {
+                radio.checked = true;
+                filterAccounts(radio.value);
+            }
+        }
+
+        let globalCategories = [];
+
+        function filterAccounts(txType) {
+            const select = document.getElementById('universal-account-select');
+            const toSelect = document.getElementById('universal-to-account-select');
+            const toContainer = document.getElementById('universal-to-account-container');
+            const accountLabel = document.getElementById('account-label');
+            const catSelect = document.getElementById('universal-category-select');
+            const emiContainer = document.getElementById('emi-container');
+            
+            if (!select) return;
+            
+            // Show EMI option ONLY for expenses
+            if (emiContainer) {
+                emiContainer.style.display = (txType === 'expense') ? 'block' : 'none';
+            }
+            if (!globalAccounts || globalAccounts.length === 0) {
+                select.innerHTML = '<option value="">No accounts found</option>';
+                return;
+            }
+            
+            // Toggle Transfer UI
+            if (txType === 'transfer') {
+                if (toContainer) toContainer.style.display = 'block';
+                if (accountLabel) accountLabel.innerText = 'From Account';
+                if (toSelect) toSelect.required = true;
+            } else {
+                if (toContainer) toContainer.style.display = 'none';
+                if (accountLabel) accountLabel.innerText = 'Account';
+                if (toSelect) toSelect.required = false;
+            }
+
+            // FILTER: Hide credit cards ONLY for income.
+            const filtered = globalAccounts.filter(acc => {
+                const type = (acc.type || '').toLowerCase();
+                const isCard = type.includes('card');
+                if (txType === 'income') return !isCard;
+                return true; 
+            });
+
+            const optionsHtml = filtered.map(acc => 
+                `<option value="${acc.id}">${acc.name} (₹${acc.balance.toFixed(2)})</option>`
+            ).join('');
+
+            select.innerHTML = optionsHtml;
+            if (toSelect) toSelect.innerHTML = `<option value="">Select destination...</option>` + optionsHtml;
+
+            // Filter Categories
+            if (catSelect) {
+                const filteredCats = globalCategories.filter(c => c.type === (txType === 'transfer' ? 'expense' : txType));
+                catSelect.innerHTML = `<option value="">Select category...</option>` + 
+                    filteredCats.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            }
+        }
+
+        async function loadUniversalCategories() {
+            try {
+                const response = await fetch('/api/categories');
+                globalCategories = await response.json();
+                
+                const currentType = document.querySelector('input[name="type"]:checked')?.value || 'expense';
+                filterAccounts(currentType);
+            } catch (err) {
+                console.error("Category load failed", err);
+            }
+        }
+
+
+        function toggleEmiFields() {
+            const checkbox = document.getElementById('is-emi-checkbox');
+            const fields = document.getElementById('emi-fields');
+            if (fields) {
+                fields.style.display = checkbox.checked ? 'flex' : 'none';
+            }
+        }
+
+        function closeDrawer() {
+            document.querySelectorAll('.drawer-overlay').forEach(d => d.classList.remove('active'));
+            document.getElementById('drawer-backdrop').classList.remove('active');
+        }
+
+        // --- Modern Context Menu ---
+        function showContextMenu(e, id, type = 'transaction') {
+            e.preventDefault();
+            e.stopPropagation(); // Prevent immediate close
+            
+            const menu = document.getElementById('context-menu');
+            const x = e.clientX;
+            const y = e.clientY;
+
+            menu.style.left = `${x}px`;
+            menu.style.top = `${y}px`;
+            menu.classList.add('active');
+
+            menu.innerHTML = `
+                <div class="context-menu-item" onclick="editItem('${type}', '${id}')">
+                    <i class="ph ph-pencil-line"></i> Edit ${type}
+                </div>
+                <div class="context-menu-item danger" onclick="deleteItem('${type}', '${id}')">
+                    <i class="ph ph-trash"></i> Delete ${type}
+                </div>
+            `;
+            
+            // Close menu when clicking outside
+            const closeMenu = () => {
+                menu.classList.remove('active');
+                document.removeEventListener('click', closeMenu);
+            };
+            setTimeout(() => document.addEventListener('click', closeMenu), 10);
+        }
+
+        async function editItem(type, id) {
+            closeContextMenu();
+            const drawer = document.getElementById('page-drawer');
+            const content = document.getElementById('drawer-dynamic-content');
+            
+            try {
+                let url = '';
+                if (type === 'loan') url = `/loans/edit/${id}`;
+                else if (type === 'card') url = `/cards/edit/${id}`;
+                else if (type === 'account') url = `/accounts/edit/${id}`;
+                
+                if (!url) return;
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (type === 'loan') {
+                    content.innerHTML = `
+                        <h2 style="font-family: 'Outfit'; margin-bottom: 24px;">Edit Loan</h2>
+                        <form action="/loans/edit/${id}" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 20px;">
+                            <div>
+                                <label class="text-muted">Loan Name</label>
+                                <input type="text" name="name" value="${data.name}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div>
+                                    <label class="text-muted">Principal</label>
+                                    <input type="number" step="0.01" name="principal" value="${data.principal}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                </div>
+                                <div>
+                                    <label class="text-muted">Total to Pay</label>
+                                    <input type="number" step="0.01" name="total_to_pay" value="${data.total_to_pay}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                </div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div>
+                                    <label class="text-muted">Tenure</label>
+                                    <input type="number" name="tenure" value="${data.tenure}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                </div>
+                                <div>
+                                    <label class="text-muted">Due Date (Day)</label>
+                                    <input type="number" name="due_date" value="${data.due_date}" min="1" max="31" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; margin-top: 10px;">Save Changes</button>
+                        </form>
+                    `;
+                } else if (type === 'transaction') {
+                    content.innerHTML = `
+                        <h2 style="font-family: 'Outfit'; margin-bottom: 24px;">Edit Transaction</h2>
+                        <form action="/transactions/edit/${id}" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 20px;">
+                            <div>
+                                <label class="text-muted">Type</label>
+                                <select name="type" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                    <option value="income" ${data.type === 'income' ? 'selected' : ''}>Income</option>
+                                    <option value="expense" ${data.type === 'expense' ? 'selected' : ''}>Expense</option>
+                                    <option value="transfer" ${data.type === 'transfer' ? 'selected' : ''}>Transfer</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-muted">Amount</label>
+                                <input type="number" step="0.01" name="amount" value="${data.amount}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 1.25rem; font-weight: 700;">
+                            </div>
+                            <div>
+                                <label class="text-muted">Account</label>
+                                <select name="account_id" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                    ${globalAccounts.map(acc => `
+                                        <option value="${acc.id}" ${data.account_id == acc.id ? 'selected' : ''}>${acc.name}</option>
+                                    `).join('')}
+                                </select>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div>
+                                    <label class="text-muted">Category</label>
+                                    <input type="text" name="category" value="${data.category}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                </div>
+                                <div>
+                                    <label class="text-muted">Date</label>
+                                    <input type="date" name="date" value="${data.date}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-muted">Notes</label>
+                                <textarea name="notes" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); min-height: 80px;">${data.notes || ''}</textarea>
+                            </div>
+                            <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; margin-top: 10px;">Save Changes</button>
+                        </form>
+                    `;
+                } else if (type === 'card') {
+                    content.innerHTML = `
+                        <h2 style="font-family: 'Outfit'; margin-bottom: 24px;">Edit Credit Card</h2>
+                        <form action="/cards/edit/${id}" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 20px;">
+                            <div>
+                                <label class="text-muted">Card Name</label>
+                                <input type="text" name="name" value="${data.name}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                            </div>
+                            <div>
+                                <label class="text-muted">Credit Limit</label>
+                                <input type="number" step="0.01" name="limit" value="${data.card_limit}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div>
+                                    <label class="text-muted">Billing Date</label>
+                                    <input type="number" name="billing_date" value="${data.billing_date}" min="1" max="31" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                </div>
+                                <div>
+                                    <label class="text-muted">Due Date</label>
+                                    <input type="number" name="due_date" value="${data.due_date}" min="1" max="31" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; margin-top: 10px;">Save Changes</button>
+                        </form>
+                    `;
+                }
+
+                openDrawer('page-drawer');
+            } catch (err) {
+                console.error('Fetch error:', err);
+            }
+        }
+
+        async function deleteItem(type, id) {
+            if (confirm(`Are you sure you want to delete this ${type}?`)) {
+                try {
+                    let url = '';
+                    if (type === 'loan') url = `/loans/delete/${id}`;
+                    else if (type === 'transaction') url = `/transactions/delete/${id}`;
+                    else if (type === 'account') url = `/accounts/delete/${id}`;
+                    else if (type === 'card') url = `/cards/delete/${id}`;
+                    else if (type === 'ledger') url = `/ledger/delete/${id}`;
+                    
+                    if (!url) return;
+
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+
+                    if (response.ok) {
+                        AppRouter.navigate(window.location.pathname, false);
+                    }
+                } catch (err) {
+                    console.error('Delete error:', err);
+                }
+            }
+            closeContextMenu();
+        }
+
+        function closeContextMenu() {
+            document.getElementById('context-menu').classList.remove('active');
+        }
+
+        // --- Notification System ---
+        async function fetchNotifications() {
+            try {
+                const response = await fetch('/api/notifications');
+                const data = await response.json();
+                updateNotificationUI(data);
+            } catch (err) {
+                console.error('Failed to fetch notifications:', err);
+            }
+        }
+
+        function updateNotificationUI(notifications) {
+            const list = document.getElementById('notification-list');
+            const badge = document.getElementById('unread-badge');
+            const unreadCount = notifications.filter(n => n.read_status === 0).length;
+
+            if (unreadCount > 0) {
+                badge.innerText = unreadCount;
+                badge.style.display = 'flex';
+                // Trigger desktop notification if supported and allowed
+                if (Notification.permission === "granted") {
+                    const latest = notifications[0];
+                    if (latest.read_status === 0 && !localStorage.getItem(`notified_${latest.id}`)) {
+                        new Notification(latest.title, { body: latest.message });
+                        localStorage.setItem(`notified_${latest.id}`, 'true');
+                    }
+                }
+            } else {
+                badge.style.display = 'none';
+            }
+
+            if (notifications.length === 0) {
+                list.innerHTML = `<div style="padding: 40px; text-align: center; color: var(--text-secondary);">No notifications yet</div>`;
+                return;
+            }
+
+            list.innerHTML = notifications.map(n => `
+                <div class="notification-item ${n.read_status === 0 ? 'unread' : ''}" onclick="handleNotificationClick(${n.id}, '${n.action_link}')">
+                    <div style="flex: 1;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <span class="priority-badge priority-${n.priority}">${n.priority}</span>
+                            <span style="font-size: 0.7rem; color: var(--text-secondary);">${new Date(n.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <div style="font-weight: 700; font-size: 0.9rem; margin-bottom: 4px;">${n.title}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">${n.message}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleNotifications() {
+            const dropdown = document.getElementById('notification-dropdown');
+            dropdown.classList.toggle('active');
+            if (dropdown.classList.contains('active')) {
+                fetchNotifications();
+                // Request notification permission on first interaction
+                if (Notification.permission === "default") {
+                    Notification.requestPermission();
+                }
+            }
+        }
+
+        async function handleNotificationClick(id, link) {
+            await fetch(`/api/notifications/read/${id}`, { method: 'POST' });
+            if (link) {
+                AppRouter.navigate(link);
+                toggleNotifications();
+            } else {
+                fetchNotifications();
+            }
+        }
+
+        async function forceCheckNotifications() {
+            await fetch('/api/notifications/check', { method: 'POST' });
+            fetchNotifications();
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('notification-dropdown');
+            const bell = e.target.closest('.ph-bell') || e.target.closest('button');
+            if (dropdown && !dropdown.contains(e.target) && !bell) {
+                dropdown.classList.remove('active');
+            }
+        });
+
+        // Global Autocomplete Disabler
+        function disableAutocomplete() {
+            document.querySelectorAll('form').forEach(f => f.setAttribute('autocomplete', 'off'));
+            document.querySelectorAll('input').forEach(i => i.setAttribute('autocomplete', 'off'));
+        }
+
+        // Initialize and re-disable on navigation
+        document.addEventListener('DOMContentLoaded', disableAutocomplete);
+        window.addEventListener('popstate', () => {
+            disableAutocomplete();
+        });
+
+        // Patch AppRouter to handle dynamic content
+        const originalNavigate = AppRouter.navigate;
+        AppRouter.navigate = async function(url, push = true) {
+            await originalNavigate.apply(this, [url, push]);
+            disableAutocomplete();
+        };
+        // --- Spotlight Command Palette Engine ---
+        const SpotlightEngine = {
+            index: null,
+            selectedIndex: -1,
+            isOpen: false,
+            recentSearches: JSON.parse(localStorage.getItem('recent_searches') || '[]'),
+            currentMatches: [],
+
+            async init() {
+                try {
+                    const response = await fetch('/api/search/index');
+                    this.index = await response.json();
+                } catch (err) {
+                    console.error("Failed to load search index", err);
+                }
+                this.setupListeners();
+            },
+
+            setupListeners() {
+                document.addEventListener('keydown', (e) => {
+                    // Shortcut: Right Alt (AltGraph) + Space OR Ctrl+Shift+F
+                    const isRightAlt = e.code === 'AltRight' || e.getModifierState('AltGraph');
+                    if ((isRightAlt && e.code === 'Space') || (e.ctrlKey && e.shiftKey && e.code === 'KeyF')) {
+                        e.preventDefault();
+                        this.toggle();
+                    }
+                    if (e.key === 'Escape' && this.isOpen) {
+                        this.toggle(false);
+                    }
+                    if (this.isOpen) {
+                        this.handleNavigation(e);
+                    }
+                });
+
+                document.getElementById('spotlight-input').addEventListener('input', (e) => {
+                    this.search(e.target.value);
+                });
+            },
+
+            toggle(force) {
+                const modal = document.getElementById('spotlight-modal');
+                this.isOpen = force !== undefined ? force : !this.isOpen;
+                
+                if (this.isOpen) {
+                    modal.classList.add('active');
+                    document.getElementById('spotlight-input').value = '';
+                    document.getElementById('spotlight-input').focus();
+                    this.search('');
+                    if (!this.index) this.init();
+                } else {
+                    modal.classList.remove('active');
+                }
+            },
+
+            search(query) {
+                const resultsContainer = document.getElementById('spotlight-results');
+                if (!query) {
+                    resultsContainer.innerHTML = this.renderEmptyState();
+                    this.currentMatches = [];
+                    return;
+                }
+
+                const q = query.toLowerCase();
+                const matches = [];
+
+                // 1. Quick Actions
+                const actions = [
+                    { title: 'Add Transaction', type: 'Action', icon: 'ph-plus-circle', action: () => openDrawer('add-tx-drawer') },
+                    { title: 'View Reports', type: 'Action', icon: 'ph-chart-line', action: () => AppRouter.navigate('/reports') },
+                    { title: 'Open Settings', type: 'Action', icon: 'ph-gear', action: () => AppRouter.navigate('/settings') }
+                ];
+                matches.push(...actions.filter(a => a.title.toLowerCase().includes(q)));
+
+                // 2. Index Matching
+                if (this.index) {
+                    this.index.people.forEach(p => {
+                        if (p.person_name.toLowerCase().includes(q)) {
+                            matches.push({ title: p.person_name, sub: `Outstanding: ₹${p.balance}`, type: 'Person', icon: 'ph-user' });
+                        }
+                    });
+                    this.index.accounts.forEach(a => {
+                        if (a.name.toLowerCase().includes(q)) {
+                            matches.push({ title: a.name, sub: `${a.type} • Balance: ₹${a.balance}`, type: 'Account', icon: 'ph-bank' });
+                        }
+                    });
+                    this.index.transactions.slice(0, 30).forEach(t => {
+                        if (t.category?.toLowerCase().includes(q) || t.account_name?.toLowerCase().includes(q)) {
+                            matches.push({ title: t.category, sub: `₹${t.amount} on ${t.date} via ${t.account_name}`, type: 'Transaction', icon: 'ph-receipt' });
+                        }
+                    });
+                }
+
+                this.renderResults(matches);
+            },
+
+            renderResults(matches) {
+                const container = document.getElementById('spotlight-results');
+                this.currentMatches = matches;
+                this.selectedIndex = matches.length > 0 ? 0 : -1;
+                
+                if (matches.length === 0) {
+                    container.innerHTML = '<div style="padding: 40px; text-align: center; color: var(--text-secondary);">No matches found</div>';
+                    return;
+                }
+
+                container.innerHTML = matches.map((m, i) => `
+                    <div class="spotlight-item ${i === 0 ? 'selected' : ''}" data-index="${i}" onclick="SpotlightEngine.execute(${i})">
+                        <div class="spotlight-item-icon"><i class="ph ${m.icon}"></i></div>
+                        <div class="spotlight-item-details">
+                            <div class="spotlight-item-title">${m.title}</div>
+                            <div class="spotlight-item-subtitle">${m.sub || ''}</div>
+                        </div>
+                        <div class="spotlight-item-meta">
+                            <span class="priority-badge">${m.type}</span>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            handleNavigation(e) {
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    this.moveSelection(1);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    this.moveSelection(-1);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.execute(this.selectedIndex);
+                }
+            },
+
+            moveSelection(step) {
+                const items = document.querySelectorAll('.spotlight-item');
+                if (items.length === 0) return;
+
+                items[this.selectedIndex]?.classList.remove('selected');
+                this.selectedIndex = (this.selectedIndex + step + items.length) % items.length;
+                items[this.selectedIndex].classList.add('selected');
+                items[this.selectedIndex].scrollIntoView({ block: 'nearest' });
+            },
+
+            execute(index) {
+                const match = this.currentMatches[index];
+                if (!match) return;
+
+                this.toggle(false);
+                if (match.action) {
+                    match.action();
+                } else {
+                    console.log("Spotlight Navigate:", match);
+                }
+                
+                this.recentSearches = [match.title, ...this.recentSearches.filter(s => s !== match.title)].slice(0, 5);
+                localStorage.setItem('recent_searches', JSON.stringify(this.recentSearches));
+            },
+
+            renderEmptyState() {
+                const recent = this.recentSearches.map(s => `<span onclick="setSearch('${s}')">${s}</span>`).join('');
+                return `
+                    <div style="padding: 24px; text-align: center;">
+                        <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 12px;">Recent Searches</p>
+                        <div class="suggestion-chips">
+                            ${recent || '<span>Today</span><span>Food</span><span>SBI</span>'}
+                        </div>
+                    </div>
+                `;
+            }
+        };
+
+        function setSearch(val) {
+            const input = document.getElementById('spotlight-input');
+            if (input) {
+                input.value = val;
+                SpotlightEngine.search(val);
+                input.focus();
+            }
+        }
+
+        function highlightActiveLink() {
+            const path = window.location.pathname;
+            document.querySelectorAll('.nav-link').forEach(link => {
+                const href = link.getAttribute('href');
+                // Exact match for root or other paths
+                const isActive = (href === path) || (href === '/' && path === '') || (path === '/' && href === '/');
+                link.classList.toggle('active', isActive);
+            });
+        }
+
+        // Run on initial load
+        window.addEventListener('DOMContentLoaded', highlightActiveLink);
+        
+        AppRouter.initPageScripts();
+        AppRouter.highlightActiveLink = highlightActiveLink; // Export to Router
+
+        // Initialize Spotlight
+        SpotlightEngine.init();
+
+        // Initialize polling
+        setInterval(fetchNotifications, 60000);
+        fetchNotifications();
+    </script>
+
+    {% block extra_body %}{% endblock %}
+</body>
+</html>

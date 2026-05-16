@@ -1,0 +1,358 @@
+{% extends "base.html" if not partial|default(false) else "blank.html" %}
+
+{% block title %}Loans & EMI{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;">
+        <div>
+            <h1 style="font-family: 'Outfit'; font-size: 2rem;">Loans & Debt</h1>
+            <p class="text-muted">Track principal, interest, and total repayment progress</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <button class="btn-secondary" id="toggle-closed-btn" onclick="toggleClosedItems()" title="Toggle History">
+                <i class="ph ph-eye-slash" id="eye-icon"></i>
+            </button>
+            <button class="btn-primary" onclick="openDrawer('page-drawer')">
+                <i class="ph ph-plus"></i> Add New Loan
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-bottom: 40px;">
+        <div class="card" style="border-left: 4px solid var(--warning-color);">
+            <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 8px;">Total Remaining Debt</div>
+            <div style="font-size: 2rem; font-weight: 800; font-family: 'Outfit'; color: var(--warning-color);">
+                ₹{{ "%.2f"|format(loans|sum(attribute='remaining')) if loans else '0.00' }}
+            </div>
+        </div>
+        <div class="card">
+            <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 8px;">Total Paid Till Date</div>
+            <div style="font-size: 2rem; font-weight: 800; font-family: 'Outfit'; color: var(--success-color);">
+                ₹{{ "%.2f"|format(loans|sum(attribute='paid_amount')) if loans else '0.00' }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Loan List -->
+    <div id="loans-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 24px;">
+        {% for loan in loans %}
+        <div class="card loan-card {{ loan.status }}" style="position: relative; overflow: visible;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+                <div style="display: flex; gap: 16px; align-items: center;">
+                    <div class="icon-box" style="background: rgba(245, 158, 11, 0.1); color: var(--warning-color);">
+                        <i class="ph ph-hand-coins"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight: 700; font-size: 1.25rem;">{{ loan.name }}</div>
+                        <div class="text-muted" style="font-size: 0.85rem;">
+                            Due on {{ loan.due_date }}th of month
+                        </div>
+                    </div>
+                </div>
+                <div class="action-reveal">
+                    <button class="dot-menu" data-id="{{ loan.id }}" onclick="handleContext(this, event)">
+                        <i class="ph ph-dots-three-vertical"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="font-weight: 700; font-size: 0.9rem;">{{ "%.1f"|format(loan.progress) }}% Completed</span>
+                    <span class="text-muted" style="font-size: 0.85rem;">₹{{ "%.2f"|format(loan.paid_amount) }} / ₹{{ "%.2f"|format(loan.total_to_pay) }}</span>
+                </div>
+                <div style="height: 10px; background: var(--bg-main); border-radius: 5px; overflow: hidden;">
+                    <div style="height: 100%; width: var(--progress); --progress: {{ loan.progress|round(1) }}%; background: linear-gradient(90deg, var(--warning-color), var(--success-color)); transition: width 1s ease;"></div>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; padding: 16px; background: rgba(255,255,255,0.02); border-radius: 12px; margin-bottom: 20px;">
+                <div>
+                    <div class="text-muted" style="font-size: 0.75rem; margin-bottom: 4px;">Remaining</div>
+                    <div style="font-weight: 800; font-size: 1.1rem; color: var(--expense-color);">₹{{ "%.2f"|format(loan.remaining) }}</div>
+                </div>
+                <div style="text-align: center; border-left: 1px solid var(--border-color); border-right: 1px solid var(--border-color);">
+                    <div class="text-muted" style="font-size: 0.75rem; margin-bottom: 4px;">Interest (p.a.)</div>
+                    {% set int_rate = ((loan.total_to_pay - loan.principal) / loan.principal * (12 / loan.tenure) * 100) if (loan.principal and loan.principal > 0 and loan.tenure and loan.tenure > 0) else 0 %}
+                    <div style="font-weight: 800; font-size: 1.1rem; color: var(--warning-color);">{{ "%.1f"|format(int_rate) }}%</div>
+                </div>
+                <div style="text-align: right;">
+                    <div class="text-muted" style="font-size: 0.75rem; margin-bottom: 4px;">Last Payment</div>
+                    <div style="font-weight: 600; font-size: 0.9rem;">{{ '₹' ~ "%.0f"|format(loan.last_payment.amount) if loan.last_payment else 'None' }}</div>
+                    <div class="text-muted" style="font-size: 0.65rem;">{{ loan.last_payment.date if loan.last_payment else '' }}</div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 12px;">
+                <button class="btn-primary" style="flex: 1; justify-content: center;" 
+                        data-id="{{ loan.id }}" data-name="{{ loan.name }}" data-emi="{{ loan.monthly_emi|round(2) }}"
+                        onclick="handlePayment(this)">
+                    <i class="ph ph-plus"></i> Record Payment
+                </button>
+                <button class="btn-secondary" 
+                        data-id="{{ loan.id }}" data-name="{{ loan.name }}" data-remaining="{{ loan.remaining|round(2) }}"
+                        onclick="handleForeclose(this)" title="Foreclose Loan">
+                    <i class="ph ph-lock-key"></i>
+                </button>
+                <button class="btn-secondary" data-id="{{ loan.id }}" onclick="handleHistory(this)">
+                    <i class="ph ph-clock-counter-clockwise"></i>
+                </button>
+            </div>
+
+            <!-- Expandable History -->
+            <div id="history-{{ loan.id }}" style="display: none; margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                <h4 style="font-size: 0.85rem; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Payment History</h4>
+                <div style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;">
+                    {% for p in loan.history %}
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: rgba(255,255,255,0.02); border-radius: 8px; font-size: 0.85rem;">
+                        <div>
+                            <div style="font-weight: 600;">₹{{ "%.2f"|format(p.amount) }}</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">{{ p.date }} • {{ p.type }}</div>
+                        </div>
+                        <div class="text-muted" style="font-size: 0.75rem;">{{ p.notes }}</div>
+                    </div>
+                    {% else %}
+                    <div class="text-muted" style="font-size: 0.85rem; text-align: center; padding: 10px;">No payments recorded yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .loan-card.closed { display: none; opacity: 0.6; }
+    .show-closed .loan-card.closed { display: block; }
+</style>
+
+<script>
+    function handleContext(btn, event) {
+        const id = btn.getAttribute('data-id');
+        showContextMenu(event, id, 'loan');
+    }
+
+    function handlePayment(btn) {
+        const id = btn.getAttribute('data-id');
+        const name = btn.getAttribute('data-name');
+        const emi = btn.getAttribute('data-emi');
+        openPaymentDrawer(id, name, emi);
+    }
+
+    function handleForeclose(btn) {
+        const id = btn.getAttribute('data-id');
+        const name = btn.getAttribute('data-name');
+        const remaining = parseFloat(btn.getAttribute('data-remaining'));
+        openForecloseDrawer(id, name, remaining);
+    }
+
+    function handleHistory(btn) {
+        const id = btn.getAttribute('data-id');
+        toggleHistory(id);
+    }
+
+    function toggleHistory(id) {
+        const el = document.getElementById(`history-${id}`);
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function toggleClosedItems() {
+        const container = document.getElementById('loans-container');
+        const icon = document.getElementById('eye-icon');
+        container.classList.toggle('show-closed');
+        if (container.classList.contains('show-closed')) {
+            icon.classList.replace('ph-eye-slash', 'ph-eye');
+        } else {
+            icon.classList.replace('ph-eye', 'ph-eye-slash');
+        }
+    }
+
+    function openForecloseDrawer(id, name, remaining) {
+        const drawer = document.getElementById('payment-drawer');
+        const content = document.getElementById('payment-drawer-content');
+        
+        content.innerHTML = `
+            <form action="/loans/foreclose/${id}" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 20px;">
+                <h2 style="font-family: 'Outfit'; margin-bottom: 8px;">Foreclose Loan</h2>
+                <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 12px;">This will settle the remaining <strong>₹${remaining.toFixed(2)}</strong> and close the loan.</p>
+                
+                <div>
+                    <label class="text-muted" style="display: block; margin-bottom: 8px;">Pay From Account</label>
+                    <select name="account_id" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                        <option value="">None / External</option>
+                        <optgroup label="Bank Accounts">
+                            {% for acc in accounts %}
+                            <option value="{{ acc.id }}">{{ acc.name }} (₹{{ "%.2f"|format(acc.balance) }})</option>
+                            {% endfor %}
+                        </optgroup>
+                        <optgroup label="Credit Cards">
+                            {% for card in cards %}
+                            <option value="card_{{ card.id }}">{{ card.name }} (Outstanding: ₹{{ "%.2f"|format(card.outstanding) }})</option>
+                            {% endfor %}
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div style="background: rgba(239, 68, 68, 0.05); padding: 16px; border-radius: 12px; border: 1px solid var(--expense-color);">
+                    <p style="color: var(--expense-color); font-size: 0.85rem; font-weight: 600;">Warning: This action cannot be undone. The loan will be moved to history.</p>
+                </div>
+
+                <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; background: var(--expense-color); box-shadow: none;">
+                    Settle & Foreclose
+                </button>
+            </form>
+        `;
+        openDrawer('payment-drawer');
+    }
+
+    function openPaymentDrawer(id, name, defaultAmount) {
+        const drawer = document.getElementById('payment-drawer');
+        const content = document.getElementById('payment-drawer-content');
+        
+        content.innerHTML = `
+            <form action="/loans/payment" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 20px;">
+                <h2 style="font-family: 'Outfit'; margin-bottom: 8px;">Record Payment</h2>
+                <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 12px;">Payment for <strong>${name}</strong></p>
+                
+                <input type="hidden" name="loan_id" value="${id}">
+                
+                <div>
+                    <label class="text-muted" style="display: block; margin-bottom: 8px;">Payment Amount</label>
+                    <input type="number" step="0.01" name="amount" value="${defaultAmount || ''}" required style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 1.5rem; font-weight: 700;">
+                </div>
+
+                <div>
+                    <label class="text-muted" style="display: block; margin-bottom: 8px;">Payment Type</label>
+                    <select name="type" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                        <option value="Regular EMI">Regular EMI</option>
+                        <option value="Extra Payment">Extra Payment</option>
+                        <option value="Penalty">Penalty</option>
+                        <option value="Processing Fee">Processing Fee</option>
+                        <option value="Manual Adjustment">Manual Adjustment</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="text-muted" style="display: block; margin-bottom: 8px;">Pay From Account</label>
+                    <select name="account_id" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                        <option value="">None / External</option>
+                        <optgroup label="Bank Accounts">
+                            {% for acc in accounts %}
+                            <option value="{{ acc.id }}">{{ acc.name }} (₹{{ "%.2f"|format(acc.balance) }})</option>
+                            {% endfor %}
+                        </optgroup>
+                        <optgroup label="Credit Cards">
+                            {% for card in cards %}
+                            <option value="card_{{ card.id }}">{{ card.name }} (Outstanding: ₹{{ "%.2f"|format(card.outstanding) }})</option>
+                            {% endfor %}
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="text-muted" style="display: block; margin-bottom: 8px;">Date</label>
+                    <input type="date" name="date" required value="${new Date().toISOString().split('T')[0]}" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                </div>
+
+                <div>
+                    <label class="text-muted" style="display: block; margin-bottom: 8px;">Notes</label>
+                    <textarea name="notes" placeholder="Optional notes..." style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);"></textarea>
+                </div>
+
+                <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; margin-top: 10px;">
+                    Confirm Payment
+                </button>
+            </form>
+        `;
+        openDrawer('payment-drawer');
+    }
+</script>
+{% endblock %}
+
+{% block drawer_content %}
+    <div id="add-loan-drawer">
+        <h2 style="font-family: 'Outfit'; margin-bottom: 8px;">Add New Loan</h2>
+        <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 24px;">Flexible debt tracking without fixed formulas.</p>
+        
+        <form action="{{ url_for('loan.add_loan') }}" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 20px;">
+            <div>
+                <label class="text-muted" style="display: block; margin-bottom: 8px;">Loan Name</label>
+                <input type="text" name="name" required placeholder="e.g. Home Loan, Bike EMI" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div>
+                    <label class="text-muted" style="display: block; margin-bottom: 8px;">Principal Received</label>
+                    <input type="number" step="0.01" name="principal" required placeholder="₹100,000" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                </div>
+                <div>
+                    <label class="text-muted" style="display: block; margin-bottom: 8px;">Total to Pay</label>
+                    <input type="number" step="0.01" name="total_to_pay" required placeholder="₹118,000" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                </div>
+            </div>
+
+            <div>
+                <label class="text-muted" style="display: block; margin-bottom: 8px;">Receive In Account</label>
+                <select name="account_id" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                    <option value="">None / Already Started</option>
+                    <optgroup label="Bank Accounts">
+                        {% for acc in accounts %}
+                        <option value="{{ acc.id }}">{{ acc.name }} (₹{{ "%.2f"|format(acc.balance) }})</option>
+                        {% endfor %}
+                    </optgroup>
+                    <optgroup label="Credit Cards">
+                        {% for card in cards %}
+                        <option value="card_{{ card.id }}">{{ card.name }} (Outstanding: ₹{{ "%.2f"|format(card.outstanding) }})</option>
+                        {% endfor %}
+                    </optgroup>
+                </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div>
+                    <label class="text-muted" style="display: block; margin-bottom: 8px;">Tenure (Months)</label>
+                    <input type="number" name="tenure" required placeholder="24" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                </div>
+                <div>
+                    <label class="text-muted" style="display: block; margin-bottom: 8px;">Due Date (Day)</label>
+                    <input type="number" name="due_date" min="1" max="31" required placeholder="5" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                </div>
+            </div>
+
+            <div>
+                <label class="text-muted" style="display: block; margin-bottom: 8px;">Start Date</label>
+                <input type="date" name="start_date" required value="{{ now.strftime('%Y-%m-%d') if now else '' }}" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+            </div>
+
+            <div style="padding: 16px; background: rgba(79, 140, 255, 0.05); border: 1px dashed var(--primary-accent); border-radius: 12px;">
+                <label class="text-muted" style="display: block; margin-bottom: 8px; font-weight: 600;">Already Started Loan?</label>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-size: 0.8rem;" class="text-muted">Already Paid Amount (Optional)</label>
+                    <input type="number" step="0.01" name="initial_paid" placeholder="0.00" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                </div>
+            </div>
+
+            <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; margin-top: 10px;">
+                Create Loan Entry
+            </button>
+        </form>
+    </div>
+{% endblock %}
+
+{% block extra_body %}
+    <!-- Dedicated Drawer for Payments/Foreclosures to avoid overwriting the static New Loan form -->
+    <div id="payment-drawer" class="drawer-overlay">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+            <h2 style="font-family: 'Outfit';">Loan Action</h2>
+            <button onclick="closeDrawer()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;">
+                <i class="ph ph-x"></i>
+            </button>
+        </div>
+        <div id="payment-drawer-content">
+            <!-- Dynamic content injected here -->
+        </div>
+    </div>
+{% endblock %}

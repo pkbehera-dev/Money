@@ -1,0 +1,182 @@
+{% extends "base.html" if not partial|default(false) else "blank.html" %}
+
+{% block title %}Lent / Borrow{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;">
+        <div>
+            <h1 style="font-family: 'Outfit'; font-size: 2rem;">Lent / Borrow</h1>
+            <p class="text-muted">Track interpersonal debts and settlements</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <button class="btn-secondary" id="toggle-closed-btn" onclick="toggleClosedItems()" title="Toggle History">
+                <i class="ph ph-eye-slash" id="eye-icon"></i>
+            </button>
+            <button class="btn-primary" onclick="openDrawer('page-drawer')">
+                <i class="ph ph-plus"></i> New Entry
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 40px;">
+        <div class="card" style="border-left: 4px solid var(--success-color);">
+            <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 8px;">You are owed (Lent)</div>
+            <div style="font-size: 2.25rem; font-weight: 800; color: var(--success-color); font-family: 'Outfit';">
+                ₹{{ "%.2f"|format(people|selectattr('type', 'equalto', 'lent')|sum(attribute='total_amount') - people|selectattr('type', 'equalto', 'lent')|sum(attribute='paid_amount')) if people else '0.00' }}
+            </div>
+        </div>
+        <div class="card" style="border-left: 4px solid var(--expense-color);">
+            <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 8px;">You owe (Borrowed)</div>
+            <div style="font-size: 2.25rem; font-weight: 800; color: var(--expense-color); font-family: 'Outfit';">
+                ₹{{ "%.2f"|format(people|selectattr('type', 'equalto', 'borrowed')|sum(attribute='total_amount') - people|selectattr('type', 'equalto', 'borrowed')|sum(attribute='paid_amount')) if people else '0.00' }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Ledger List -->
+    <div id="ledger-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 24px;">
+        {% for person in people %}
+        <div class="card ledger-card {{ person.status }} {% if person.type == 'lent' %}border-success{% else %}border-danger{% endif %}" style="position: relative; padding-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--bg-main); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--primary-accent); border: 1px solid var(--border-color);">
+                        {{ person.person_name[0]|upper }}
+                    </div>
+                    <div>
+                        <div style="font-weight: 700; font-size: 1.1rem;">{{ person.person_name }}</div>
+                        <div class="text-muted" style="font-size: 0.8rem;">
+                            {% if person.type == 'lent' %}I gave money{% else %}I took money{% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div style="text-align: right; display: flex; align-items: flex-start; gap: 8px;">
+                    <div>
+                        <div class="text-muted" style="font-size: 0.75rem;">Total</div>
+                        <div style="font-weight: 700;">₹{{ "%.2f"|format(person.total_amount) }}</div>
+                    </div>
+                    <div class="action-reveal">
+                        <button class="dot-menu" onclick="showContextMenu(event, '{{ person.id }}', 'ledger')">
+                            <i class="ph-bold ph-dots-three-vertical"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: var(--bg-main); padding: 16px; border-radius: var(--radius-md); margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.85rem;">
+                    <span class="text-muted">Settled</span>
+                    <span class="text-success" style="font-weight: 600;">₹{{ "%.2f"|format(person.paid_amount) }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 1.1rem; font-weight: 800;">
+                    <span>Balance</span>
+                    <span class="{% if person.type == 'lent' %}text-success{% else %}text-danger{% endif %}">₹{{ "%.2f"|format(person.total_amount - person.paid_amount) }}</span>
+                </div>
+            </div>
+
+            <div class="action-reveal" style="margin-top: 10px; display: flex; flex-direction: column; gap: 10px;">
+                <form action="{{ url_for('person.pay_person', person_id=person.id) }}" method="POST" style="display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; gap: 8px;">
+                        <input type="number" step="0.01" name="amount" required placeholder="Settle amount..." style="flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 0.9rem;">
+                        <button type="submit" class="btn-primary" style="padding: 10px 16px;">
+                            <i class="ph ph-check"></i>
+                        </button>
+                    </div>
+                    <select name="account_id" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 0.8rem;">
+                        <option value="">None / External</option>
+                        {% for acc in accounts %}
+                        <option value="{{ acc.id }}">{{ acc.name }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+                
+                {% set balance = person.total_amount - person.paid_amount %}
+                <button class="btn-secondary" style="width: 100%; justify-content: center; font-size: 0.8rem; padding: 8px;" 
+                        data-id="{{ person.id }}"
+                        data-name="{{ person.person_name }}"
+                        data-balance="{{ balance|round(2) }}"
+                        onclick="settleAndClose(this)">
+                    <i class="ph ph-archive"></i> Mark as Fully Settled
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .ledger-card.closed { display: none; opacity: 0.6; }
+    .show-closed .ledger-card.closed { display: block; }
+</style>
+
+<script>
+    function toggleClosedItems() {
+        const container = document.getElementById('ledger-container');
+        const icon = document.getElementById('eye-icon');
+        container.classList.toggle('show-closed');
+        if (container.classList.contains('show-closed')) {
+            icon.classList.replace('ph-eye-slash', 'ph-eye');
+        } else {
+            icon.classList.replace('ph-eye', 'ph-eye-slash');
+        }
+    }
+
+    function settleAndClose(btn) {
+        const id = btn.getAttribute('data-id');
+        const name = btn.getAttribute('data-name');
+        const balance = parseFloat(btn.getAttribute('data-balance'));
+
+        if (!confirm(`Are you sure you want to settle all remaining ₹${balance.toFixed(2)} and close the entry for ${name}?`)) return;
+        
+        const formData = new FormData();
+        formData.append('account_id', ''); // Default to None for one-click settle
+        
+        fetch(`/ledger/settle/${id}`, {
+            method: 'POST',
+            body: formData,
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        }).then(() => window.location.reload());
+    }
+</script>
+{% endblock %}
+
+{% block drawer_content %}
+    <h2 style="font-family: 'Outfit'; margin-bottom: 24px;">New Person Entry</h2>
+    <form action="{{ url_for('person.add_person') }}" method="POST" style="display: flex; flex-direction: column; gap: 20px;">
+        <div>
+            <label class="text-muted">Person Name</label>
+            <input type="text" name="name" required placeholder="e.g. Bapun, Mom, Alex" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+        </div>
+        <div>
+            <label class="text-muted">Type</label>
+            <select name="type" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                <option value="lent">Lent (I gave money)</option>
+                <option value="borrowed">Borrowed (I took money)</option>
+            </select>
+        </div>
+        <div>
+            <label class="text-muted">Total Amount</label>
+            <input type="number" step="0.01" name="amount" required style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 1.5rem; font-weight: 700;">
+        </div>
+        <div>
+            <label class="text-muted">Affect Account</label>
+            <select name="account_id" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                <option value="">None / Already Started</option>
+                {% for acc in accounts %}
+                <option value="{{ acc.id }}">{{ acc.name }} (₹{{ "%.2f"|format(acc.balance) }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="text-muted">Notes</label>
+            <input type="text" name="notes" placeholder="Reason..." style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+        </div>
+        <div>
+            <label class="text-muted">Date</label>
+            <input type="date" name="date" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+        </div>
+        <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center;">Add to Ledger</button>
+    </form>
+{% endblock %}

@@ -1,0 +1,99 @@
+{% extends "base.html" if not partial|default(false) else "blank.html" %}
+
+{% block title %}Accounts{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;">
+        <div>
+            <h1 style="font-family: 'Outfit'; font-size: 2rem;">My Accounts</h1>
+            <p class="text-muted">Manage your liquid assets and bank accounts</p>
+        </div>
+        <button class="btn-primary" onclick="openDrawer('page-drawer')">
+            <i class="ph ph-plus"></i> New Account
+        </button>
+    </div>
+
+    <!-- Stats Row -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-bottom: 40px;">
+        <div class="card" style="background: linear-gradient(135deg, rgba(79, 140, 255, 0.05), transparent);">
+            <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 8px;">Liquid Net Worth</div>
+            <div style="font-size: 2rem; font-weight: 800; font-family: 'Outfit'; color: var(--primary-accent);">
+                ₹{{ "%.2f"|format(accounts|sum(attribute='balance')) if accounts else '0.00' }}
+            </div>
+        </div>
+        <div class="card">
+            <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 8px;">Total Accounts</div>
+            <div style="font-size: 2rem; font-weight: 800; font-family: 'Outfit';">{{ accounts|length }}</div>
+        </div>
+        <div class="card">
+            <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 8px;">Primary Source</div>
+            <div style="font-size: 1.5rem; font-weight: 700; font-family: 'Outfit';">Bank Account</div>
+        </div>
+    </div>
+
+    <!-- Account Cards Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px;">
+        {% for acc in accounts %}
+        <div class="card" style="position: relative; overflow: hidden;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+                <div class="icon-box" style="background: var(--bg-main); color: var(--primary-accent); border: 1px solid var(--border-color);">
+                    <i class="ph-fill ph-{% if acc.type == 'Bank account' %}bank{% elif acc.type == 'Cash' %}money{% else %}wallet{% endif %}"></i>
+                </div>
+                <div class="text-muted" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">{{ acc.type }}</div>
+                <div class="action-reveal">
+                    <button class="dot-menu" onclick="showContextMenu(event, '{{ acc.id }}', 'account')">
+                        <i class="ph-bold ph-dots-three-vertical"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <div style="font-size: 1.25rem; font-weight: 700; margin-bottom: 4px;">{{ acc.name }}</div>
+                <div class="text-muted" style="font-size: 0.85rem;">{{ acc.notes or 'No description' }}</div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid var(--border-color); padding-top: 20px;">
+                <div>
+                    <div class="text-muted" style="font-size: 0.75rem; margin-bottom: 4px;">Current Balance</div>
+                    <div style="font-size: 1.5rem; font-weight: 800; color: var(--primary-accent); font-family: 'Outfit';">₹{{ "%.2f"|format(acc.balance) }}</div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block drawer_content %}
+    <form action="{{ url_for('account.add_account') }}" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 20px;">
+        <h2 style="font-family: 'Outfit'; margin-bottom: 8px;">New Account</h2>
+        <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 12px;">Create a new liquid or bank asset.</p>
+        
+        <div>
+            <label class="text-muted" style="display: block; margin-bottom: 8px;">Account Name</label>
+            <input type="text" name="name" required placeholder="e.g. Savings, HDFC, Cash" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+        </div>
+        <div>
+            <label class="text-muted" style="display: block; margin-bottom: 8px;">Account Type</label>
+            <select name="type" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                <option value="Cash">Cash</option>
+                <option value="Bank account">Bank account</option>
+                <option value="Wallet">Wallet</option>
+                <option value="UPI">UPI</option>
+            </select>
+        </div>
+        <div>
+            <label class="text-muted" style="display: block; margin-bottom: 8px;">Opening Balance</label>
+            <input type="number" step="0.01" name="balance" value="0.00" style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 1.5rem; font-weight: 700;">
+        </div>
+        <div>
+            <label class="text-muted" style="display: block; margin-bottom: 8px;">As of Date</label>
+            <input type="date" name="created_at" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+        </div>
+        <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; margin-top: 12px;">
+            Create Account
+        </button>
+    </form>
+{% endblock %}

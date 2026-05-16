@@ -1,0 +1,252 @@
+{% extends "base.html" if not partial|default(false) else "blank.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <!-- Header Section -->
+    <div style="margin-bottom: 40px; display: flex; justify-content: space-between; align-items: flex-end;">
+        <div>
+            <h1 style="font-family: 'Outfit'; font-size: 2.5rem; margin-bottom: 8px;">Welcome back, Bapun!</h1>
+            <p class="text-muted">Your financial overview for <span style="color: var(--text-primary); font-weight: 600;">{{ now.strftime('%B %Y') if now else 'This Month' }}</span></p>
+        </div>
+        <div style="text-align: right;">
+            <div class="text-muted" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px;">Last Sync</div>
+            <div style="font-weight: 600;">Just now</div>
+        </div>
+    </div>
+
+    <!-- Summary KPI Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; margin-bottom: 40px;">
+        <!-- Total Balance -->
+        <div class="card" style="border-left: 4px solid var(--primary-accent);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div class="text-muted" style="font-size: 0.9rem;">Total Balance</div>
+                <i class="ph ph-wallet-bold text-primary" style="font-size: 1.5rem;"></i>
+            </div>
+            <div style="font-size: 1.75rem; font-weight: 800; font-family: 'Outfit';">₹{{ "%.2f"|format(metrics.total_balance) }}</div>
+            <div class="text-success" style="font-size: 0.8rem; margin-top: 8px; display: flex; align-items: center; gap: 4px;">
+                <i class="ph ph-shield-check"></i> Live Balance
+            </div>
+        </div>
+
+        <!-- Monthly Income -->
+        <div class="card" style="border-left: 4px solid var(--success-color);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div class="text-muted" style="font-size: 0.9rem;">Monthly Income</div>
+                <i class="ph ph-trend-up text-success" style="font-size: 1.5rem;"></i>
+            </div>
+            <div class="text-success" style="font-size: 1.75rem; font-weight: 800; font-family: 'Outfit';">₹{{ "%.2f"|format(metrics.monthly_income) }}</div>
+            <div class="{{ 'text-success' if metrics.income_pct >= 0 else 'text-danger' }}" style="font-size: 0.8rem; margin-top: 8px; display: flex; align-items: center; gap: 4px;">
+                <i class="ph ph-trend-{{ 'up' if metrics.income_pct >= 0 else 'down' }}"></i> 
+                {{ "+" if metrics.income_pct >= 0 }}{{ "%.1f"|format(metrics.income_pct) }}% vs last month
+            </div>
+        </div>
+
+        <!-- Monthly Expenses -->
+        <div class="card" style="border-left: 4px solid var(--expense-color);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div class="text-muted" style="font-size: 0.9rem;">Monthly Expenses</div>
+                <i class="ph ph-trend-down text-danger" style="font-size: 1.5rem;"></i>
+            </div>
+            <div class="text-danger" style="font-size: 1.75rem; font-weight: 800; font-family: 'Outfit';">₹{{ "%.2f"|format(metrics.monthly_expense) }}</div>
+            <div class="{{ 'text-danger' if metrics.expense_pct >= 0 else 'text-success' }}" style="font-size: 0.8rem; margin-top: 8px; display: flex; align-items: center; gap: 4px;">
+                <i class="ph ph-trend-{{ 'up' if metrics.expense_pct >= 0 else 'down' }}"></i> 
+                {{ "+" if metrics.expense_pct >= 0 }}{{ "%.1f"|format(metrics.expense_pct) }}% vs last month
+            </div>
+        </div>
+
+        <!-- Net Savings -->
+        <div class="card" style="border-left: 4px solid var(--warning-color);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div class="text-muted" style="font-size: 0.9rem;">Net Savings</div>
+                <i class="ph ph-piggy-bank text-warning" style="font-size: 1.5rem;"></i>
+            </div>
+            <div class="text-primary" style="font-size: 1.75rem; font-weight: 800; font-family: 'Outfit';">₹{{ "%.2f"|format(metrics.net_savings) }}</div>
+            <div class="text-muted" style="font-size: 0.8rem; margin-top: 8px;">Saving rate: {{ ((metrics.net_savings / metrics.monthly_income * 100)|round|int) if metrics.monthly_income > 0 else 0 }}%</div>
+        </div>
+    </div>
+
+    <!-- Analytics Section -->
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 32px; margin-bottom: 40px;">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h3 style="font-family: 'Outfit';">Spending Trends</h3>
+                <select style="background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-primary); padding: 4px 12px; border-radius: 8px; font-size: 0.8rem;">
+                    <option>Last 30 Days</option>
+                    <option>Last 6 Months</option>
+                </select>
+            </div>
+            <div style="height: 350px;">
+                <canvas id="trendsChart" 
+                        data-labels='{{ metrics.chart_trends.labels | tojson }}'
+                        data-income='{{ metrics.chart_trends.income | tojson }}'
+                        data-expense='{{ metrics.chart_trends.expense | tojson }}'></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="font-family: 'Outfit'; margin-bottom: 24px;">Category Breakdown</h3>
+            <div style="height: 350px;">
+                <canvas id="categoryChart"
+                        data-labels='{{ metrics.chart_category.labels | tojson }}'
+                        data-data='{{ metrics.chart_category.data | tojson }}'></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity & Reminders -->
+    <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 32px;">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h3 style="font-family: 'Outfit';">Recent Activity</h3>
+                <a href="{{ url_for('transaction.transactions_page') }}" style="color: var(--primary-accent); font-size: 0.9rem; text-decoration: none; font-weight: 600;">View All Transactions</a>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                {% for tx in metrics.recent_transactions %}
+                <div class="transaction-row">
+                    <div class="icon-box {{ 'status-income' if tx.type == 'income' else 'status-expense' }}">
+                        <i class="ph-fill ph-{{ 'trend-up' if tx.type == 'income' else 'trend-down' }}"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight: 600;">{{ tx.category or 'Uncategorized' }}</div>
+                        <div class="text-muted" style="font-size: 0.8rem;">{{ tx.date }}</div>
+                    </div>
+                    <div class="text-muted" style="font-size: 0.9rem;">{{ tx.account_name or 'Cash' }}</div>
+                    <div style="font-weight: 700; font-size: 1.1rem; text-align: right;" class="{% if tx.type == 'income' %}text-success{% else %}text-danger{% endif %}">
+                        {% if tx.type == 'income' %}+{% else %}-{% endif %}₹{{ "%.2f"|format(tx.amount) }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 32px;">
+            <!-- Upcoming EMI -->
+            <div class="card" style="background: var(--bg-main);">
+                <h3 style="font-family: 'Outfit'; margin-bottom: 20px;">Dues This Week</h3>
+                <div style="display: flex; flex-direction: column; gap: 16px;">
+                    {% for card in metrics.card_reminders %}
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <div class="icon-box" style="background: rgba(139, 92, 246, 0.1); color: var(--special-color);">
+                            <i class="ph-fill ph-credit-card"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; font-size: 0.9rem;">{{ card.name }}</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">Due on {{ card.due_date }}th</div>
+                        </div>
+                        <div class="text-danger" style="font-weight: 700;">₹{{ "%.2f"|format(card.outstanding) }}</div>
+                    </div>
+                    {% endfor %}
+                    
+                    {% for loan in metrics.loan_reminders %}
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <div class="icon-box" style="background: rgba(245, 158, 11, 0.1); color: var(--warning-color);">
+                            <i class="ph-fill ph-hand-coins"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; font-size: 0.9rem;">{{ loan.name }} EMI</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">Due on {{ loan.due_date }}th</div>
+                        </div>
+                        <div class="text-danger" style="font-weight: 700;">₹{{ "%.2f"|format(loan.total_to_pay - loan.paid_amount) }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Automated AI Insights -->
+            <div class="card" style="background: var(--bg-card); border: 1px solid var(--border-color);">
+                <h3 style="font-family: 'Outfit'; margin-bottom: 20px;">AI Insights</h3>
+                <div style="display: flex; flex-direction: column; gap: 16px;">
+                    {% for insight in insights %}
+                    <div style="display: flex; align-items: flex-start; gap: 12px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.02);">
+                        <div class="icon-box" style="width: 32px; height: 32px; font-size: 0.9rem; background: rgba(79, 140, 255, 0.1); color: var(--primary-accent);">
+                            <i class="ph {{ insight.icon }}"></i>
+                        </div>
+                        <div style="font-size: 0.85rem; line-height: 1.4; color: var(--text-primary);">
+                            {{ insight.text }}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-muted" style="text-align: center; padding: 20px; font-size: 0.85rem;">
+                        No urgent insights today. You're doing great!
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+    // Chart initialization logic wrapped for SPA re-runs
+    function initDashboardCharts() {
+        // Chart.js Theme Config
+        Chart.defaults.color = '#CBD5E1';
+        Chart.defaults.font.family = "'Inter', sans-serif";
+
+        const trendsEl = document.getElementById('trendsChart');
+        if (trendsEl && trendsEl.dataset.labels) {
+            new Chart(trendsEl.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: JSON.parse(trendsEl.dataset.labels),
+                    datasets: [{
+                        label: 'Expenses',
+                        data: JSON.parse(trendsEl.dataset.expense),
+                        borderColor: '#EF4444',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        backgroundColor: 'rgba(239, 68, 68, 0.05)'
+                    }, {
+                        label: 'Income',
+                        data: JSON.parse(trendsEl.dataset.income),
+                        borderColor: '#22C55E',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        backgroundColor: 'rgba(34, 197, 94, 0.05)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, border: { display: false } },
+                        x: { grid: { display: false }, border: { display: false } }
+                    }
+                }
+            });
+        }
+
+        const categoryEl = document.getElementById('categoryChart');
+        if (categoryEl && categoryEl.dataset.labels) {
+            new Chart(categoryEl.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: JSON.parse(categoryEl.dataset.labels),
+                    datasets: [{
+                        data: JSON.parse(categoryEl.dataset.data),
+                        backgroundColor: ['#4F8CFF', '#8B5CF6', '#F59E0B', '#EF4444', '#10B981', '#3B82F6'],
+                        borderWidth: 0,
+                        hoverOffset: 20
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%',
+                    plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } } }
+                }
+            });
+        }
+    }
+
+    // Run on initial load and setup for SPA
+    initDashboardCharts();
+    });
+</script>
+{% endblock %}

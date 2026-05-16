@@ -1,0 +1,28 @@
+:root {
+  /* Default: Dark Theme based on user request */
+  --bg-color: #0F1117;
+  --sidebar-bg: #171923;
+  --card-bg: #1E2230;
+  --border-color: #2A3142;
+  --primary-accent: #4F8CFF;
+  --success-color: #22C55E;
+  --expense-color: #EF4444;
+  --warning-color: #F59E0B;
+  --special-color: #8B5CF6; /* Credit Card / Loans */
+  --text-primary: #FFFFFF;
+  --text-secondary: #A1A1AA;
+}
+
+[data-theme="light"] {
+  --bg-color: #F5F7FB;
+  --sidebar-bg: #FFFFFF;
+  --card-bg: #FFFFFF;
+  --border-color: #E4E7EC;
+  --primary-accent: #2563EB;
+  --success-color: #16A34A;
+  --expense-color: #DC2626;
+  --warning-color: #D97706;
+  --special-color: #7C3AED;
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+}
