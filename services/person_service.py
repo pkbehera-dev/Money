@@ -6,15 +6,24 @@ class PersonService:
     def get_all_people(filters: dict = None):
         conn = get_db_connection()
         query = "SELECT * FROM people_ledger WHERE 1=1"
-        people = [dict(r) for r in conn.execute(query).fetchall()]
+        params = []
+        
+        if filters:
+            if filters.get('type'):
+                query += " AND type = ?"
+                params.append(filters['type'])
+            if filters.get('status'):
+                query += " AND status = ?"
+                params.append(filters['status'])
+            else:
+                # Default to active if no status filter specified? 
+                # User might want to see both, but usually active is priority.
+                # Let's keep it flexible based on active_filters.
+                pass
+
+        people = [dict(r) for r in conn.execute(query, params).fetchall()]
         
         for person in people:
-            # DYNAMIC CALCULATION: Sum all repayment transactions
-            # Type 'income' means they paid me back (for Lent) or I received money (for Borrow)
-            # Actually, let's keep it simple: any transaction linked to person_id is a movement.
-            # Initial amount is recorded as the 'base' in the people_ledger for simplicity,
-            # but repayments must be in the transactions table.
-            
             repayments = conn.execute("SELECT SUM(amount) FROM transactions WHERE person_id = ?", (person['id'],)).fetchone()[0] or 0
             person['paid_amount'] = repayments
             person['remaining'] = person['total_amount'] - repayments
@@ -87,6 +96,36 @@ class PersonService:
             PersonService.record_payment(person_id, remaining, account_id)
             
         conn.execute("UPDATE people_ledger SET status = \"closed\" WHERE id = ?", (person_id,))
+        conn.commit()
+        conn.close()
+
+    @staticmethod
+    def increase_debt(person_id: int, amount: float, account_id: int, date: str = None):
+        from services.transaction_service import TransactionService
+        conn = get_db_connection()
+        person = dict(conn.execute("SELECT * FROM people_ledger WHERE id = ?", (person_id,)).fetchone())
+        
+        # 1. Update the total amount in ledger
+        conn.execute("UPDATE people_ledger SET total_amount = total_amount + ? WHERE id = ?", (amount, person_id))
+        conn.commit()
+        conn.close() # Close BEFORE calling another service that opens its own connection
+        
+        # 2. Record the transaction
+        tx_type = 'expense' if person['type'] == 'lent' else 'income'
+        TransactionService.add_transaction(
+            type=tx_type,
+            amount=amount,
+            category='Interpersonal Debt',
+            date=date or datetime.now().strftime('%Y-%m-%d'),
+            account_id=account_id,
+            notes=f"Additional {person['type']} to/from {person['person_name']}"
+        )
+
+    @staticmethod
+    def delete_person(person_id: int):
+        conn = get_db_connection()
+        conn.execute("DELETE FROM transactions WHERE person_id = ?", (person_id,))
+        conn.execute("DELETE FROM people_ledger WHERE id = ?", (person_id,))
         conn.commit()
         conn.close()
 

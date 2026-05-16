@@ -49,23 +49,30 @@ class LoanService:
         conn.close() 
 
         # 2. Record principal receipt if account selected (SILENT)
-        if account_id and account_id != "" and principal > 0:
+        if account_id and str(account_id).strip() != "" and principal > 0:
             act_id = None
             c_id = None
-            if str(account_id).startswith('card_'):
-                c_id = int(str(account_id).replace('card_', ''))
+            raw_id = str(account_id).strip()
+            
+            if raw_id.startswith('card_'):
+                c_id = int(raw_id.replace('card_', ''))
             else:
-                act_id = int(account_id)
-                
-            TransactionService.add_transaction(
-                type='income',
-                amount=principal,
-                category='Loan Principal Migration', # ALWAYS SILENT
-                date=datetime.datetime.now().strftime('%Y-%m-%d'),
-                account_id=act_id,
-                card_id=c_id,
-                notes=f"Principal received for {name}"
-            )
+                try:
+                    act_id = int(raw_id)
+                except ValueError:
+                    act_id = None
+
+            if act_id or c_id:
+                TransactionService.add_transaction(
+                    type='income',
+                    amount=principal,
+                    category='Loan Principal Migration',
+                    date=datetime.datetime.now().strftime('%Y-%m-%d'),
+                    account_id=act_id,
+                    card_id=c_id,
+                    notes=f"Principal received for {name}",
+                    tags="Silent"
+                )
 
         # 3. Create initial payment record if there's an existing balance
         if initial_paid > 0:

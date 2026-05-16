@@ -39,7 +39,7 @@
     <!-- Loan List -->
     <div id="loans-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 24px;">
         {% for loan in loans %}
-        <div class="card loan-card {{ loan.status }}" style="position: relative; overflow: visible;">
+        <div class="card loan-card {{ loan.status }}" data-id="{{ loan.id }}" data-type="loan" style="position: relative; overflow: visible;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
                 <div style="display: flex; gap: 16px; align-items: center;">
                     <div class="icon-box" style="background: rgba(245, 158, 11, 0.1); color: var(--warning-color);">
@@ -53,7 +53,7 @@
                     </div>
                 </div>
                 <div class="action-reveal">
-                    <button class="dot-menu" data-id="{{ loan.id }}" onclick="handleContext(this, event)">
+                    <button class="dot-menu" onclick="showContextMenu(event, '{{ loan.id }}', 'loan')">
                         <i class="ph ph-dots-three-vertical"></i>
                     </button>
                 </div>

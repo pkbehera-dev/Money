@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     notes TEXT,
     tags TEXT,
     recurring_id INTEGER,
+    deleted_at DATETIME,
     FOREIGN KEY(account_id) REFERENCES accounts(id),
     FOREIGN KEY(to_account_id) REFERENCES accounts(id)
 );
@@ -35,6 +36,7 @@ CREATE TABLE IF NOT EXISTS recurring_transactions (
     next_due_date TEXT NOT NULL,
     last_generated_date TEXT,
     is_paused INTEGER DEFAULT 0,
+    deleted_at DATETIME,
     FOREIGN KEY(account_id) REFERENCES accounts(id),
     FOREIGN KEY(to_account_id) REFERENCES accounts(id)
 );
@@ -57,7 +59,8 @@ CREATE TABLE IF NOT EXISTS loans (
     tenure INTEGER NOT NULL, -- in months
     due_date INTEGER, -- day of month
     status TEXT DEFAULT 'active', -- active, closed
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    deleted_at DATETIME
 );
 
 CREATE TABLE IF NOT EXISTS loan_payments (
@@ -76,7 +79,8 @@ CREATE TABLE IF NOT EXISTS people_ledger (
     type TEXT NOT NULL, -- lent, borrowed
     total_amount REAL NOT NULL,
     paid_amount REAL DEFAULT 0.0,
-    notes TEXT
+    notes TEXT,
+    deleted_at DATETIME
 );
 
 -- Summary Tables for Performance
@@ -124,5 +128,82 @@ CREATE TABLE IF NOT EXISTS notifications (
     priority TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     read_status INTEGER DEFAULT 0,
-    action_link TEXT
+    action_link TEXT,
+    deleted_at DATETIME
+);
+
+CREATE TABLE IF NOT EXISTS budgets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL, -- Overall, Category, Account
+    target_id TEXT,    -- Category name OR Account ID
+    amount REAL NOT NULL,
+    period TEXT NOT NULL, -- Weekly, Monthly, Yearly, Custom
+    start_date TEXT,
+    end_date TEXT,
+    status TEXT DEFAULT 'active', -- active, paused
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    deleted_at DATETIME
+);
+
+CREATE TABLE IF NOT EXISTS assets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    category TEXT NOT NULL, -- Cash, Gold, Property, Electronics, etc.
+    purchase_value REAL NOT NULL,
+    current_value REAL NOT NULL,
+    purchase_date TEXT NOT NULL,
+    depreciation_enabled INTEGER DEFAULT 0,
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    deleted_at DATETIME
+);
+
+CREATE TABLE IF NOT EXISTS goals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    target_amount REAL NOT NULL,
+    current_amount REAL DEFAULT 0.0,
+    target_date TEXT,
+    category TEXT, -- Savings, Purchase, Emergency, Debt, Custom
+    priority TEXT DEFAULT 'medium', -- low, medium, high
+    notes TEXT,
+    status TEXT DEFAULT 'active', -- active, paused, completed
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    deleted_at DATETIME
+);
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    amount REAL NOT NULL,
+    billing_cycle TEXT NOT NULL, -- Weekly, Monthly, Quarterly, Yearly, Custom
+    next_due_date TEXT NOT NULL,
+    category TEXT,
+    payment_source TEXT, -- Account Name/ID or Card Name/ID
+    auto_renew INTEGER DEFAULT 1,
+    notes TEXT,
+    status TEXT DEFAULT 'active', -- active, paused, cancelled
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    deleted_at DATETIME
+);
+
+CREATE TABLE IF NOT EXISTS health_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date DATE DEFAULT CURRENT_DATE,
+    score INTEGER,
+    status TEXT,
+    reasons TEXT, -- JSON string
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL, -- income, expense
+    color TEXT,
+    icon TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    deleted_at DATETIME,
+    UNIQUE(name, type)
 );

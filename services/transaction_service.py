@@ -10,6 +10,7 @@ class TransactionService:
         query = """
             SELECT * FROM transactions 
             WHERE 1=1 
+            AND deleted_at IS NULL
             AND category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration')
             AND tags NOT LIKE '%Silent%'
         """
@@ -70,7 +71,7 @@ class TransactionService:
         if emi_data and type == 'expense':
             # Principal is the transaction amount
             total_to_pay = emi_data['total_to_pay']
-            loan_name = f"EMI: {category} ({notes[:20] if notes else 'No Notes'})"
+            loan_name = f"{category} ({notes[:20] if notes else 'No Notes'})"
             # create_loan(name, principal, total_to_pay, tenure, due_date, initial_paid, account_id)
             LoanService.create_loan(
                 name=loan_name,
@@ -106,6 +107,8 @@ class TransactionService:
         
         conn.commit()
         new_id = cursor.lastrowid
+        conn.close()
+        return new_id
     @staticmethod
     def get_transaction_by_id(tx_id: int):
         conn = get_db_connection()
@@ -114,10 +117,17 @@ class TransactionService:
         return dict(row) if row else None
 
     @staticmethod
+    def clear_all():
+        conn = get_db_connection()
+        conn.execute("DELETE FROM transactions")
+        conn.commit()
+        conn.close()
+
+    @staticmethod
     def delete_transaction(tx_id: int):
         conn = get_db_connection()
         tx = conn.execute("SELECT * FROM transactions WHERE id = ?", (tx_id,)).fetchone()
-        if not tx:
+        if not tx or tx['deleted_at']:
             conn.close()
             return
             
@@ -132,7 +142,37 @@ class TransactionService:
                 if tx['to_account_id']:
                     conn.execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', (tx['amount'], tx['to_account_id']))
         
-        conn.execute("DELETE FROM transactions WHERE id = ?", (tx_id,))
+        from datetime import datetime
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        conn.execute("UPDATE transactions SET deleted_at = ? WHERE id = ?", (now, tx_id))
+        conn.commit()
+        conn.close()
+
+    @staticmethod
+    def restore_transaction(tx_id: int):
+        conn = get_db_connection()
+        tx = conn.execute("SELECT * FROM transactions WHERE id = ?", (tx_id,)).fetchone()
+        if not tx or not tx['deleted_at']:
+            conn.close()
+            return
+            
+        # RE-APPLY BALANCE
+        amount = tx['amount']
+        account_id = tx['account_id']
+        to_account_id = tx['to_account_id']
+        type = tx['type']
+
+        if account_id:
+            if type == 'income':
+                conn.execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', (amount, account_id))
+            elif type == 'expense':
+                conn.execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', (amount, account_id))
+            elif type == 'transfer':
+                conn.execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', (amount, account_id))
+                if to_account_id:
+                    conn.execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', (amount, to_account_id))
+        
+        conn.execute("UPDATE transactions SET deleted_at = NULL WHERE id = ?", (tx_id,))
         conn.commit()
         conn.close()
 
@@ -162,3 +202,8 @@ class TransactionService:
         
         conn.commit()
         conn.close()
+    @staticmethod
+    def get_categories(type_filter='expense'):
+        from services.category_service import CategoryService
+        categories = CategoryService.get_all_categories(type_filter)
+        return [c['name'] for c in categories]

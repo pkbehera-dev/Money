@@ -23,3 +23,8 @@ def delete_notification(n_id):
 def force_check():
     NotificationService.check_all_triggers()
     return jsonify({"status": "checked"})
+
+@notification_bp.route('/api/notifications/clear', methods=['POST'])
+def clear_all():
+    NotificationService.clear_all()
+    return jsonify({"status": "success"})

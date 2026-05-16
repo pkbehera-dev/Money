@@ -3,7 +3,7 @@
 {% block title %}Financial Intelligence{% endblock %}
 
 {% block content %}
-<div class="animate-in">
+<div id="partial-content" class="animate-in">
     <!-- Header -->
     <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px;">
         <div>
@@ -21,26 +21,30 @@
         <div class="card" style="border-top: 4px solid var(--success-color);">
             <div class="text-muted" style="font-size: 0.8rem; margin-bottom: 8px;">Monthly Income</div>
             <div style="font-size: 1.75rem; font-weight: 800; font-family: 'Outfit'; color: var(--success-color);">
-                ₹{{ "%.2f"|format(stats.income_total) }}
+                ₹{{ "%.2f"|format(stats.income_stats.total) }}
             </div>
+            <div class="text-muted" style="font-size: 0.7rem; margin-top: 4px;">{{ "+" if stats.income_stats.change_pct >= 0 }}{{ "%.1f"|format(stats.income_stats.change_pct) }}% vs last month</div>
         </div>
         <div class="card" style="border-top: 4px solid var(--expense-color);">
             <div class="text-muted" style="font-size: 0.8rem; margin-bottom: 8px;">Monthly Expenses</div>
             <div style="font-size: 1.75rem; font-weight: 800; font-family: 'Outfit'; color: var(--expense-color);">
-                ₹{{ "%.2f"|format(stats.expense_total) }}
+                ₹{{ "%.2f"|format(stats.expense_stats.total) }}
             </div>
+            <div class="text-muted" style="font-size: 0.7rem; margin-top: 4px;">{{ "+" if stats.expense_stats.change_pct >= 0 }}{{ "%.1f"|format(stats.expense_stats.change_pct) }}% vs last month</div>
         </div>
         <div class="card" style="border-top: 4px solid var(--primary-accent);">
             <div class="text-muted" style="font-size: 0.8rem; margin-bottom: 8px;">Current Savings</div>
             <div style="font-size: 1.75rem; font-weight: 800; font-family: 'Outfit'; color: var(--primary-accent);">
-                ₹{{ "%.2f"|format(stats.savings) }}
+                ₹{{ "%.2f"|format(stats.savings_stats.total) }}
             </div>
+            <div class="text-muted" style="font-size: 0.7rem; margin-top: 4px;">{{ "%.1f"|format(stats.savings_stats.savings_rate) }}% savings rate</div>
         </div>
         <div class="card" style="border-top: 4px solid var(--special-color);">
             <div class="text-muted" style="font-size: 0.8rem; margin-bottom: 8px;">Net Worth</div>
             <div style="font-size: 1.75rem; font-weight: 800; font-family: 'Outfit'; color: var(--special-color);">
-                ₹{{ "%.2f"|format(stats.net_worth) }}
+                ₹{{ "%.2f"|format(stats.net_worth_stats.total) }}
             </div>
+            <div class="text-muted" style="font-size: 0.7rem; margin-top: 4px;">Assets - Liabilities</div>
         </div>
     </div>
 
@@ -102,16 +106,27 @@
             </div>
         </div>
     </div>
+    </div>
 </div>
 
 <script>
-    // Data from server
-    const trendData = JSON.parse(`{{ trend_data|tojson|safe }}`);
-    const categoryData = JSON.parse(`{{ category_data|tojson|safe }}`);
+    // Data from server (Global assignment for SPA safety)
+    window.trendData = JSON.parse(`{{ trend_data|tojson|safe }}`);
+    window.categoryData = JSON.parse(`{{ category_data|tojson|safe }}`);
 
     function initCharts() {
-        const ctxTrend = document.getElementById('trendChart').getContext('2d');
-        const ctxCat = document.getElementById('categoryChart').getContext('2d');
+        const trendCanvas = document.getElementById('trendChart');
+        const catCanvas = document.getElementById('categoryChart');
+        if (!trendCanvas || !catCanvas) return;
+
+        // Force destroy if exists (SPA Safety)
+        const existingTrend = Chart.getChart(trendCanvas);
+        if (existingTrend) existingTrend.destroy();
+        const existingCat = Chart.getChart(catCanvas);
+        if (existingCat) existingCat.destroy();
+
+        const ctxTrend = trendCanvas.getContext('2d');
+        const ctxCat = catCanvas.getContext('2d');
 
         // Trend Line Chart
         new Chart(ctxTrend, {

@@ -15,6 +15,7 @@ class Transaction:
     recurring_id: Optional[int]
     card_id: Optional[int] = None
     person_id: Optional[int] = None
+    deleted_at: Optional[str] = None
 
     @classmethod
     def from_row(cls, row):
@@ -30,7 +31,8 @@ class Transaction:
             tags=row['tags'],
             recurring_id=row['recurring_id'],
             card_id=row.get('card_id'),
-            person_id=row.get('person_id')
+            person_id=row.get('person_id'),
+            deleted_at=row.get('deleted_at')
         )
 
     def to_ai_format(self):

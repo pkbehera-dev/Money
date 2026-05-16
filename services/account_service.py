@@ -5,7 +5,7 @@ class AccountService:
     @staticmethod
     def get_all_accounts(filters: dict = None):
         conn = get_db_connection()
-        query = "SELECT * FROM accounts WHERE 1=1"
+        query = "SELECT * FROM accounts WHERE deleted_at IS NULL"
         params = []
         
         if filters:
@@ -46,6 +46,25 @@ class AccountService:
         conn.execute(
             'UPDATE accounts SET balance = balance + ? WHERE id = ?',
             (amount_change, account_id)
+        )
+        conn.commit()
+        conn.close()
+
+    @staticmethod
+    def delete_account(account_id: int):
+        from datetime import datetime
+        conn = get_db_connection()
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        conn.execute('UPDATE accounts SET deleted_at = ? WHERE id = ?', (now, account_id))
+        conn.commit()
+        conn.close()
+
+    @staticmethod
+    def update_account(account_id: int, name: str, type: str, balance: float, notes: str):
+        conn = get_db_connection()
+        conn.execute(
+            'UPDATE accounts SET name = ?, type = ?, balance = ?, notes = ? WHERE id = ?',
+            (name, type, balance, notes, account_id)
         )
         conn.commit()
         conn.close()

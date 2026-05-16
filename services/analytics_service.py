@@ -1,14 +1,15 @@
 import sqlite3
+import json
 from database.connection import get_db_connection
 from datetime import datetime, timedelta
 
 class AnalyticsService:
     @staticmethod
-    def update_summaries():
-        """Aggregates raw transactions into summary tables."""
+    def refresh_summaries():
+        """Aggregates raw transactions into summary tables. Ignores soft-deleted items."""
         conn = get_db_connection()
         
-        # 0. Clear existing summaries to ensure non-existing months/categories are removed
+        # 0. Clear existing summaries
         conn.execute("DELETE FROM monthly_summaries")
         conn.execute("DELETE FROM category_summaries")
         conn.execute("DELETE FROM daily_summaries")
@@ -23,7 +24,8 @@ class AnalyticsService:
                 SUM(CASE WHEN type='income' THEN amount ELSE 0 END) - SUM(CASE WHEN type='expense' THEN amount ELSE 0 END),
                 COUNT(*)
             FROM transactions
-            WHERE category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration')
+            WHERE deleted_at IS NULL
+            AND category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration')
             AND tags NOT LIKE '%Silent%'
             GROUP BY month
         ''')
@@ -37,12 +39,13 @@ class AnalyticsService:
                 SUM(amount)
             FROM transactions
             WHERE type='expense' 
+            AND deleted_at IS NULL
             AND category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration')
             AND tags NOT LIKE '%Silent%'
             GROUP BY month, category
         ''')
 
-        # 3. Update Daily Summaries (Last 30 days only to keep it fresh)
+        # 3. Update Daily Summaries
         last_month = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
         conn.execute('''
             INSERT OR REPLACE INTO daily_summaries (date, income_total, expense_total, tx_count)
@@ -53,6 +56,7 @@ class AnalyticsService:
                 COUNT(*)
             FROM transactions
             WHERE date >= ? 
+            AND deleted_at IS NULL
             AND category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration')
             AND tags NOT LIKE '%Silent%'
             GROUP BY date
@@ -61,23 +65,29 @@ class AnalyticsService:
         conn.commit()
         conn.close()
 
+        # 4. Trigger Checks
+        try:
+            from services.notification_service import NotificationService
+            from services.health_service import HealthService
+            NotificationService.check_all_triggers()
+            HealthService.calculate_current_score()
+        except Exception as e:
+            print(f"Periodic check failed: {e}")
+
     @staticmethod
     def archive_old_data():
         """Moves transactions older than 1 year to archive."""
         conn = get_db_connection()
         one_year_ago = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
         
-        # Copy to archive
         conn.execute('''
             INSERT INTO transaction_archive (id, account_id, amount, type, category, date, notes, created_at)
             SELECT id, account_id, amount, type, category, date, notes, created_at
             FROM transactions
-            WHERE date < ?
+            WHERE date < ? AND deleted_at IS NULL
         ''', (one_year_ago,))
         
-        # Delete from active logs
-        conn.execute("DELETE FROM transactions WHERE date < ?", (one_year_ago,))
-        
+        conn.execute("DELETE FROM transactions WHERE date < ? OR deleted_at IS NOT NULL", (one_year_ago,))
         conn.commit()
         conn.close()
 
@@ -99,91 +109,111 @@ class AnalyticsService:
 
     @staticmethod
     def get_quick_stats():
-        """Returns summary cards for the current month."""
         conn = get_db_connection()
         this_month = datetime.now().strftime('%Y-%m')
+        last_month = (datetime.now().replace(day=1) - timedelta(days=1)).strftime('%Y-%m')
         
-        # We rely on the background worker to update summaries.
-        # This prevents locking the DB during dashboard loads.
-        
+        # Monthly performance
         row = conn.execute("SELECT * FROM monthly_summaries WHERE month = ?", (this_month,)).fetchone()
+        prev_row = conn.execute("SELECT * FROM monthly_summaries WHERE month = ?", (last_month,)).fetchone()
         
-        # 1. LIQUID ASSETS: Sum of all Bank/Cash accounts
-        liquid = conn.execute("SELECT SUM(balance) FROM accounts").fetchone()[0] or 0
+        # Account Balances (Liquid)
+        liquid = conn.execute("SELECT SUM(balance) FROM accounts WHERE deleted_at IS NULL").fetchone()[0] or 0
         
-        # 2. LOAN DEBT: Sum(TotalToPay) - Sum(AllPaymentsMade)
-        # We calculate this live from the ledger
-        loans_total = conn.execute("SELECT SUM(total_to_pay) FROM loans WHERE status = 'active'").fetchone()[0] or 0
+        # Non-Liquid Assets (Property, Gold, etc.)
+        from services.asset_service import AssetService
+        non_liquid = AssetService.get_total_asset_value()
+        
+        # People Ledger (Lent/Borrowed)
+        lent_total = conn.execute("SELECT SUM(total_amount - paid_amount) FROM people_ledger WHERE type = 'lent' AND deleted_at IS NULL").fetchone()[0] or 0
+        borrowed_total = conn.execute("SELECT SUM(total_amount - paid_amount) FROM people_ledger WHERE type = 'borrowed' AND deleted_at IS NULL").fetchone()[0] or 0
+        
+        # Debt calculation
+        loans_total = conn.execute("SELECT SUM(total_to_pay) FROM loans WHERE status = 'active' AND deleted_at IS NULL").fetchone()[0] or 0
         loan_payments = conn.execute("SELECT SUM(amount) FROM loan_payments").fetchone()[0] or 0
         loan_debt = loans_total - loan_payments
         
-        # 3. CREDIT CARD DEBT: Sum(Purchases) - Sum(BillPayments)
-        # Exclude 'Silent' transactions to avoid double counting with Loan Debt
-        card_purchases = conn.execute("SELECT SUM(amount) FROM transactions WHERE card_id IS NOT NULL AND type = 'expense' AND tags NOT LIKE '%Silent%'").fetchone()[0] or 0
-        card_payments = conn.execute("SELECT SUM(amount) FROM transactions WHERE card_id IS NOT NULL AND type = 'transfer'").fetchone()[0] or 0
+        card_purchases = conn.execute("SELECT SUM(amount) FROM transactions WHERE card_id IS NOT NULL AND type = 'expense' AND deleted_at IS NULL AND tags NOT LIKE '%Silent%'").fetchone()[0] or 0
+        card_payments = conn.execute("SELECT SUM(amount) FROM transactions WHERE card_id IS NOT NULL AND type = 'transfer' AND deleted_at IS NULL").fetchone()[0] or 0
         card_debt = card_purchases - card_payments
 
-        # 4. NET WORTH: Liquid - (Loan Debt + Card Debt)
-        net_worth = liquid - (loan_debt + card_debt)
+        total_assets = liquid + non_liquid + lent_total
+        total_liabilities = loan_debt + card_debt + borrowed_total
+        net_worth = total_assets - total_liabilities
         
+        # Trends
+        income_this = row['income_total'] if row else 0
+        income_prev = prev_row['income_total'] if prev_row else 0
+        income_change = ((income_this - income_prev) / income_prev * 100) if income_prev > 0 else 0
+        
+        expense_this = row['expense_total'] if row else 0
+        expense_prev = prev_row['expense_total'] if prev_row else 0
+        expense_change = ((expense_this - expense_prev) / expense_prev * 100) if expense_prev > 0 else 0
+        
+        # Chart Data: Trends (6 Months)
+        trend_rows = conn.execute("SELECT month, income_total, expense_total FROM monthly_summaries ORDER BY month DESC LIMIT 6").fetchall()
+        trend_rows = reversed(trend_rows)
+        chart_trends = {"labels": [], "income": [], "expense": []}
+        for tr in trend_rows:
+            chart_trends["labels"].append(tr['month'])
+            chart_trends["income"].append(float(tr['income_total']))
+            chart_trends["expense"].append(float(tr['expense_total']))
+            
+        # Chart Data: Category (This Month)
+        cat_rows = conn.execute("SELECT category, total FROM category_summaries WHERE month = ? ORDER BY total DESC LIMIT 10", (this_month,)).fetchall()
+        chart_category = {"labels": [], "data": []}
+        for cr in cat_rows:
+            chart_category["labels"].append(cr['category'])
+            chart_category["data"].append(float(cr['total']))
+
         conn.close()
         
-        stats = {
-            "income_total": 0.0,
-            "expense_total": 0.0,
-            "savings": 0.0,
+        return {
+            "net_worth_stats": {
+                "total": float(net_worth),
+                "assets": float(total_assets),
+                "liabilities": float(total_liabilities),
+                "change_pct": income_change - expense_change
+            },
+            "income_stats": {
+                "total": float(income_this),
+                "change_pct": income_change
+            },
+            "expense_stats": {
+                "total": float(expense_this),
+                "change_pct": expense_change
+            },
+            "savings_stats": {
+                "total": float(income_this - expense_this),
+                "savings_rate": (income_this - expense_this) / income_this * 100 if income_this > 0 else 0
+            },
+            "net_savings": float(income_this - expense_this),
             "net_worth": float(net_worth),
-            "loan_debt": float(loan_debt),
-            "card_debt": float(card_debt)
+            "income_total": float(income_this),
+            "expense_total": float(expense_this),
+            "chart_trends": chart_trends,
+            "chart_category": chart_category
         }
-        
-        if row:
-            stats.update(dict(row))
-            stats['net_worth'] = float(net_worth)
-            
-        return stats
         
     @staticmethod
     def get_behavior_analytics():
         conn = get_db_connection()
-        # Weekend vs Weekday spending
-        weekday_avg = conn.execute("""
-            SELECT AVG(amount) FROM transactions 
-            WHERE type='expense' AND strftime('%w', date) BETWEEN '1' AND '5'
-        """).fetchone()[0] or 0
-        weekend_avg = conn.execute("""
-            SELECT AVG(amount) FROM transactions 
-            WHERE type='expense' AND strftime('%w', date) IN ('0', '6')
-        """).fetchone()[0] or 0
+        weekday_avg = conn.execute("SELECT AVG(amount) FROM transactions WHERE type='expense' AND deleted_at IS NULL AND strftime('%w', date) BETWEEN '1' AND '5'").fetchone()[0] or 0
+        weekend_avg = conn.execute("SELECT AVG(amount) FROM transactions WHERE type='expense' AND deleted_at IS NULL AND strftime('%w', date) IN ('0', '6')").fetchone()[0] or 0
         
-        # Most active day
-        active_day_idx = conn.execute("""
-            SELECT strftime('%w', date) as day, SUM(amount) as total 
-            FROM transactions WHERE type='expense' 
-            GROUP BY day ORDER BY total DESC LIMIT 1
-        """).fetchone()
+        active_day_idx = conn.execute("SELECT strftime('%w', date) as day, SUM(amount) as total FROM transactions WHERE type='expense' AND deleted_at IS NULL GROUP BY day ORDER BY total DESC LIMIT 1").fetchone()
         
         days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-        active_day = days[int(active_day_idx[0])] if active_day_idx else "None"
+        active_day = days[int(active_day_idx[0])] if active_day_idx and active_day_idx[0] is not None else "None"
         
-        diff_pct = 0
-        if weekday_avg > 0:
-            diff_pct = ((weekend_avg - weekday_avg) / weekday_avg) * 100
-
+        diff_pct = ((weekend_avg - weekday_avg) / weekday_avg * 100) if weekday_avg > 0 else 0
         conn.close()
-        return {
-            "weekend_diff": diff_pct,
-            "active_day": active_day,
-            "avg_daily": (weekday_avg + weekend_avg) / 2
-        }
+        return {"weekend_diff": diff_pct, "active_day": active_day, "avg_daily": (weekday_avg + weekend_avg) / 2}
 
     @staticmethod
     def get_spending_insights():
-        """Generates dynamic warnings and tips based on data."""
         conn = get_db_connection()
         insights = []
-        
-        # 1. Compare this month to last month
         this_month = datetime.now().strftime('%Y-%m')
         last_month = (datetime.now().replace(day=1) - timedelta(days=1)).strftime('%Y-%m')
         
@@ -192,21 +222,18 @@ class AnalyticsService:
         
         if m1 and m2 and m2[0] > 0:
             change = ((m1[0] - m2[0]) / m2[0]) * 100
-            if change > 10:
-                insights.append({"type": "warning", "text": f"Spending rose {change:.1f}% compared to last month. Watch your discretionary costs."})
-            elif change < -5:
-                insights.append({"type": "success", "text": f"Great job! You spent {abs(change):.1f}% less than last month."})
+            if change > 10: insights.append({"type": "warning", "text": f"Spending rose {change:.1f}% vs last month."})
+            elif change < -5: insights.append({"type": "success", "text": f"Spending down {abs(change):.1f}% vs last month."})
 
-        # 2. Category spike detection
-        spikes = conn.execute("""
-            SELECT category, total FROM category_summaries 
-            WHERE month = ? AND total > 5000 ORDER BY total DESC LIMIT 2
-        """, (this_month,)).fetchall()
-        for s in spikes:
-            insights.append({"type": "tip", "text": f"{s[0]} is your top expense category this month (₹{s[1]:.0f})."})
+        spikes = conn.execute("SELECT category, total FROM category_summaries WHERE month = ? AND total > 5000 ORDER BY total DESC LIMIT 2", (this_month,)).fetchall()
+        for s in spikes: insights.append({"type": "tip", "text": f"{s[0]} is a top expense (₹{s[1]:.0f})."})
 
-        if not insights:
-            insights.append({"type": "tip", "text": "Keep recording transactions to get more detailed AI insights."})
+        from services.budget_service import BudgetService
+        budgets = BudgetService.get_all_budgets()
+        for b in budgets:
+            if b.status == 'active' and b.progress > 80:
+                insights.append({"type": "warning" if b.progress >= 100 else "tip", "text": f"Budget '{b.name}' is {b.progress:.1f}% used."})
 
+        if not insights: insights.append({"type": "tip", "text": "Keep tracking to get AI insights."})
         conn.close()
         return insights

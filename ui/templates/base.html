@@ -1,22 +1,94 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Finance Pro | Smart Wealth Management</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/themes.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;600;800&display=swap"
+        rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .card {
+            position: relative;
+        }
+
+        .card-dots {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        .card:hover .card-dots {
+            opacity: 1;
+        }
+
+        .card-dots:hover {
+            color: var(--primary-accent);
+        }
+
+        /* Premium Sidebar Nav Styling */
+        .sidebar-nav {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 20px;
+            color: var(--text-muted);
+            text-decoration: none;
+            border-radius: 12px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            z-index: 2;
+        }
+
+        .nav-link i {
+            font-size: 1.4rem;
+            transition: color 0.3s;
+            font-weight: normal !important;
+        }
+
+        .nav-link:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .nav-link.active {
+            color: var(--primary-accent);
+            background: rgba(var(--primary-accent-rgb, 79, 140, 255), 0.1);
+            font-weight: 600;
+        }
+
+        .nav-link.active i {
+            color: var(--primary-accent);
+            opacity: 1;
+        }
+    </style>
 </head>
+
 <body data-theme="dark">
     <!-- Global Spotlight Search -->
     <div id="spotlight-modal" class="spotlight-overlay">
         <div class="spotlight-content">
             <div class="spotlight-header">
                 <i class="ph ph-magnifying-glass"></i>
-                <input type="text" id="spotlight-input" placeholder="Search anything... (Right Alt + Space)" autocomplete="off">
+                <input type="text" id="spotlight-input" placeholder="Search anything... (Right Alt + Space)"
+                    autocomplete="off">
                 <div class="spotlight-shortcut-hint">ESC</div>
             </div>
             <div id="spotlight-results" class="spotlight-results-container">
@@ -49,43 +121,62 @@
                 <span class="brand-text">Finance Pro</span>
             </div>
 
-            <nav style="flex: 1; overflow-y: auto;">
+            <nav class="sidebar-nav" style="flex: 1; overflow-y: auto;">
                 <div class="nav-group">
                     <div class="nav-label">Main</div>
                     <ul class="nav-items">
-                        <li class="nav-item"><a href="/" class="nav-link"><i class="ph ph-squares-four"></i> <span>Dashboard</span></a></li>
-                        <li class="nav-item"><a href="{{ url_for('transaction.transactions_page') }}" class="nav-link"><i class="ph ph-arrows-left-right"></i> <span>Transactions</span></a></li>
-                        <li class="nav-item"><a href="{{ url_for('account.accounts_page') }}" class="nav-link"><i class="ph ph-bank"></i> <span>Accounts</span></a></li>
+                        <li class="nav-item"><a href="/" class="nav-link"><i class="ph ph-squares-four"></i>
+                                <span>Dashboard</span></a></li>
+                        <li class="nav-item"><a href="{{ url_for('transaction.transactions_page') }}"
+                                class="nav-link"><i class="ph ph-arrows-left-right"></i> <span>Transactions</span></a>
+                        </li>
+                        <li class="nav-item"><a href="{{ url_for('account.accounts_page') }}" class="nav-link"><i
+                                    class="ph ph-bank"></i> <span>Accounts</span></a></li>
+                        <li class="nav-item"><a href="/goals" class="nav-link"><i class="ph ph-target"></i>
+                                <span>Financial Goals</span></a></li>
+                        <li class="nav-item"><a href="/subscriptions" class="nav-link"><i
+                                    class="ph ph-calendar-check"></i> <span>Subscriptions</span></a></li>
                     </ul>
                 </div>
 
                 <div class="nav-group">
                     <div class="nav-label">Finance</div>
                     <ul class="nav-items">
-                        <li class="nav-item"><a href="{{ url_for('card.cards_page') }}" class="nav-link"><i class="ph ph-credit-card"></i> <span>Credit Cards</span></a></li>
-                        <li class="nav-item"><a href="{{ url_for('loan.loans_page') }}" class="nav-link"><i class="ph ph-hand-coins"></i> <span>Loans & EMI</span></a></li>
-                        <li class="nav-item"><a href="{{ url_for('person.ledger_page') }}" class="nav-link"><i class="ph ph-users-three"></i> <span>Lent / Borrow</span></a></li>
+                        <li class="nav-item"><a href="{{ url_for('card.cards_page') }}" class="nav-link"><i
+                                    class="ph ph-credit-card"></i> <span>Credit Cards</span></a></li>
+                        <li class="nav-item"><a href="{{ url_for('loan.loans_page') }}" class="nav-link"><i
+                                    class="ph ph-hand-coins"></i> <span>Loans & EMI</span></a></li>
+                        <li class="nav-item"><a href="{{ url_for('person.ledger_page') }}" class="nav-link"><i
+                                    class="ph ph-users-three"></i> <span>Lent / Borrow</span></a></li>
+                        <li class="nav-item"><a href="/budgets" class="nav-link"><i class="ph ph-chart-pie-slice"></i>
+                                <span>Budgets</span></a></li>
+                        <li class="nav-item"><a href="/assets" class="nav-link"><i class="ph ph-armchair"></i>
+                                <span>Assets</span></a></li>
                     </ul>
                 </div>
 
                 <div class="nav-group">
                     <div class="nav-label">Analytics</div>
                     <ul class="nav-items">
-                        <li class="nav-item"><a href="{{ url_for('report.reports_page') }}" class="nav-link"><i class="ph ph-chart-line-up"></i> <span>Reports</span></a></li>
-                        <li class="nav-item"><a href="/ai-assistant" class="nav-link"><i class="ph ph-sparkle"></i> <span>AI Assistant</span></a></li>
+                        <li class="nav-item"><a href="{{ url_for('report.reports_page') }}" class="nav-link"><i
+                                    class="ph ph-chart-line-up"></i> <span>Reports</span></a></li>
+                        <li class="nav-item"><a href="/ai-assistant" class="nav-link"><i class="ph ph-sparkle"></i>
+                                <span>AI Assistant</span></a></li>
                     </ul>
                 </div>
 
                 <div class="nav-group">
                     <div class="nav-label">System</div>
                     <ul class="nav-items">
-                        <li class="nav-item"><a href="{{ url_for('settings.settings_page') }}" class="nav-link"><i class="ph ph-gear"></i> <span>Settings</span></a></li>
+                        <li class="nav-item"><a href="{{ url_for('settings.settings_page') }}" class="nav-link"><i
+                                    class="ph ph-gear"></i> <span>Settings</span></a></li>
                     </ul>
                 </div>
             </nav>
 
             <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border-color);">
-                <button onclick="toggleSidebar()" class="nav-link" style="width: 100%; background: none; border: none; cursor: pointer;">
+                <button onclick="toggleSidebar()" class="nav-link"
+                    style="width: 100%; background: none; border: none; cursor: pointer;">
                     <i class="ph ph-caret-left" id="collapse-icon"></i> <span>Collapse</span>
                 </button>
             </div>
@@ -96,11 +187,14 @@
             <header class="topbar">
                 <div style="display: flex; align-items: center; gap: 20px; flex: 1;">
                     <div class="search-container" style="max-width: 450px; width: 100%; position: relative;">
-                        <i class="ph ph-magnifying-glass" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-secondary);"></i>
-                        <input type="text" id="global-search" placeholder="Search anything... (Right Alt + Space)" 
-                               onclick="SpotlightEngine.toggle(true)" readonly
-                               style="width: 100%; padding: 12px 16px 12px 48px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); outline: none; transition: var(--transition); cursor: pointer;">
-                        <div id="search-results" class="card" style="display: none; position: absolute; top: 110%; left: 0; right: 0; z-index: 1001; max-height: 400px; overflow-y: auto; padding: 12px;"></div>
+                        <i class="ph ph-magnifying-glass"
+                            style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-secondary);"></i>
+                        <input type="text" id="global-search" placeholder="Search anything... (Right Alt + Space)"
+                            onclick="SpotlightEngine.toggle(true)" readonly
+                            style="width: 100%; padding: 12px 16px 12px 48px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); outline: none; transition: var(--transition); cursor: pointer;">
+                        <div id="search-results" class="card"
+                            style="display: none; position: absolute; top: 110%; left: 0; right: 0; z-index: 1001; max-height: 400px; overflow-y: auto; padding: 12px;">
+                        </div>
                     </div>
                 </div>
 
@@ -108,40 +202,51 @@
                     <button class="btn-secondary" onclick="openDrawer('add-tx-drawer')" style="font-size: 0.85rem;">
                         <i class="ph ph-plus"></i> <span>Quick Add</span>
                     </button>
-                    <div style="display: flex; align-items: center; gap: 16px; border-left: 1px solid var(--border-color); padding-left: 24px;">
-                        <button onclick="toggleTheme()" style="background: none; border: none; cursor: pointer; color: var(--text-secondary); font-size: 1.25rem;">
+                    <div
+                        style="display: flex; align-items: center; gap: 16px; border-left: 1px solid var(--border-color); padding-left: 24px;">
+                        <button onclick="toggleTheme()"
+                            style="background: none; border: none; cursor: pointer; color: var(--text-secondary); font-size: 1.25rem;">
                             <i class="ph ph-moon"></i>
                         </button>
                         <div style="position: relative;">
-                            <button onclick="toggleNotifications()" style="background: none; border: none; cursor: pointer; color: var(--text-secondary); position: relative; display: flex; align-items: center;">
+                            <button onclick="toggleNotifications()"
+                                style="background: none; border: none; cursor: pointer; color: var(--text-secondary); position: relative; display: flex; align-items: center;">
                                 <i class="ph ph-bell" style="font-size: 1.25rem;"></i>
                                 <div id="unread-badge" class="unread-count" style="display: none;">0</div>
                             </button>
-                            
+
                             <!-- Notification Dropdown -->
                             <div id="notification-dropdown" class="notification-dropdown">
                                 <div class="notification-header">
                                     <span style="font-weight: 700; font-family: 'Outfit';">Notifications</span>
-                                    <button onclick="forceCheckNotifications()" style="background: none; border: none; color: var(--primary-accent); font-size: 0.8rem; cursor: pointer;">Check Now</button>
+                                    <button onclick="forceCheckNotifications()"
+                                        style="background: none; border: none; color: var(--primary-accent); font-size: 0.8rem; cursor: pointer;">Check
+                                        Now</button>
                                 </div>
                                 <div id="notification-list" class="notification-list">
                                     <!-- Notifications will be injected here -->
                                     <div style="padding: 40px; text-align: center; color: var(--text-secondary);">
-                                        <i class="ph ph-bell-slash" style="font-size: 2rem; margin-bottom: 12px; display: block; opacity: 0.5;"></i>
+                                        <i class="ph ph-bell-slash"
+                                            style="font-size: 2rem; margin-bottom: 12px; display: block; opacity: 0.5;"></i>
                                         No notifications yet
                                     </div>
                                 </div>
-                                <div style="padding: 12px; border-top: 1px solid var(--border-color); text-align: center;">
-                                    <button onclick="clearAllNotifications()" style="background: none; border: none; color: var(--text-secondary); font-size: 0.8rem; cursor: pointer;">Clear All</button>
+                                <div
+                                    style="padding: 12px; border-top: 1px solid var(--border-color); text-align: center;">
+                                    <button onclick="clearAllNotifications()"
+                                        style="background: none; border: none; color: var(--text-secondary); font-size: 0.8rem; cursor: pointer;">Clear
+                                        All</button>
                                 </div>
                             </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
                             <div style="text-align: right; line-height: 1;">
-                                <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary);">PRADYUMNA BEHERA</div>
+                                <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary);">PRADYUMNA
+                                    BEHERA</div>
                                 <div style="font-size: 0.75rem; color: var(--success-color);">Pro Member</div>
                             </div>
-                            <div style="width: 40px; height: 40px; border-radius: 12px; background: var(--bg-main); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; color: var(--primary-accent); font-size: 1.5rem;">
+                            <div
+                                style="width: 40px; height: 40px; border-radius: 12px; background: var(--bg-main); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; color: var(--primary-accent); font-size: 1.5rem;">
                                 <i class="ph ph-user-circle"></i>
                             </div>
                         </div>
@@ -161,14 +266,17 @@
     <div class="drawer-overlay" id="add-tx-drawer">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
             <h2 style="font-family: 'Outfit';">Quick Transaction</h2>
-            <button onclick="closeDrawer()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;">
+            <button onclick="closeDrawer()"
+                style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;">
                 <i class="ph ph-x"></i>
             </button>
         </div>
         <div id="drawer-content-universal">
-            <form action="{{ url_for('transaction.add_transaction') }}" method="POST" class="ajax-form" autocomplete="off" style="display: flex; flex-direction: column; gap: 20px;">
+            <form action="{{ url_for('transaction.add_transaction') }}" method="POST" class="ajax-form"
+                autocomplete="off" style="display: flex; flex-direction: column; gap: 20px;">
                 <div>
-                    <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Type</label>
+                    <label class="text-muted"
+                        style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Type</label>
                     <div class="tx-type-group" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
                         <label style="cursor: pointer;">
                             <input type="radio" name="type" value="income" style="display: none;">
@@ -185,58 +293,88 @@
                     </div>
                 </div>
                 <div>
-                    <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Amount</label>
-                    <input type="number" step="0.01" name="amount" required placeholder="0.00" style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 1.25rem; font-weight: 700;">
+                    <label class="text-muted"
+                        style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Amount</label>
+                    <input type="number" step="0.01" name="amount" required placeholder="0.00"
+                        style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 1.25rem; font-weight: 700;">
                 </div>
                 <div id="universal-account-container">
-                    <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;" id="account-label">Account</label>
-                    <select id="universal-account-select" name="account_id" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                    <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;"
+                        id="account-label">Account</label>
+                    <select id="universal-account-select" name="account_id" required
+                        style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
                         <option value="">Loading accounts...</option>
                     </select>
                 </div>
 
                 <div id="universal-to-account-container" style="display: none;">
-                    <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">To Account</label>
-                    <select id="universal-to-account-select" name="to_account_id" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                    <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">To
+                        Account</label>
+                    <select id="universal-to-account-select" name="to_account_id"
+                        style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
                         <option value="">Select destination...</option>
                     </select>
                 </div>
                 <div>
-                    <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Category</label>
-                    <select id="universal-category-select" name="category" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                    <label class="text-muted"
+                        style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Category</label>
+                    <select id="universal-category-select" name="category" required
+                        style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
                         <option value="">Select category...</option>
                     </select>
                 </div>
+
                 <div>
-                    <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Date</label>
-                    <input type="date" name="date" required id="universal-date-input" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                    <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;"
+                        id="notes-label">Expense Name</label>
+                    <input type="text" name="notes" placeholder="Details..."
+                        style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                </div>
+
+                <div>
+                    <label class="text-muted"
+                        style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Date</label>
+                    <input type="date" name="date" required id="universal-date-input"
+                        style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
                 </div>
 
                 <!-- EMI Conversion Section -->
-                <div id="emi-container" style="display: none; background: rgba(var(--primary-accent-rgb), 0.05); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);">
+                <div id="emi-container"
+                    style="display: none; background: rgba(var(--primary-accent-rgb), 0.05); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);">
                     <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 12px;">
-                        <input type="checkbox" name="is_emi" id="is-emi-checkbox" onchange="toggleEmiFields()" style="width: 18px; height: 18px;">
+                        <input type="checkbox" name="is_emi" id="is-emi-checkbox" onchange="toggleEmiFields()"
+                            style="width: 18px; height: 18px;">
                         <span style="font-weight: 600; font-size: 0.9rem;">Convert to EMI</span>
                     </label>
-                    
+
                     <div id="emi-fields" style="display: none; flex-direction: column; gap: 12px;">
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                             <div>
-                                <label class="text-muted" style="font-size: 0.8rem; display: block; margin-bottom: 4px;">Tenure (Months)</label>
-                                <input type="number" name="emi_tenure" placeholder="12" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                <label class="text-muted"
+                                    style="font-size: 0.8rem; display: block; margin-bottom: 4px;">Tenure
+                                    (Months)</label>
+                                <input type="number" name="emi_tenure" placeholder="12"
+                                    style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
                             </div>
                             <div>
-                                <label class="text-muted" style="font-size: 0.8rem; display: block; margin-bottom: 4px;">Due Date (Day)</label>
-                                <input type="number" name="emi_due_date" min="1" max="31" placeholder="1" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                <label class="text-muted"
+                                    style="font-size: 0.8rem; display: block; margin-bottom: 4px;">Due Date
+                                    (Day)</label>
+                                <input type="number" name="emi_due_date" min="1" max="31" placeholder="1"
+                                    style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
                             </div>
                         </div>
                         <div>
-                            <label class="text-muted" style="font-size: 0.8rem; display: block; margin-bottom: 4px;">Total to Pay (Principal + Interest)</label>
-                            <input type="number" step="0.01" name="emi_total_to_pay" placeholder="0.00" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-weight: 700;">
+                            <label class="text-muted"
+                                style="font-size: 0.8rem; display: block; margin-bottom: 4px;">Total to Pay (Principal +
+                                Interest)</label>
+                            <input type="number" step="0.01" name="emi_total_to_pay" placeholder="0.00"
+                                style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-weight: 700;">
                         </div>
                     </div>
                 </div>
-                <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; font-size: 1rem; margin-top: 10px;">
+                <button type="submit" class="btn-primary"
+                    style="width: 100%; padding: 16px; justify-content: center; font-size: 1rem; margin-top: 10px;">
                     Save Transaction
                 </button>
             </form>
@@ -247,7 +385,8 @@
     <div class="drawer-overlay" id="page-drawer">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
             <h2 style="font-family: 'Outfit';">Action</h2>
-            <button onclick="closeDrawer()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;">
+            <button onclick="closeDrawer()"
+                style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;">
                 <i class="ph ph-x"></i>
             </button>
         </div>
@@ -257,91 +396,163 @@
     </div>
 
     <script>
-        // --- AppRouter: The SPA Engine ---
-        const AppRouter = {
-            async navigate(url, updateHistory = true) {
-                const contentArea = document.querySelector('.content');
-                contentArea.style.opacity = '0.5';
+        // --- Global Drawer Controls ---
+        function openDrawer(id) {
+            const drawer = document.getElementById(id);
+            if (!drawer) {
+                console.error(`Drawer with ID "${id}" not found.`);
+                return;
+            }
+            
+            // Ensure data is synced (accounts, cards, categories)
+            if (typeof loadUniversalData === 'function') {
+                loadUniversalData();
+            }
 
+            drawer.classList.add('active');
+            const backdrop = document.getElementById('drawer-backdrop');
+            if (backdrop) backdrop.classList.add('active');
+
+            // Set date defaults
+            const today = new Date().toISOString().split('T')[0];
+            drawer.querySelectorAll('input[type="date"]').forEach(input => {
+                if (!input.value) input.value = today;
+            });
+        }
+
+        function closeDrawer() {
+            document.querySelectorAll('.drawer, .drawer-overlay, .drawer-right').forEach(d => d.classList.remove('active'));
+            const backdrop = document.getElementById('overlay') || document.getElementById('drawer-backdrop');
+            if (backdrop) backdrop.classList.remove('active');
+        }
+
+        // --- Centralized UI & Navigation State ---
+        const UIState = {
+            CurrentActivePage: window.location.pathname.replace(/\/$/, '') || '/',
+            
+            setPage(url) {
+                try {
+                    this.CurrentActivePage = new URL(url, window.location.origin).pathname.replace(/\/$/, '') || '/';
+                } catch (e) {
+                    this.CurrentActivePage = url.split('?')[0].replace(/\/$/, '') || '/';
+                }
+                this.syncSidebar();
+            },
+
+            syncSidebar() {
+                const current = this.CurrentActivePage;
+                const links = document.querySelectorAll('.nav-link');
+                const indicator = document.getElementById('nav-indicator');
+                let activeLink = null;
+
+                links.forEach(link => {
+                    try {
+                        const linkUrl = new URL(link.href, window.location.origin);
+                        const linkPath = linkUrl.pathname.replace(/\/$/, '') || '/';
+                        
+                        // Exact match or sub-path match (excluding root)
+                        const isExact = (linkPath === current);
+                        const isParent = (linkPath !== '/' && current.startsWith(linkPath + '/'));
+                        const isActive = isExact || isParent;
+                        
+                        link.classList.toggle('active', isActive);
+                        if (isActive) activeLink = link;
+                    } catch (e) {
+                        const isActive = link.getAttribute('href') === current;
+                        link.classList.toggle('active', isActive);
+                        if (isActive) activeLink = link;
+                    }
+                });
+            }
+        };
+
+        // --- AppRouter: High-Performance SPA Engine ---
+        const AppRouter = {
+            pageCache: new Map(),
+            isNavigating: false,
+
+            async navigate(url, updateHistory = true, preserveScroll = false) {
+                if (this.isNavigating) {
+                    setTimeout(() => this.navigate(url, updateHistory, preserveScroll), 100);
+                    return;
+                }
+                
+                this.isNavigating = true;
+                const path = url.split('?')[0].replace(/\/$/, '') || '/';
+                
+                try {
+                    // Always update UI when navigating manually
+                    await this.fetchAndCache(url, path, true, updateHistory, preserveScroll);
+                } finally {
+                    this.isNavigating = false;
+                }
+            },
+
+            async fetchAndCache(url, path, updateUI = true, updateHistory = true, preserveScroll = false) {
                 try {
                     const separator = url.includes('?') ? '&' : '?';
-                    const response = await fetch(`${url}${separator}partial=1`);
+                    const timestamp = new Date().getTime();
+                    const response = await fetch(`${url}${separator}partial=1&t=${timestamp}`);
                     const html = await response.text();
 
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(html, 'text/html');
+                    const contentArea = document.querySelector('.content');
+
+                    const newMain = doc.querySelector('#partial-content') || doc.body;
                     
-                    // 1. Update Main Content
-                    const newMain = doc.querySelector('#partial-content');
-                    if (newMain) {
+                    if (updateUI && contentArea) {
+                        const scrollPos = contentArea.scrollTop;
                         contentArea.innerHTML = newMain.innerHTML;
-                    } else {
-                        contentArea.innerHTML = html;
-                    }
+                        
+                        if (preserveScroll) {
+                            contentArea.scrollTop = scrollPos;
+                        } else {
+                            contentArea.scrollTop = 0;
+                        }
 
-                    // 2. Update Drawer Content
-                    const newDrawer = doc.querySelector('#partial-drawer');
-                    const dynamicDrawer = document.getElementById('drawer-dynamic-content');
-                    if (newDrawer && newDrawer.innerHTML.trim() !== "") {
-                        dynamicDrawer.innerHTML = newDrawer.innerHTML;
-                    } else if (dynamicDrawer) {
-                        const template = document.getElementById('default-drawer-template');
-                        dynamicDrawer.innerHTML = template.innerHTML;
-                    }
+                        // Sync Drawer Content if present in partial
+                        const newDrawer = doc.querySelector('#partial-drawer');
+                        const drawerArea = document.getElementById('drawer-dynamic-content');
+                        if (newDrawer && drawerArea) {
+                            drawerArea.innerHTML = newDrawer.innerHTML;
+                        }
 
-                    if (updateHistory) history.pushState({}, '', url);
+                        this.initPageScripts();
+                        UIState.setPage(url);
+                        
+                        // Update address bar ONLY if requested
+                        if (updateHistory) {
+                            history.pushState({ url }, '', url);
+                        }
+                    }
                     
-                    this.initPageScripts();
-                    this.highlightActiveLink();
+                    this.pageCache.set(path, newMain.innerHTML);
                 } catch (err) {
                     console.error('Navigation failed:', err);
-                } finally {
-                    contentArea.style.opacity = '1';
-                }
-            },
-
-            async submitForm(form, successCallback) {
-                const formData = new FormData(form);
-                const url = form.action;
-                const method = form.method || 'POST';
-
-                try {
-                    const response = await fetch(url, {
-                        method: method,
-                        body: formData,
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                    });
-                    
-                    if (response.ok) {
-                        if (successCallback) successCallback(await response.json());
-                        else this.navigate(window.location.pathname, false); // Refresh current view
-                    }
-                } catch (err) {
-                    console.error('Form submission failed:', err);
                 }
             },
 
             initPageScripts() {
-                // Re-run scripts found in the new content
+                if (window.Chart && Chart.instances) {
+                    Object.values(Chart.instances).forEach(instance => instance.destroy());
+                }
+
                 const contentArea = document.querySelector('.content');
-                const scripts = contentArea.querySelectorAll('script');
-                scripts.forEach(oldScript => {
+                const drawerArea = document.querySelector('#page-drawer');
+                if (!contentArea) return;
+
+                const allScripts = [
+                    ...contentArea.querySelectorAll('script'),
+                    ...(drawerArea ? drawerArea.querySelectorAll('script') : [])
+                ];
+
+                allScripts.forEach(oldScript => {
                     const newScript = document.createElement('script');
                     Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
                     newScript.appendChild(document.createTextNode(oldScript.innerHTML));
                     oldScript.parentNode.replaceChild(newScript, oldScript);
                 });
-            },
-
-            highlightActiveLink() {
-                if (typeof highlightActiveLink === 'function') {
-                    highlightActiveLink();
-                } else {
-                    const path = window.location.pathname;
-                    document.querySelectorAll('.nav-link').forEach(link => {
-                        link.classList.toggle('active', link.getAttribute('href') === path);
-                    });
-                }
             }
         };
 
@@ -357,7 +568,7 @@
         // Intercept Forms (Filtering & Adding)
         document.addEventListener('submit', async (e) => {
             const form = e.target;
-            
+
             // 1. Handle Filter Forms (Standard Navigation)
             if (form.id === 'filter-form') {
                 e.preventDefault();
@@ -388,9 +599,19 @@
                     });
 
                     if (response.ok) {
+                        console.log('Form submission successful, refreshing UI...');
                         closeDrawer();
-                        form.reset();
-                        await AppRouter.navigate(window.location.pathname, false);
+                        if (form.id !== 'filter-form') form.reset();
+                        
+                        // Force cache invalidation for current path
+                        const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
+                        AppRouter.pageCache.delete(currentPath);
+                        
+                        // Re-navigate surgically (update UI, preserve scroll, no history push)
+                        await AppRouter.navigate(window.location.pathname, false, true);
+                        
+                        // Show success toast
+                        showToast('Changes saved successfully!', 'success');
                     } else {
                         const errorText = await response.text();
                         console.error('Server Error:', errorText);
@@ -398,7 +619,11 @@
                     }
                 } catch (err) {
                     console.error('Submission failed:', err);
-                    alert('Network error. Please check your connection.');
+                    if (err instanceof ReferenceError || err instanceof TypeError) {
+                        alert('System Error: ' + err.message);
+                    } else {
+                        alert('Network error. Please check your connection.');
+                    }
                 } finally {
                     form.setAttribute('data-submitting', 'false');
                     if (submitBtn) {
@@ -415,7 +640,7 @@
         });
 
         // Theme Loader
-        (function() {
+        (function () {
             const theme = localStorage.getItem('theme') || 'dark';
             document.body.setAttribute('data-theme', theme);
         })();
@@ -435,70 +660,70 @@
             sidebar.classList.toggle('collapsed');
             icon.classList.toggle('ph-caret-right');
             icon.classList.toggle('ph-caret-left');
-        }
-
-        // Drawer Control
-        function openDrawer(id) {
-            const drawer = document.getElementById(id);
-            if (!drawer) return;
             
-            drawer.classList.add('active');
-            document.getElementById('drawer-backdrop').classList.add('active');
-
-            // Set all date inputs inside this drawer to TODAY by default if empty
-            const today = new Date().toISOString().split('T')[0];
-            drawer.querySelectorAll('input[type="date"]').forEach(input => {
-                if (!input.value) input.value = today;
-            });
-            
-            // Always ensure accounts are fresh when opening
-            if (id === 'add-tx-drawer') {
-                loadUniversalAccounts();
-                loadUniversalCategories();
-            }
+            // Re-sync sidebar to update indicator position after animation
+            setTimeout(() => UIState.syncSidebar(), 400);
         }
 
         let globalAccounts = []; // Cache accounts to filter locally
+        let globalCards = [];
+        let globalCategories = [];
 
-        async function loadUniversalAccounts() {
+        async function loadUniversalData() {
             const select = document.getElementById('universal-account-select');
-            if (!select) return;
             
             // If already loading or loaded, just re-filter
-            if (globalAccounts.length > 0) {
-                const currentType = document.querySelector('input[name="type"]:checked')?.value || 'expense';
-                filterAccounts(currentType);
+            if (globalAccounts.length > 0 && globalCards.length > 0 && globalCategories.length > 0) {
+                if (select) {
+                    const currentType = document.querySelector('input[name="type"]:checked')?.value || 'expense';
+                    filterAccounts(currentType);
+                }
                 return;
             }
 
             try {
-                const response = await fetch('/api/accounts');
-                const data = await response.json();
-                globalAccounts = data;
+                const [accResp, cardResp, catResp] = await Promise.all([
+                    fetch('/api/accounts'),
+                    fetch('/api/cards'),
+                    fetch('/api/categories')
+                ]);
                 
-                const currentType = document.querySelector('input[name="type"]:checked')?.value || 'expense';
-                filterAccounts(currentType);
+                globalAccounts = await accResp.json();
+                globalCards = await cardResp.json();
+                globalCategories = await catResp.json();
+
+                if (select) {
+                    const currentType = document.querySelector('input[name="type"]:checked')?.value || 'expense';
+                    filterAccounts(currentType);
+                }
             } catch (err) {
-                console.error("Account load failed", err);
-                select.innerHTML = '<option value="">Error loading accounts</option>';
+                console.error("Universal data load failed", err);
             }
         }
 
-        function selectTxType(el) {
-            if (!el) return;
-            const group = el.closest('.tx-type-group') || el.parentElement.parentElement;
-            group.querySelectorAll('.tx-type-btn').forEach(btn => btn.classList.remove('active'));
-            el.classList.add('active');
-            
-            // Sync radio input - find the radio in the same label
-            const radio = el.closest('label').querySelector('input[type="radio"]');
-            if (radio) {
-                radio.checked = true;
+        function selectTxType(btn) {
+            if (!btn || btn.classList.contains('active')) return;
+
+            const group = btn.closest('.tx-type-group');
+            group.querySelectorAll('.tx-type-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const radio = btn.previousElementSibling;
+            radio.checked = true;
+
+            // Update Label dynamically
+            const notesLabel = document.getElementById('notes-label');
+            if (notesLabel) {
+                if (radio.value === 'income') notesLabel.innerText = 'Income From';
+                else if (radio.value === 'expense') notesLabel.innerText = 'Expense Name';
+                else if (radio.value === 'transfer') notesLabel.innerText = 'Reason';
+            }
+
+            if (typeof filterAccounts === 'function') {
                 filterAccounts(radio.value);
             }
         }
 
-        let globalCategories = [];
 
         function filterAccounts(txType) {
             const select = document.getElementById('universal-account-select');
@@ -507,9 +732,9 @@
             const accountLabel = document.getElementById('account-label');
             const catSelect = document.getElementById('universal-category-select');
             const emiContainer = document.getElementById('emi-container');
-            
+
             if (!select) return;
-            
+
             // Show EMI option ONLY for expenses
             if (emiContainer) {
                 emiContainer.style.display = (txType === 'expense') ? 'block' : 'none';
@@ -518,7 +743,7 @@
                 select.innerHTML = '<option value="">No accounts found</option>';
                 return;
             }
-            
+
             // Toggle Transfer UI
             if (txType === 'transfer') {
                 if (toContainer) toContainer.style.display = 'block';
@@ -535,10 +760,10 @@
                 const type = (acc.type || '').toLowerCase();
                 const isCard = type.includes('card');
                 if (txType === 'income') return !isCard;
-                return true; 
+                return true;
             });
 
-            const optionsHtml = filtered.map(acc => 
+            const optionsHtml = filtered.map(acc =>
                 `<option value="${acc.id}">${acc.name} (₹${acc.balance.toFixed(2)})</option>`
             ).join('');
 
@@ -548,20 +773,8 @@
             // Filter Categories
             if (catSelect) {
                 const filteredCats = globalCategories.filter(c => c.type === (txType === 'transfer' ? 'expense' : txType));
-                catSelect.innerHTML = `<option value="">Select category...</option>` + 
+                catSelect.innerHTML = `<option value="">Select category...</option>` +
                     filteredCats.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
-            }
-        }
-
-        async function loadUniversalCategories() {
-            try {
-                const response = await fetch('/api/categories');
-                globalCategories = await response.json();
-                
-                const currentType = document.querySelector('input[name="type"]:checked')?.value || 'expense';
-                filterAccounts(currentType);
-            } catch (err) {
-                console.error("Category load failed", err);
             }
         }
 
@@ -579,50 +792,110 @@
             document.getElementById('drawer-backdrop').classList.remove('active');
         }
 
-        // --- Modern Context Menu ---
+        // --- Unified Context Menu System ---
+        const typeMap = {
+            'transaction': 'transactions',
+            'budget': 'budgets',
+            'goal': 'goals',
+            'subscription': 'subscriptions',
+            'asset': 'assets',
+            'loan': 'loans',
+            'ledger': 'people_ledger',
+            'account': 'accounts',
+            'card': 'credit_cards'
+        };
+
         function showContextMenu(e, id, type = 'transaction') {
             e.preventDefault();
-            e.stopPropagation(); // Prevent immediate close
-            
+            e.stopPropagation();
+
             const menu = document.getElementById('context-menu');
-            const x = e.clientX;
-            const y = e.clientY;
+            if (!menu) return;
+
+            const label = type.charAt(0).toUpperCase() + type.slice(1);
+            
+            // Define which types support Edit/Delete
+            const editableTypes = ['transaction', 'loan', 'account', 'card', 'budget', 'goal', 'subscription', 'asset'];
+            const deletableTypes = ['transaction', 'loan', 'account', 'card', 'ledger', 'goal', 'asset', 'budget', 'subscription'];
+            const systemTypes = ['health', 'categories', 'reminders'];
+
+            let html = '';
+            if (editableTypes.includes(type)) {
+                html += `
+                    <div class="context-menu-item" onclick="editItem('${type}', '${id}')">
+                        <i class="ph ph-pencil-line"></i> Edit ${label}
+                    </div>
+                `;
+            }
+            if (deletableTypes.includes(type)) {
+                html += `
+                    <div class="context-menu-item danger" onclick="deleteItem('${type}', '${id}')">
+                        <i class="ph ph-trash"></i> Delete ${label}
+                    </div>
+                `;
+            }
+            if (systemTypes.includes(id) || type === 'system') {
+                html = `
+                    <div class="context-menu-item" onclick="AppRouter.navigate(window.location.pathname)">
+                        <i class="ph ph-arrows-clockwise"></i> Refresh ${label}
+                    </div>
+                    <div class="context-menu-item" onclick="closeContextMenu()">
+                        <i class="ph ph-eye-slash"></i> Hide Widget
+                    </div>
+                `;
+            }
+
+            menu.innerHTML = html || '<div class="context-menu-item text-muted">No actions available</div>';
+            menu.classList.add('active');
+
+            // Positioning with bounds checking
+            let x = e.clientX;
+            let y = e.clientY;
+            const menuWidth = 180;
+            const menuHeight = 110;
+
+            if (x + menuWidth > window.innerWidth) x = window.innerWidth - menuWidth - 10;
+            if (y + menuHeight > window.innerHeight) y = window.innerHeight - menuHeight - 10;
 
             menu.style.left = `${x}px`;
             menu.style.top = `${y}px`;
-            menu.classList.add('active');
 
-            menu.innerHTML = `
-                <div class="context-menu-item" onclick="editItem('${type}', '${id}')">
-                    <i class="ph ph-pencil-line"></i> Edit ${type}
-                </div>
-                <div class="context-menu-item danger" onclick="deleteItem('${type}', '${id}')">
-                    <i class="ph ph-trash"></i> Delete ${type}
-                </div>
-            `;
-            
-            // Close menu when clicking outside
-            const closeMenu = () => {
+            const closeHandler = () => {
                 menu.classList.remove('active');
-                document.removeEventListener('click', closeMenu);
+                document.removeEventListener('click', closeHandler);
             };
-            setTimeout(() => document.addEventListener('click', closeMenu), 10);
+            setTimeout(() => document.addEventListener('click', closeHandler), 10);
+        }
+
+        function closeContextMenu() {
+            const menu = document.getElementById('context-menu');
+            if (menu) menu.classList.remove('active');
         }
 
         async function editItem(type, id) {
             closeContextMenu();
             const drawer = document.getElementById('page-drawer');
             const content = document.getElementById('drawer-dynamic-content');
-            
+
+            // Pre-load accounts/cards for dropdowns
+            await loadUniversalData();
+
             try {
                 let url = '';
                 if (type === 'loan') url = `/loans/edit/${id}`;
                 else if (type === 'card') url = `/cards/edit/${id}`;
                 else if (type === 'account') url = `/accounts/edit/${id}`;
-                
+                else if (type === 'transaction') url = `/transactions/edit/${id}`;
+                else if (type === 'goal') url = `/goals/edit/${id}`;
+                else if (type === 'budget') url = `/budgets/edit/${id}`;
+                else if (type === 'subscription') url = `/subscriptions/edit/${id}`;
+                else if (type === 'asset') url = `/assets/edit/${id}`;
+
                 if (!url) return;
 
+
                 const response = await fetch(url);
+                if (!response.ok) throw new Error('Fetch failed');
                 const data = await response.json();
 
                 if (type === 'loan') {
@@ -631,29 +904,29 @@
                         <form action="/loans/edit/${id}" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 20px;">
                             <div>
                                 <label class="text-muted">Loan Name</label>
-                                <input type="text" name="name" value="${data.name}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                <input type="text" name="name" value="${data.name}" required>
                             </div>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                                 <div>
                                     <label class="text-muted">Principal</label>
-                                    <input type="number" step="0.01" name="principal" value="${data.principal}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                    <input type="number" step="0.01" name="principal" value="${data.principal}" required>
                                 </div>
                                 <div>
                                     <label class="text-muted">Total to Pay</label>
-                                    <input type="number" step="0.01" name="total_to_pay" value="${data.total_to_pay}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                    <input type="number" step="0.01" name="total_to_pay" value="${data.total_to_pay}" required>
                                 </div>
                             </div>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                                 <div>
                                     <label class="text-muted">Tenure</label>
-                                    <input type="number" name="tenure" value="${data.tenure}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                    <input type="number" name="tenure" value="${data.tenure}" required>
                                 </div>
                                 <div>
                                     <label class="text-muted">Due Date (Day)</label>
-                                    <input type="number" name="due_date" value="${data.due_date}" min="1" max="31" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                    <input type="number" name="due_date" value="${data.due_date}" min="1" max="31" required>
                                 </div>
                             </div>
-                            <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; margin-top: 10px;">Save Changes</button>
+                            <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center;">Save Changes</button>
                         </form>
                     `;
                 } else if (type === 'transaction') {
@@ -661,40 +934,45 @@
                         <h2 style="font-family: 'Outfit'; margin-bottom: 24px;">Edit Transaction</h2>
                         <form action="/transactions/edit/${id}" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 20px;">
                             <div>
-                                <label class="text-muted">Type</label>
-                                <select name="type" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
-                                    <option value="income" ${data.type === 'income' ? 'selected' : ''}>Income</option>
-                                    <option value="expense" ${data.type === 'expense' ? 'selected' : ''}>Expense</option>
-                                    <option value="transfer" ${data.type === 'transfer' ? 'selected' : ''}>Transfer</option>
-                                </select>
-                            </div>
-                            <div>
                                 <label class="text-muted">Amount</label>
-                                <input type="number" step="0.01" name="amount" value="${data.amount}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 1.25rem; font-weight: 700;">
+                                <input type="number" step="0.01" name="amount" value="${data.amount}" required style="font-size: 1.25rem; font-weight: 700;">
                             </div>
                             <div>
                                 <label class="text-muted">Account</label>
-                                <select name="account_id" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
-                                    ${globalAccounts.map(acc => `
-                                        <option value="${acc.id}" ${data.account_id == acc.id ? 'selected' : ''}>${acc.name}</option>
-                                    `).join('')}
+                                <select name="account_id" required>
+                                    ${globalAccounts.map(acc => `<option value="${acc.id}" ${data.account_id == acc.id ? 'selected' : ''}>${acc.name}</option>`).join('')}
                                 </select>
                             </div>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                                 <div>
                                     <label class="text-muted">Category</label>
-                                    <input type="text" name="category" value="${data.category}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                    <input type="text" name="category" value="${data.category}" required>
                                 </div>
                                 <div>
                                     <label class="text-muted">Date</label>
-                                    <input type="date" name="date" value="${data.date}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                    <input type="date" name="date" value="${data.date}" required>
                                 </div>
                             </div>
                             <div>
                                 <label class="text-muted">Notes</label>
-                                <textarea name="notes" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); min-height: 80px;">${data.notes || ''}</textarea>
+                                <textarea name="notes" style="min-height: 80px;">${data.notes || ''}</textarea>
                             </div>
-                            <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; margin-top: 10px;">Save Changes</button>
+                            <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center;">Save Changes</button>
+                        </form>
+                    `;
+                } else if (type === 'account') {
+                    content.innerHTML = `
+                        <h2 style="font-family: 'Outfit'; margin-bottom: 24px;">Edit Account</h2>
+                        <form action="/accounts/edit/${id}" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 20px;">
+                            <div>
+                                <label class="text-muted">Account Name</label>
+                                <input type="text" name="name" value="${data.name}" required>
+                            </div>
+                            <div>
+                                <label class="text-muted">Balance</label>
+                                <input type="number" step="0.01" name="balance" value="${data.balance}" required>
+                            </div>
+                            <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center;">Save Changes</button>
                         </form>
                     `;
                 } else if (type === 'card') {
@@ -703,62 +981,216 @@
                         <form action="/cards/edit/${id}" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 20px;">
                             <div>
                                 <label class="text-muted">Card Name</label>
-                                <input type="text" name="name" value="${data.name}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                <input type="text" name="name" value="${data.name}" required>
                             </div>
                             <div>
                                 <label class="text-muted">Credit Limit</label>
-                                <input type="number" step="0.01" name="limit" value="${data.card_limit}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                <input type="number" step="0.01" name="limit" value="${data.card_limit}" required>
                             </div>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                                 <div>
                                     <label class="text-muted">Billing Date</label>
-                                    <input type="number" name="billing_date" value="${data.billing_date}" min="1" max="31" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                    <input type="number" name="billing_date" value="${data.billing_date}" min="1" max="31" required>
                                 </div>
                                 <div>
                                     <label class="text-muted">Due Date</label>
-                                    <input type="number" name="due_date" value="${data.due_date}" min="1" max="31" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                    <input type="number" name="due_date" value="${data.due_date}" min="1" max="31" required>
                                 </div>
                             </div>
-                            <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; margin-top: 10px;">Save Changes</button>
+                            <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center;">Save Changes</button>
+                        </form>
+                    `;
+                } else if (type === 'goal') {
+                    content.innerHTML = `
+                        <h2 style="font-family: 'Outfit'; margin-bottom: 24px;">Edit Goal</h2>
+                        <form action="/goals/edit/${id}" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 20px;">
+                            <div>
+                                <label class="text-muted">Goal Name</label>
+                                <input type="text" name="name" value="${data.name}" required>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div>
+                                    <label class="text-muted">Target Amount</label>
+                                    <input type="number" step="0.01" name="target_amount" value="${data.target_amount}" required>
+                                </div>
+                                <div>
+                                    <label class="text-muted">Current Amount</label>
+                                    <input type="number" step="0.01" name="current_amount" value="${data.current_amount}" required>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-muted">Target Date</label>
+                                <input type="date" name="target_date" value="${data.target_date || ''}">
+                            </div>
+                            <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center;">Save Changes</button>
+                        </form>
+                    `;
+                } else if (type === 'budget') {
+                    content.innerHTML = `
+                        <h2 style="font-family: 'Outfit'; margin-bottom: 24px;">Edit Budget</h2>
+                        <form action="/budgets/edit/${id}" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 20px;">
+                            <div>
+                                <label class="text-muted">Budget Name</label>
+                                <input type="text" name="name" value="${data.name}" required>
+                            </div>
+                            <div>
+                                <label class="text-muted">Budget Amount</label>
+                                <input type="number" step="0.01" name="amount" value="${data.amount}" required>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div>
+                                    <label class="text-muted">Period</label>
+                                    <select name="period">
+                                        <option value="Weekly" ${data.period === 'Weekly' ? 'selected' : ''}>Weekly</option>
+                                        <option value="Monthly" ${data.period === 'Monthly' ? 'selected' : ''}>Monthly</option>
+                                        <option value="Yearly" ${data.period === 'Yearly' ? 'selected' : ''}>Yearly</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-muted">Status</label>
+                                    <select name="status">
+                                        <option value="active" ${data.status === 'active' ? 'selected' : ''}>Active</option>
+                                        <option value="paused" ${data.status === 'paused' ? 'selected' : ''}>Paused</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center;">Save Changes</button>
+                        </form>
+                    `;
+                } else if (type === 'subscription') {
+                    content.innerHTML = `
+                        <h2 style="font-family: 'Outfit'; margin-bottom: 24px;">Edit Subscription</h2>
+                        <form action="/subscriptions/edit/${id}" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 20px;">
+                            <div>
+                                <label class="text-muted">Subscription Name</label>
+                                <input type="text" name="name" value="${data.name}" required>
+                            </div>
+                            <div>
+                                <label class="text-muted">Amount</label>
+                                <input type="number" step="0.01" name="amount" value="${data.amount}" required>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div>
+                                    <label class="text-muted">Billing Cycle</label>
+                                    <select name="billing_cycle">
+                                        <option value="Monthly" ${data.billing_cycle === 'Monthly' ? 'selected' : ''}>Monthly</option>
+                                        <option value="Yearly" ${data.billing_cycle === 'Yearly' ? 'selected' : ''}>Yearly</option>
+                                        <option value="Weekly" ${data.billing_cycle === 'Weekly' ? 'selected' : ''}>Weekly</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-muted">Next Due Date</label>
+                                    <input type="date" name="next_due_date" value="${data.next_due_date}" required>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-muted">Payment Source</label>
+                                <select name="payment_source" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                    <option value="">Select Source (Optional)</option>
+                                    <optgroup label="Bank Accounts">
+                                        ${globalAccounts.map(acc => `<option value="${acc.name}" ${data.payment_source === acc.name ? 'selected' : ''}>${acc.name} (₹${acc.balance.toFixed(2)})</option>`).join('')}
+                                    </optgroup>
+                                    <optgroup label="Credit Cards">
+                                        ${globalCards.map(card => `<option value="${card.name}" ${data.payment_source === card.name ? 'selected' : ''}>${card.name} (Available: ₹${card.available.toFixed(2)})</option>`).join('')}
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center;">Save Changes</button>
+                        </form>
+                    `;
+                } else if (type === 'asset') {
+                    content.innerHTML = `
+                        <h2 style="font-family: 'Outfit'; margin-bottom: 24px;">Edit Asset</h2>
+                        <form action="/assets/edit/${id}" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 20px;">
+                            <div>
+                                <label class="text-muted">Asset Name</label>
+                                <input type="text" name="name" value="${data.name}" required>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div>
+                                    <label class="text-muted">Current Value</label>
+                                    <input type="number" step="0.01" name="current_value" value="${data.current_value}" required>
+                                </div>
+                                <div>
+                                    <label class="text-muted">Purchase Value</label>
+                                    <input type="number" step="0.01" name="purchase_value" value="${data.purchase_value}" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center;">Save Changes</button>
                         </form>
                     `;
                 }
 
                 openDrawer('page-drawer');
             } catch (err) {
-                console.error('Fetch error:', err);
+                console.error('Edit error:', err);
             }
         }
 
         async function deleteItem(type, id) {
-            if (confirm(`Are you sure you want to delete this ${type}?`)) {
-                try {
-                    let url = '';
-                    if (type === 'loan') url = `/loans/delete/${id}`;
-                    else if (type === 'transaction') url = `/transactions/delete/${id}`;
-                    else if (type === 'account') url = `/accounts/delete/${id}`;
-                    else if (type === 'card') url = `/cards/delete/${id}`;
-                    else if (type === 'ledger') url = `/ledger/delete/${id}`;
-                    
-                    if (!url) return;
+            if (!confirm(`Are you sure you want to delete this ${type}?`)) return;
+            
+            try {
+                let url = '';
+                if (type === 'loan') url = `/loans/delete/${id}`;
+                else if (type === 'transaction') url = `/api/transactions/delete/${id}`;
+                else if (type === 'account') url = `/accounts/delete/${id}`;
+                else if (type === 'card') url = `/cards/delete/${id}`;
+                else if (type === 'ledger') url = `/ledger/delete/${id}`;
+                else if (type === 'goal') url = `/goals/delete/${id}`;
+                else if (type === 'asset') url = `/assets/delete/${id}`;
+                else if (type === 'subscription') url = `/subscriptions/delete/${id}`;
+                else if (type === 'budget') url = `/budgets/delete/${id}`;
 
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                if (!url) return;
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                if (response.ok) {
+                    // Optimistic Removal with Animation
+                    const selectors = [
+                        `[data-id="${id}"][data-type="${type}"]`,
+                        `.transaction-row[data-id="${id}"]`,
+                        `.card[data-id="${id}"]`,
+                        `.table-row-hover[data-id="${id}"]`,
+                        `.loan-card[data-id="${id}"]`,
+                        `.goal-card[data-id="${id}"]`,
+                        `.person-card[data-id="${id}"]`
+                    ];
+                    selectors.forEach(s => {
+                        document.querySelectorAll(s).forEach(el => {
+                            el.style.opacity = '0';
+                            el.style.transform = 'scale(0.9) translateY(10px)';
+                            el.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+                            setTimeout(() => el.remove(), 300);
+                        });
                     });
 
-                    if (response.ok) {
-                        AppRouter.navigate(window.location.pathname, false);
-                    }
-                } catch (err) {
-                    console.error('Delete error:', err);
+                    // Update summaries silently
+                    const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
+                    AppRouter.pageCache.delete(currentPath);
+                    await AppRouter.navigate(window.location.pathname, false, true);
+                    showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} deleted`, 'info');
                 }
+            } catch (err) {
+                console.error('Delete error:', err);
             }
-            closeContextMenu();
         }
 
-        function closeContextMenu() {
-            document.getElementById('context-menu').classList.remove('active');
+        async function clearAllTransactions() {
+            if (confirm("⚠️ CRITICAL: Are you absolutely sure you want to PERMANENTLY DELETE ALL transactions?")) {
+                try {
+                    const response = await fetch('/api/transactions/clear-all', { method: 'POST' });
+                    if (response.ok) {
+                        const path = '/transactions';
+                        AppRouter.pageCache.delete(path);
+                        AppRouter.navigate(path);
+                    }
+                } catch (err) { console.error(err); }
+            }
         }
 
         // --- Notification System ---
@@ -838,6 +1270,19 @@
             fetchNotifications();
         }
 
+        async function clearAllNotifications() {
+            if (confirm('Clear all notifications?')) {
+                try {
+                    const response = await fetch('/api/notifications/clear', { method: 'POST' });
+                    if (response.ok) {
+                        fetchNotifications();
+                    }
+                } catch (err) {
+                    console.error('Failed to clear notifications:', err);
+                }
+            }
+        }
+
         // Close dropdown when clicking outside
         document.addEventListener('click', (e) => {
             const dropdown = document.getElementById('notification-dropdown');
@@ -853,7 +1298,11 @@
             document.querySelectorAll('input').forEach(i => i.setAttribute('autocomplete', 'off'));
         }
 
-        // Initialize and re-disable on navigation
+        // --- Lifecycle Initialization ---
+        window.addEventListener('popstate', () => {
+            AppRouter.navigate(window.location.pathname + window.location.search, false);
+        });
+
         document.addEventListener('DOMContentLoaded', disableAutocomplete);
         window.addEventListener('popstate', () => {
             disableAutocomplete();
@@ -861,7 +1310,7 @@
 
         // Patch AppRouter to handle dynamic content
         const originalNavigate = AppRouter.navigate;
-        AppRouter.navigate = async function(url, push = true) {
+        AppRouter.navigate = async function (url, push = true) {
             await originalNavigate.apply(this, [url, push]);
             disableAutocomplete();
         };
@@ -885,10 +1334,10 @@
 
             setupListeners() {
                 document.addEventListener('keydown', (e) => {
-                    // Shortcut: Right Alt (AltGraph) + Space OR Ctrl+Shift+F
-                    const isRightAlt = e.code === 'AltRight' || e.getModifierState('AltGraph');
-                    if ((isRightAlt && e.code === 'Space') || (e.ctrlKey && e.shiftKey && e.code === 'KeyF')) {
+                    // Shortcut: Ctrl + Space (Modern Spotlight)
+                    if (e.ctrlKey && e.code === 'Space') {
                         e.preventDefault();
+                        e.stopPropagation();
                         this.toggle();
                     }
                     if (e.key === 'Escape' && this.isOpen) {
@@ -907,7 +1356,7 @@
             toggle(force) {
                 const modal = document.getElementById('spotlight-modal');
                 this.isOpen = force !== undefined ? force : !this.isOpen;
-                
+
                 if (this.isOpen) {
                     modal.classList.add('active');
                     document.getElementById('spotlight-input').value = '';
@@ -964,7 +1413,7 @@
                 const container = document.getElementById('spotlight-results');
                 this.currentMatches = matches;
                 this.selectedIndex = matches.length > 0 ? 0 : -1;
-                
+
                 if (matches.length === 0) {
                     container.innerHTML = '<div style="padding: 40px; text-align: center; color: var(--text-secondary);">No matches found</div>';
                     return;
@@ -1017,7 +1466,7 @@
                 } else {
                     console.log("Spotlight Navigate:", match);
                 }
-                
+
                 this.recentSearches = [match.title, ...this.recentSearches.filter(s => s !== match.title)].slice(0, 5);
                 localStorage.setItem('recent_searches', JSON.stringify(this.recentSearches));
             },
@@ -1045,20 +1494,31 @@
         }
 
         function highlightActiveLink() {
-            const path = window.location.pathname;
+            const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
             document.querySelectorAll('.nav-link').forEach(link => {
-                const href = link.getAttribute('href');
-                // Exact match for root or other paths
-                const isActive = (href === path) || (href === '/' && path === '') || (path === '/' && href === '/');
-                link.classList.toggle('active', isActive);
+                try {
+                    const linkPath = new URL(link.href).pathname.replace(/\/$/, '') || '/';
+                    const isActive = (linkPath === currentPath);
+                    link.classList.toggle('active', isActive);
+
+                    // Specific fix for Dashboard (root)
+                    const rawHref = link.getAttribute('href');
+                    if ((rawHref === '/' || rawHref === '') && (currentPath === '/' || currentPath === '')) {
+                        link.classList.add('active');
+                    }
+                } catch (e) {
+                    // Fallback for non-URL links
+                    link.classList.toggle('active', link.getAttribute('href') === currentPath);
+                }
             });
         }
 
-        // Run on initial load
-        window.addEventListener('DOMContentLoaded', highlightActiveLink);
-        
+        // Run immediately and on load
+        highlightActiveLink();
+        window.addEventListener('load', highlightActiveLink);
+
         AppRouter.initPageScripts();
-        AppRouter.highlightActiveLink = highlightActiveLink; // Export to Router
+        AppRouter.highlightActiveLink = highlightActiveLink;
 
         // Initialize Spotlight
         SpotlightEngine.init();
@@ -1069,5 +1529,164 @@
     </script>
 
     {% block extra_body %}{% endblock %}
+    <!-- Action Modals & Notifications -->
+    <div id="confirmation-modal" class="spotlight-overlay" style="display: none; z-index: 9000;">
+        <div class="card" style="max-width: 400px; width: 90%; margin: 15vh auto; padding: 30px;">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div class="icon-box"
+                    style="background: rgba(239, 68, 68, 0.1); color: var(--expense-color); margin: 0 auto 16px; width: 64px; height: 64px;">
+                    <i class="ph-bold ph-trash" style="font-size: 2rem;"></i>
+                </div>
+                <h3 id="confirm-title" style="font-family: 'Outfit'; font-size: 1.5rem; margin-bottom: 8px;">Delete
+                    Item?</h3>
+                <p id="confirm-message" class="text-muted">This action can be undone for 30 seconds.</p>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <button class="btn-secondary" onclick="closeConfirmationModal()"
+                    style="justify-content: center;">Cancel</button>
+                <button id="confirm-action-btn" class="btn-primary"
+                    style="background: var(--expense-color); border-color: var(--expense-color); justify-content: center;">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="undo-toast"
+        style="display: none; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 10000; background: #1a1a1a; border: 1px solid var(--border-color); padding: 12px 24px; border-radius: 50px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); align-items: center; gap: 20px; border-left: 4px solid var(--warning-color); min-width: 320px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <i class="ph-bold ph-trash text-warning"></i>
+            <span id="undo-text" style="font-weight: 600;">Item moved to trash</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <button onclick="performUndo()"
+                style="background: var(--primary-accent); color: white; border: none; padding: 6px 16px; border-radius: 20px; font-weight: 700; cursor: pointer; font-size: 0.85rem;">UNDO</button>
+            <button onclick="closeUndoToast()"
+                style="background: none; border: none; color: var(--text-muted); cursor: pointer;"><i
+                    class="ph ph-x"></i></button>
+        </div>
+    </div>
+
+    <script>
+        let currentUndoItem = null;
+        let undoTimer = null;
+
+        function showConfirmationModal(title, message, onConfirm) {
+            document.getElementById('confirm-title').innerText = title;
+            document.getElementById('confirm-message').innerText = message;
+            const btn = document.getElementById('confirm-action-btn');
+            btn.onclick = () => {
+                onConfirm();
+                closeConfirmationModal();
+            };
+            document.getElementById('confirmation-modal').style.display = 'block';
+        }
+
+        function closeConfirmationModal() {
+            document.getElementById('confirmation-modal').style.display = 'none';
+        }
+
+        function triggerSoftDelete(id, type, label = "Item") {
+            showConfirmationModal(
+                `Delete ${label}?`,
+                "This action can be undone for 30 seconds.",
+                async () => {
+                    const formData = new FormData();
+                    formData.append('id', id);
+                    formData.append('type', type);
+
+                    const resp = await fetch('/api/actions/soft-delete', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (resp.ok) {
+                        currentUndoItem = { id, type };
+                        showUndoToast(`${label} moved to trash`);
+                        // Instantly hide the element if it exists
+                        const el = document.querySelector(`[data-id="${id}"][data-type="${type}"]`) ||
+                            document.querySelector(`.card[data-id="${id}"]`) ||
+                            document.getElementById(`${type}-${id}`);
+                        if (el) el.style.display = 'none';
+
+                        // If we're on a specific page, we might want to refresh after some time
+                        // or just let the user continue.
+                    }
+                }
+            );
+        }
+
+        function showUndoToast(message) {
+            document.getElementById('undo-text').innerText = message;
+            const toast = document.getElementById('undo-toast');
+            toast.style.display = 'flex';
+
+            if (undoTimer) clearTimeout(undoTimer);
+            undoTimer = setTimeout(() => {
+                closeUndoToast();
+            }, 30000);
+        }
+
+        function closeUndoToast() {
+            document.getElementById('undo-toast').style.display = 'none';
+            currentUndoItem = null;
+        }
+
+        async function performUndo() {
+            if (!currentUndoItem) return;
+
+            const formData = new FormData();
+            formData.append('id', currentUndoItem.id);
+            formData.append('type', currentUndoItem.type);
+
+            const resp = await fetch('/api/actions/restore', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (resp.ok) {
+                // Restore the element visibility
+                const id = currentUndoItem.id;
+                const type = currentUndoItem.type;
+                const el = document.querySelector(`[data-id="${id}"][data-type="${type}"]`) ||
+                    document.querySelector(`.card[data-id="${id}"]`) ||
+                    document.getElementById(`${type}-${id}`);
+                if (el) el.style.display = '';
+
+                closeUndoToast();
+                // If it's a complex page, reload might be better
+                if (window.location.pathname !== '/') {
+                    // window.location.reload(); 
+                }
+            }
+        }
+
+        // --- Toast System ---
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            const icon = type === 'success' ? 'ph-check-circle' : (type === 'error' ? 'ph-x-circle' : 'ph-info');
+            
+            toast.innerHTML = `
+                <i class="ph ${icon}"></i>
+                <span>${message}</span>
+            `;
+
+            container.appendChild(toast);
+
+            // Trigger animation
+            setTimeout(() => toast.classList.add('active'), 10);
+
+            // Remove after 3 seconds
+            setTimeout(() => {
+                toast.classList.remove('active');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+    <div id="toast-container"></div>
 </body>
+
 </html>

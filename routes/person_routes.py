@@ -22,6 +22,7 @@ def ledger_page():
 def add_person():
     name = request.form.get('name')
     l_type = request.form.get('type')
+    amount = float(request.form.get('amount', 0))
     notes = request.form.get('notes')
     date = request.form.get('date')
     account_id = request.form.get('account_id')
@@ -45,5 +46,18 @@ def settle_person(person_id):
     account_id = request.form.get("account_id")
     if account_id: account_id = int(account_id)
     PersonService.settle_person(person_id, account_id)
+    return {"status": "success"}
+
+@person_bp.route("/ledger/increase/<int:person_id>", methods=["POST"])
+def increase_debt(person_id):
+    amount = float(request.form.get('amount'))
+    account_id = int(request.form.get('account_id'))
+    date = request.form.get('date')
+    PersonService.increase_debt(person_id, amount, account_id, date)
+    return {"status": "success"}
+
+@person_bp.route("/ledger/delete/<int:person_id>", methods=["POST"])
+def delete_person(person_id):
+    PersonService.delete_person(person_id)
     return {"status": "success"}
 

@@ -74,7 +74,7 @@
             <h3 style="font-family: 'Outfit'; margin-bottom: 8px;">Category Management</h3>
             <p class="text-muted" style="margin-bottom: 24px;">Add or remove categories for your transactions.</p>
             
-            <form action="{{ url_for('category.add_category') }}" method="POST" style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 12px; margin-bottom: 32px;">
+            <form action="{{ url_for('category.add_category') }}" method="POST" class="ajax-form" style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 12px; margin-bottom: 32px;">
                 <input type="text" name="name" placeholder="Category Name (e.g. Shopping)" required style="padding: 12px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--bg-main); color: var(--text-primary);">
                 <select name="type" required style="padding: 12px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--bg-main); color: var(--text-primary);">
                     <option value="expense">Expense</option>
@@ -92,33 +92,62 @@
 
 <script>
     async function loadCategories() {
-        const response = await fetch('/api/categories');
-        const categories = await response.json();
-        const container = document.getElementById('categories-list');
-        
-        const types = ['income', 'expense'];
-        container.innerHTML = types.map(type => `
-            <div>
-                <h4 style="text-transform: capitalize; margin-bottom: 16px; color: ${type === 'income' ? 'var(--success-color)' : 'var(--expense-color)'}">${type} Categories</h4>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                    ${categories.filter(c => c.type === type).map(c => `
-                        <div class="card" style="padding: 8px 12px; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; border-radius: 10px;">
-                            ${c.name}
-                            <i class="ph ph-x" style="cursor: pointer; opacity: 0.5;" onclick="deleteCategory(${c.id})"></i>
-                        </div>
-                    `).join('')}
+        try {
+            const response = await fetch('/api/categories');
+            const categories = await response.json();
+            const container = document.getElementById('categories-list');
+            if (!container) return;
+            
+            const types = ['income', 'expense'];
+            container.innerHTML = types.map(type => `
+                <div>
+                    <h4 style="text-transform: capitalize; margin-bottom: 16px; font-family: 'Outfit'; color: ${type === 'income' ? 'var(--success-color)' : 'var(--expense-color)'}">${type} Categories</h4>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        ${categories.filter(c => c.type === type).map(c => `
+                            <div class="card" style="padding: 10px 14px; font-size: 0.9rem; display: flex; align-items: center; gap: 12px; border-radius: 12px; background: var(--bg-main); border: 1px solid var(--border-color);">
+                                <span style="font-weight: 600;">${c.name}</span>
+                                <button class="btn-icon" style="padding: 0; width: 20px; height: 20px; background: none; border: none; color: var(--expense-color); opacity: 0.6;" onclick="deleteCategory(${c.id}, this)">
+                                    <i class="ph ph-trash" style="font-size: 1rem;"></i>
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>
-            </div>
-        `).join('');
-    }
-
-    async function deleteCategory(id) {
-        if (confirm('Delete this category?')) {
-            await fetch(`/categories/delete/${id}`, { method: 'POST' });
-            loadCategories();
+            `).join('');
+        } catch (err) {
+            console.error('Failed to load categories:', err);
         }
     }
 
-    document.addEventListener('DOMContentLoaded', loadCategories);
+    async function deleteCategory(id, btn) {
+        if (confirm('Are you sure you want to delete this category?')) {
+            const card = btn.closest('.card');
+            card.style.opacity = '0.5';
+            card.style.pointerEvents = 'none';
+
+            try {
+                const response = await fetch(`/categories/delete/${id}`, { 
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                
+                if (response.ok) {
+                    card.style.transform = 'scale(0.9)';
+                    setTimeout(() => loadCategories(), 200);
+                } else {
+                    card.style.opacity = '1';
+                    card.style.pointerEvents = 'auto';
+                    alert('Failed to delete category.');
+                }
+            } catch (err) {
+                console.error('Delete failed:', err);
+                card.style.opacity = '1';
+                card.style.pointerEvents = 'auto';
+            }
+        }
+    }
+
+    // Initialize immediately for SPA compatibility
+    loadCategories();
 </script>
 {% endblock %}

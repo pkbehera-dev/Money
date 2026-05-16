@@ -1,0 +1,183 @@
+{% extends "base.html" if not partial|default(false) else "blank.html" %}
+
+{% block title %}Financial Goals{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;">
+        <div>
+            <h1 style="font-family: 'Outfit'; font-size: 2rem;">Financial Goals</h1>
+            <p class="text-muted">Track your progress towards what matters most</p>
+        </div>
+        <button class="btn-primary" onclick="openDrawer('page-drawer')">
+            <i class="ph ph-plus"></i> Create New Goal
+        </button>
+    </div>
+
+    <!-- Goals Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 24px;">
+        {% for g in goals %}
+        <div class="card goal-card status-{{ g.status }}" data-id="{{ g.id }}" data-type="goal" style="position: relative;">
+            {% if g.status == 'completed' %}
+            <div style="position: absolute; top: -12px; right: 20px; background: var(--success-color); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);">
+                <i class="ph-bold ph-check"></i> Completed
+            </div>
+            {% endif %}
+
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+                <div style="display: flex; gap: 16px; align-items: center;">
+                    <div class="icon-box" style="background: rgba(var(--primary-accent-rgb, 79, 140, 255), 0.1); color: var(--primary-accent);">
+                        <i class="ph-bold ph-{% if g.category == 'Emergency' %}first-aid{% elif g.category == 'Purchase' %}shopping-bag{% elif g.category == 'Savings' %}piggy-bank{% elif g.category == 'Debt' %}hand-coins{% else %}target{% endif %}"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight: 700; font-size: 1.25rem; font-family: 'Outfit';">{{ g.name }}</div>
+                        <div class="text-muted" style="font-size: 0.8rem;">Target: {{ g.target_date or 'No Deadline' }}</div>
+                    </div>
+                </div>
+                <button class="dot-menu" onclick="showContextMenu(event, '{{ g.id }}', 'goal')">
+                    <i class="ph ph-dots-three-vertical"></i>
+                </button>
+            </div>
+
+            <div style="margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="font-weight: 700; font-size: 1rem;">₹{{ "%.0f"|format(g.current_amount) }} saved</span>
+                    <span class="text-muted" style="font-size: 0.9rem;">Target: ₹{{ "%.0f"|format(g.target_amount) }}</span>
+                </div>
+                <div style="height: 12px; background: var(--bg-main); border-radius: 6px; overflow: hidden; position: relative;">
+                    <div class="progress-bar-fill" style="--w: {{ g.progress }}%; width: var(--w);"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 12px; align-items: center;">
+                    <span style="font-size: 0.85rem; font-weight: 600; color: var(--primary-accent);">{{ "%.1f"|format(g.progress) }}% complete</span>
+                    <span class="text-muted" style="font-size: 0.8rem;">₹{{ "%.0f"|format(g.remaining) }} to go</span>
+                </div>
+            </div>
+
+            {% if g.status != 'completed' %}
+            <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px;">
+                <button class="btn-secondary" style="justify-content: center; padding: 12px;" onclick="openContributionModal('{{ g.id }}', '{{ g.name }}')">
+                    <i class="ph ph-plus"></i> Add Contribution
+                </button>
+                <div style="display: flex; align-items: center; gap: 8px; padding: 0 12px; background: var(--bg-main); border-radius: 12px; font-size: 0.8rem; font-weight: 600;">
+                    <i class="ph ph-trend-up text-success"></i>
+                    On Track
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Modal for Contribution -->
+<div id="contribution-modal" class="spotlight-overlay" style="display: none; z-index: 2000;">
+    <div class="card" style="max-width: 400px; width: 90%; margin: 100px auto;">
+        <h3 id="contribute-goal-name" style="margin-bottom: 20px; font-family: 'Outfit';">Add to Goal</h3>
+        <form id="contribution-form" onsubmit="handleContribution(event)">
+            <input type="hidden" id="contribute-goal-id">
+            <div style="margin-bottom: 20px;">
+                <label class="text-muted" style="display: block; margin-bottom: 8px;">Amount</label>
+                <input type="number" id="contribute-amount" required placeholder="₹0" style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 1.5rem; font-weight: 700;">
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <button type="button" class="btn-secondary" onclick="closeContributionModal()" style="flex: 1; justify-content: center;">Cancel</button>
+                <button type="submit" class="btn-primary" style="flex: 2; justify-content: center;">Confirm</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openContributionModal(id, name) {
+        document.getElementById('contribute-goal-id').value = id;
+        document.getElementById('contribute-goal-name').innerText = 'Contribute to ' + name;
+        document.getElementById('contribution-modal').style.display = 'block';
+        document.getElementById('contribute-amount').focus();
+    }
+    
+    function closeContributionModal() {
+        document.getElementById('contribution-modal').style.display = 'none';
+    }
+    
+    async function handleContribution(e) {
+        e.preventDefault();
+        const id = document.getElementById('contribute-goal-id').value;
+        const amount = document.getElementById('contribute-amount').value;
+        
+        const resp = await fetch(`/goals/contribute/${id}`, {
+            method: 'POST',
+            body: new URLSearchParams({'amount': amount})
+        });
+        
+        if (resp.ok) {
+            closeContributionModal();
+            if (window.AppRouter) AppRouter.navigate('/goals');
+            else window.location.reload();
+        }
+    }
+</script>
+    <style>
+        .goal-card { border-top: 4px solid var(--primary-accent); }
+        .goal-card.status-completed { border-top-color: var(--success-color); }
+        
+        .progress-bar-fill { height: 100%; border-radius: 6px; transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .goal-card.status-completed .progress-bar-fill { background: var(--success-color); }
+        .goal-card.status-active .progress-bar-fill { background: var(--primary-accent); }
+    </style>
+{% endblock %}
+
+{% block drawer_content %}
+    <div id="add-goal-drawer">
+        <h2 style="font-family: 'Outfit'; margin-bottom: 8px;">New Financial Goal</h2>
+        <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 24px;">Dream it, track it, achieve it.</p>
+        
+        <form action="/goals/add" method="POST" style="display: flex; flex-direction: column; gap: 20px;">
+            <div>
+                <label class="text-muted" style="display: block; margin-bottom: 8px;">Goal Name</label>
+                <input type="text" name="name" required placeholder="e.g. New iPhone, Europe Trip" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div>
+                    <label class="text-muted" style="display: block; margin-bottom: 8px;">Target Amount</label>
+                    <input type="number" name="target_amount" required placeholder="₹0" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                </div>
+                <div>
+                    <label class="text-muted" style="display: block; margin-bottom: 8px;">Target Date</label>
+                    <input type="date" name="target_date" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                </div>
+            </div>
+
+            <div>
+                <label class="text-muted" style="display: block; margin-bottom: 8px;">Category</label>
+                <select name="category" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                    <option value="Savings">Savings</option>
+                    <option value="Purchase">Major Purchase</option>
+                    <option value="Emergency">Emergency Fund</option>
+                    <option value="Debt">Debt Payoff</option>
+                    <option value="Investment">Investment Goal</option>
+                    <option value="Custom">Custom</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="text-muted" style="display: block; margin-bottom: 8px;">Priority</label>
+                <select name="priority" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                    <option value="low">Low</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="high">High</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="text-muted" style="display: block; margin-bottom: 8px;">Notes</label>
+                <textarea name="notes" placeholder="Why is this goal important to you?" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); min-height: 80px;"></textarea>
+            </div>
+
+            <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; margin-top: 10px;">
+                Create Goal
+            </button>
+        </form>
+    </div>
+{% endblock %}

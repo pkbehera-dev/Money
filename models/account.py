@@ -8,13 +8,17 @@ class Account:
     type: str # Cash, Bank account, Wallet, UPI, Credit cards, Custom
     balance: float
     notes: Optional[str]
+    deleted_at: Optional[str] = None
 
     @classmethod
     def from_row(cls, row):
+        # Convert sqlite3.Row or dict-like object to Account
+        data = dict(row)
         return cls(
-            id=row['id'],
-            name=row['name'],
-            type=row['type'],
-            balance=row['balance'],
-            notes=row['notes']
+            id=data.get('id'),
+            name=data.get('name'),
+            type=data.get('type'),
+            balance=data.get('balance', 0.0),
+            notes=data.get('notes'),
+            deleted_at=data.get('deleted_at')
         )

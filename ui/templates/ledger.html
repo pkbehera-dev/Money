@@ -1,182 +1,319 @@
 {% extends "base.html" if not partial|default(false) else "blank.html" %}
 
-{% block title %}Lent / Borrow{% endblock %}
+{% block title %}Lent & Borrowed Ledger{% endblock %}
 
 {% block content %}
 <div class="animate-in">
     <!-- Header -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px;">
         <div>
-            <h1 style="font-family: 'Outfit'; font-size: 2rem;">Lent / Borrow</h1>
-            <p class="text-muted">Track interpersonal debts and settlements</p>
+            <h1 style="font-family: 'Outfit'; font-size: 2.5rem; margin-bottom: 8px;">Interpersonal Ledger</h1>
+            <p class="text-muted">Track debts and repayments with people</p>
         </div>
-        <div style="display: flex; align-items: center; gap: 16px;">
-            <button class="btn-secondary" id="toggle-closed-btn" onclick="toggleClosedItems()" title="Toggle History">
-                <i class="ph ph-eye-slash" id="eye-icon"></i>
-            </button>
+        <div style="display: flex; align-items: center; gap: 20px;">
+            <div class="filter-pills" style="display: flex; background: var(--bg-card); padding: 4px; border-radius: 12px; border: 1px solid var(--border-color);">
+                <a href="/ledger" class="pill {% if not active_filters.type %}active{% endif %}">All</a>
+                <a href="/ledger?type=lent" class="pill {% if active_filters.type == 'lent' %}active{% endif %}">Lent</a>
+                <a href="/ledger?type=borrowed" class="pill {% if active_filters.type == 'borrowed' %}active{% endif %}">Borrowed</a>
+            </div>
             <button class="btn-primary" onclick="openDrawer('page-drawer')">
-                <i class="ph ph-plus"></i> New Entry
+                <i class="ph ph-plus-circle"></i> New Entry
             </button>
         </div>
     </div>
 
-    <!-- Quick Stats -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 40px;">
+    <!-- Stats Summary -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-bottom: 40px;">
         <div class="card" style="border-left: 4px solid var(--success-color);">
-            <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 8px;">You are owed (Lent)</div>
-            <div style="font-size: 2.25rem; font-weight: 800; color: var(--success-color); font-family: 'Outfit';">
-                ₹{{ "%.2f"|format(people|selectattr('type', 'equalto', 'lent')|sum(attribute='total_amount') - people|selectattr('type', 'equalto', 'lent')|sum(attribute='paid_amount')) if people else '0.00' }}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span class="text-muted" style="font-size: 0.9rem;">Receivable (Lent)</span>
+                <i class="ph ph-trend-up text-success"></i>
             </div>
+            <div style="font-size: 1.75rem; font-weight: 800; font-family: 'Outfit'; color: var(--success-color);">
+                ₹{{ "%.2f"|format(people|selectattr('type', 'equalto', 'lent')|sum(attribute='remaining')) }}
+            </div>
+            <div class="text-muted" style="font-size: 0.75rem; margin-top: 8px;">Money you are waiting to receive</div>
         </div>
+
         <div class="card" style="border-left: 4px solid var(--expense-color);">
-            <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 8px;">You owe (Borrowed)</div>
-            <div style="font-size: 2.25rem; font-weight: 800; color: var(--expense-color); font-family: 'Outfit';">
-                ₹{{ "%.2f"|format(people|selectattr('type', 'equalto', 'borrowed')|sum(attribute='total_amount') - people|selectattr('type', 'equalto', 'borrowed')|sum(attribute='paid_amount')) if people else '0.00' }}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span class="text-muted" style="font-size: 0.9rem;">Payable (Borrowed)</span>
+                <i class="ph ph-trend-down text-danger"></i>
             </div>
+            <div style="font-size: 1.75rem; font-weight: 800; font-family: 'Outfit'; color: var(--expense-color);">
+                ₹{{ "%.2f"|format(people|selectattr('type', 'equalto', 'borrowed')|sum(attribute='remaining')) }}
+            </div>
+            <div class="text-muted" style="font-size: 0.75rem; margin-top: 8px;">Money you need to pay back</div>
         </div>
     </div>
 
-    <!-- Ledger List -->
-    <div id="ledger-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 24px;">
+    <!-- Ledger Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 24px;">
         {% for person in people %}
-        <div class="card ledger-card {{ person.status }} {% if person.type == 'lent' %}border-success{% else %}border-danger{% endif %}" style="position: relative; padding-bottom: 16px;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
-                <div style="display: flex; gap: 12px; align-items: center;">
-                    <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--bg-main); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--primary-accent); border: 1px solid var(--border-color);">
-                        {{ person.person_name[0]|upper }}
+        <div class="card person-card {{ person.status }}" data-id="{{ person.id }}" data-type="ledger" style="padding: 24px; transition: var(--transition);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+                <div style="display: flex; gap: 16px; align-items: center;">
+                    <div class="icon-box {{ 'status-income' if person.type == 'lent' else 'status-expense' }}" style="width: 54px; height: 54px; font-size: 1.5rem; border-radius: 16px;">
+                        <i class="ph {{ 'ph-arrow-up-right' if person.type == 'lent' else 'ph-arrow-down-left' }}"></i>
                     </div>
                     <div>
-                        <div style="font-weight: 700; font-size: 1.1rem;">{{ person.person_name }}</div>
-                        <div class="text-muted" style="font-size: 0.8rem;">
-                            {% if person.type == 'lent' %}I gave money{% else %}I took money{% endif %}
+                        <div style="font-weight: 800; font-family: 'Outfit'; font-size: 1.25rem;">{{ person.person_name }}</div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span class="status-badge {{ 'status-income' if person.type == 'lent' else 'status-expense' }}" style="font-size: 0.7rem; padding: 2px 8px;">
+                                {{ person.type|upper }}
+                            </span>
+                            <span class="text-muted" style="font-size: 0.75rem;">ID: #{{ person.id }}</span>
                         </div>
                     </div>
                 </div>
-                <div style="text-align: right; display: flex; align-items: flex-start; gap: 8px;">
-                    <div>
-                        <div class="text-muted" style="font-size: 0.75rem;">Total</div>
-                        <div style="font-weight: 700;">₹{{ "%.2f"|format(person.total_amount) }}</div>
-                    </div>
-                    <div class="action-reveal">
-                        <button class="dot-menu" onclick="showContextMenu(event, '{{ person.id }}', 'ledger')">
-                            <i class="ph-bold ph-dots-three-vertical"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div style="background: var(--bg-main); padding: 16px; border-radius: var(--radius-md); margin-bottom: 20px;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.85rem;">
-                    <span class="text-muted">Settled</span>
-                    <span class="text-success" style="font-weight: 600;">₹{{ "%.2f"|format(person.paid_amount) }}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 1.1rem; font-weight: 800;">
-                    <span>Balance</span>
-                    <span class="{% if person.type == 'lent' %}text-success{% else %}text-danger{% endif %}">₹{{ "%.2f"|format(person.total_amount - person.paid_amount) }}</span>
-                </div>
-            </div>
-
-            <div class="action-reveal" style="margin-top: 10px; display: flex; flex-direction: column; gap: 10px;">
-                <form action="{{ url_for('person.pay_person', person_id=person.id) }}" method="POST" style="display: flex; flex-direction: column; gap: 8px;">
-                    <div style="display: flex; gap: 8px;">
-                        <input type="number" step="0.01" name="amount" required placeholder="Settle amount..." style="flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 0.9rem;">
-                        <button type="submit" class="btn-primary" style="padding: 10px 16px;">
-                            <i class="ph ph-check"></i>
-                        </button>
-                    </div>
-                    <select name="account_id" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 0.8rem;">
-                        <option value="">None / External</option>
-                        {% for acc in accounts %}
-                        <option value="{{ acc.id }}">{{ acc.name }}</option>
-                        {% endfor %}
-                    </select>
-                </form>
-                
-                {% set balance = person.total_amount - person.paid_amount %}
-                <button class="btn-secondary" style="width: 100%; justify-content: center; font-size: 0.8rem; padding: 8px;" 
-                        data-id="{{ person.id }}"
-                        data-name="{{ person.person_name }}"
-                        data-balance="{{ balance|round(2) }}"
-                        onclick="settleAndClose(this)">
-                    <i class="ph ph-archive"></i> Mark as Fully Settled
+                <button class="dot-menu" onclick="showContextMenu(event, '{{ person.id }}', 'ledger')">
+                    <i class="ph-bold ph-dots-three-vertical"></i>
                 </button>
             </div>
+
+            <div style="background: var(--bg-main); padding: 20px; border-radius: 16px; margin-bottom: 24px; border: 1px solid var(--border-color);">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px; align-items: center;">
+                    <span class="text-muted" style="font-size: 0.85rem;">Balance Owed</span>
+                    <span style="font-size: 1.25rem; font-weight: 800; font-family: 'Outfit';" class="{{ 'text-success' if person.type == 'lent' else 'text-danger' }}">
+                        ₹{{ "%.2f"|format(person.remaining) }}
+                    </span>
+                </div>
+                <div style="height: 8px; background: var(--bg-card); border-radius: 4px; overflow: hidden; margin-bottom: 8px;">
+                    {% set prog = (person.paid_amount / person.total_amount * 100) if person.total_amount > 0 else 0 %}
+                    <div style="height: 100%; transition: width 1s ease; --p: {{ prog }}%; width: var(--p);" class="{{ 'bg-success' if person.type == 'lent' else 'bg-danger' }}"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.75rem;" class="text-muted">
+                    <span>Total: ₹{{ "%.2f"|format(person.total_amount) }}</span>
+                    <span>Settled: {{ prog|round(1) }}%</span>
+                </div>
+            </div>
+
+            {% if person.notes %}
+            <div style="margin-bottom: 24px; font-size: 0.9rem; color: var(--text-secondary); font-style: italic;">
+                <i class="ph ph-quotes" style="opacity: 0.5;"></i> {{ person.notes }}
+            </div>
+            {% endif %}
+
+            <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                <button class="btn-primary" style="flex: 1; justify-content: center; padding: 12px;" 
+                        data-id="{{ person.id }}" data-name="{{ person.person_name }}" data-type="{{ person.type }}" data-remaining="{{ person.remaining }}"
+                        onclick="QuickAction.openPaymentByData(this)">
+                    <i class="ph ph-receipt"></i> Record Payment
+                </button>
+                <button class="btn-secondary" style="padding: 12px;" 
+                        data-id="{{ person.id }}" data-name="{{ person.person_name }}" data-remaining="{{ person.remaining }}"
+                        onclick="QuickAction.settleFullByData(this)"
+                        title="Fully Settle">
+                    <i class="ph-bold ph-check"></i>
+                </button>
+            </div>
+            <button class="btn-secondary" style="width: 100%; justify-content: center; border-style: dashed; color: var(--primary-accent);"
+                    data-id="{{ person.id }}" data-name="{{ person.person_name }}" data-type="{{ person.type }}"
+                    onclick="QuickAction.openIncreaseByData(this)">
+                <i class="ph ph-plus-circle"></i> {{ 'Lent Again' if person.type == 'lent' else 'Borrow Again' }}
+            </button>
+        </div>
+        {% else %}
+        <div class="card" style="grid-column: 1/-1; padding: 80px; text-align: center;">
+            <div class="icon-box" style="width: 80px; height: 80px; margin: 0 auto 24px; background: var(--bg-main); font-size: 2.5rem; opacity: 0.5;">
+                <i class="ph ph-users-three"></i>
+            </div>
+            <h2 style="font-family: 'Outfit'; color: var(--text-secondary);">No Records Found</h2>
+            <p class="text-muted">Your interpersonal ledger is empty. Add someone to start tracking.</p>
         </div>
         {% endfor %}
     </div>
 </div>
 
+<!-- Contextual Repayment Drawer -->
+<div class="drawer-overlay" id="repayment-drawer">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+        <h2 style="font-family: 'Outfit';" id="repayment-title">Record Payment</h2>
+        <button onclick="closeDrawer()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;">
+            <i class="ph ph-x"></i>
+        </button>
+    </div>
+    <div id="repayment-form-container"></div>
+</div>
+
 <style>
-    .ledger-card.closed { display: none; opacity: 0.6; }
-    .show-closed .ledger-card.closed { display: block; }
+    .pill { padding: 8px 20px; border-radius: 10px; font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); text-decoration: none; transition: var(--transition); }
+    .pill:hover { color: var(--text-primary); background: rgba(255,255,255,0.05); }
+    .pill.active { background: var(--primary-accent); color: white; }
+    .person-card.closed { opacity: 0.6; filter: grayscale(0.5); }
+    .bg-success { background: var(--success-color); }
+    .bg-danger { background: var(--expense-color); }
 </style>
 
 <script>
-    function toggleClosedItems() {
-        const container = document.getElementById('ledger-container');
-        const icon = document.getElementById('eye-icon');
-        container.classList.toggle('show-closed');
-        if (container.classList.contains('show-closed')) {
-            icon.classList.replace('ph-eye-slash', 'ph-eye');
-        } else {
-            icon.classList.replace('ph-eye', 'ph-eye-slash');
+    window.QuickAction = {
+        openPaymentByData(btn) {
+            this.openPayment(
+                btn.getAttribute('data-id'),
+                btn.getAttribute('data-name'),
+                btn.getAttribute('data-type'),
+                parseFloat(btn.getAttribute('data-remaining'))
+            );
+        },
+
+        openIncreaseByData(btn) {
+            this.openIncrease(
+                btn.getAttribute('data-id'),
+                btn.getAttribute('data-name'),
+                btn.getAttribute('data-type')
+            );
+        },
+
+        settleFullByData(btn) {
+            this.settleFull(
+                btn.getAttribute('data-id'),
+                btn.getAttribute('data-name'),
+                parseFloat(btn.getAttribute('data-remaining'))
+            );
+        },
+
+        openPayment(id, name, type, remaining) {
+            const drawer = document.getElementById('repayment-drawer');
+            const container = document.getElementById('repayment-form-container');
+            const actionLabel = type === 'lent' ? 'Receiving from' : 'Paying to';
+            
+            container.innerHTML = `
+                <form action="/ledger/pay/${id}" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 24px;">
+                    <div style="background: var(--bg-main); padding: 20px; border-radius: 16px; margin-bottom: 8px;">
+                        <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 4px;">Remaining Dues</div>
+                        <div style="font-size: 1.5rem; font-weight: 800; font-family: 'Outfit'; color: var(--primary-accent);">₹${remaining.toFixed(2)}</div>
+                    </div>
+
+                    <div>
+                        <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Amount ${actionLabel} ${name}</label>
+                        <input type="number" step="0.01" name="amount" required id="focus-amount"
+                               style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 1.5rem; font-weight: 700;">
+                    </div>
+
+                    <div>
+                        <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Source/Target Account</label>
+                        <select name="account_id" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                            {% for acc in accounts %}
+                            <option value="{{ acc.id }}">{{ acc.name }} (₹{{ "%.2f"|format(acc.balance) }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; font-size: 1rem; margin-top: 10px;">
+                        Confirm Repayment
+                    </button>
+                </form>
+            `;
+            
+            openDrawer('repayment-drawer');
+            setTimeout(() => document.getElementById('focus-amount')?.focus(), 200);
+        },
+
+        openIncrease(id, name, type) {
+            const drawer = document.getElementById('repayment-drawer');
+            const container = document.getElementById('repayment-form-container');
+            const actionLabel = type === 'lent' ? 'Lending to' : 'Borrowing from';
+            const today = new Date().toISOString().split('T')[0];
+            
+            container.innerHTML = `
+                <form action="/ledger/increase/${id}" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 24px;">
+                    <h2 style="font-family: 'Outfit';">${type === 'lent' ? 'Lent Again' : 'Borrow Again'}</h2>
+                    <p class="text-muted">${actionLabel} ${name}</p>
+
+                    <div>
+                        <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Amount</label>
+                        <input type="number" step="0.01" name="amount" required id="focus-increase"
+                               style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 1.5rem; font-weight: 700;">
+                    </div>
+
+                    <div>
+                        <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">From/To Account</label>
+                        <select name="account_id" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                            {% for acc in accounts %}
+                            <option value="{{ acc.id }}">{{ acc.name }} (₹{{ "%.2f"|format(acc.balance) }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Date</label>
+                        <input type="date" name="date" value="${today}" required
+                               style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                    </div>
+
+                    <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; font-size: 1rem; margin-top: 10px;">
+                        Confirm Transaction
+                    </button>
+                </form>
+            `;
+            
+            openDrawer('repayment-drawer');
+            setTimeout(() => document.getElementById('focus-increase')?.focus(), 200);
+        },
+
+        settleFull(id, name, remaining) {
+            if (confirm(`Settle the entire ₹${remaining.toFixed(2)} with ${name}?`)) {
+                this.openPayment(id, name, 'lent', remaining);
+                const amtInput = document.getElementById('focus-amount');
+                if (amtInput) amtInput.value = remaining;
+            }
         }
-    }
-
-    function settleAndClose(btn) {
-        const id = btn.getAttribute('data-id');
-        const name = btn.getAttribute('data-name');
-        const balance = parseFloat(btn.getAttribute('data-balance'));
-
-        if (!confirm(`Are you sure you want to settle all remaining ₹${balance.toFixed(2)} and close the entry for ${name}?`)) return;
-        
-        const formData = new FormData();
-        formData.append('account_id', ''); // Default to None for one-click settle
-        
-        fetch(`/ledger/settle/${id}`, {
-            method: 'POST',
-            body: formData,
-            headers: {'X-Requested-With': 'XMLHttpRequest'}
-        }).then(() => window.location.reload());
-    }
+    };
 </script>
 {% endblock %}
 
 {% block drawer_content %}
-    <h2 style="font-family: 'Outfit'; margin-bottom: 24px;">New Person Entry</h2>
-    <form action="{{ url_for('person.add_person') }}" method="POST" style="display: flex; flex-direction: column; gap: 20px;">
+<div id="new-ledger-drawer">
+    <h2 style="font-family: 'Outfit'; margin-bottom: 8px;">New Ledger Entry</h2>
+    <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 32px;">Create a new lending or borrowing record.</p>
+
+    <form action="/ledger/add" method="POST" class="ajax-form" autocomplete="off" style="display: flex; flex-direction: column; gap: 20px;">
         <div>
-            <label class="text-muted">Person Name</label>
-            <input type="text" name="name" required placeholder="e.g. Bapun, Mom, Alex" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+            <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Person Name</label>
+            <input type="text" name="name" required placeholder="Who is it?" 
+                   style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
         </div>
-        <div>
-            <label class="text-muted">Type</label>
-            <select name="type" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
-                <option value="lent">Lent (I gave money)</option>
-                <option value="borrowed">Borrowed (I took money)</option>
-            </select>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div>
+                <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Type</label>
+                <select name="type" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                    <option value="lent">I Lent Money</option>
+                    <option value="borrowed">I Borrowed Money</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Date</label>
+                <input type="date" name="date" value="{{ now.strftime('%Y-%m-%d') if now else '' }}" required
+                       style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+            </div>
         </div>
+
         <div>
-            <label class="text-muted">Total Amount</label>
-            <input type="number" step="0.01" name="amount" required style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 1.5rem; font-weight: 700;">
+            <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Amount</label>
+            <input type="number" step="0.01" name="amount" required placeholder="₹0.00" 
+                   style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 1.5rem; font-weight: 700;">
         </div>
+
         <div>
-            <label class="text-muted">Affect Account</label>
+            <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Linked Account</label>
             <select name="account_id" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
-                <option value="">None / Already Started</option>
+                <option value="">No Account (History Only)</option>
                 {% for acc in accounts %}
                 <option value="{{ acc.id }}">{{ acc.name }} (₹{{ "%.2f"|format(acc.balance) }})</option>
                 {% endfor %}
             </select>
         </div>
+
         <div>
-            <label class="text-muted">Notes</label>
-            <input type="text" name="notes" placeholder="Reason..." style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+            <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Description</label>
+            <textarea name="notes" placeholder="What's this for?" 
+                      style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); min-height: 80px; resize: none;"></textarea>
         </div>
-        <div>
-            <label class="text-muted">Date</label>
-            <input type="date" name="date" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
-        </div>
-        <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center;">Add to Ledger</button>
+
+        <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; font-size: 1.1rem; margin-top: 10px;">
+            Save Entry
+        </button>
     </form>
+</div>
 {% endblock %}

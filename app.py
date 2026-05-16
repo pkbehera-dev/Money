@@ -31,6 +31,11 @@ from routes.search_routes import search_bp
 from routes.ai_routes import ai_bp
 from routes.notification_routes import notification_bp
 from routes.category_routes import category_bp
+from routes.asset_routes import asset_bp
+from routes.budget_routes import budget_bp
+from routes.goal_routes import goal_bp
+from routes.subscription_routes import subscription_bp
+from routes.action_routes import action_bp
 
 # Register Blueprints
 app.register_blueprint(dashboard_bp)
@@ -45,18 +50,21 @@ app.register_blueprint(search_bp)
 app.register_blueprint(ai_bp)
 app.register_blueprint(notification_bp)
 app.register_blueprint(category_bp)
+app.register_blueprint(asset_bp)
+app.register_blueprint(budget_bp)
+app.register_blueprint(goal_bp)
+app.register_blueprint(subscription_bp)
+app.register_blueprint(action_bp)
 
 # Background worker for analytics and archival
 def run_analytics_worker():
     while True:
         try:
-            print("Running background analytics update...")
-            AnalyticsService.update_summaries()
-            AnalyticsService.archive_old_data()
-            print("Background analytics completed.")
+            AnalyticsService.refresh_summaries()
+            time.sleep(3600) # Every hour
         except Exception as e:
-            print(f"Analytics worker error: {e}")
-        time.sleep(300) # Run every 5 minutes
+            print(f"Worker Error: {e}")
+            time.sleep(60)
 
 worker_thread = Thread(target=run_analytics_worker, daemon=True)
 worker_thread.start()

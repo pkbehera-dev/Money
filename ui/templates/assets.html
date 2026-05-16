@@ -1,0 +1,224 @@
+{% extends "base.html" if not partial|default(false) else "blank.html" %}
+
+{% block title %}Asset Management{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;">
+        <div>
+            <h1 style="font-family: 'Outfit'; font-size: 2rem;">Asset Management</h1>
+            <p class="text-muted">Track your physical and investment assets</p>
+        </div>
+        <button class="btn-primary" onclick="openDrawer('page-drawer')">
+            <i class="ph ph-plus"></i> Add New Asset
+        </button>
+    </div>
+
+    <!-- Stats -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-bottom: 40px;">
+        <div class="card" style="border-left: 4px solid var(--primary-accent);">
+            <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 8px;">Total Asset Value</div>
+            <div style="font-size: 2rem; font-weight: 800; font-family: 'Outfit'; color: var(--primary-accent);">
+                ₹{{ "%.2f"|format(stats.total_current) }}
+            </div>
+        </div>
+
+        {% set g_color = 'var(--success-color)' if stats.gain_loss >= 0 else 'var(--expense-color)' %}
+        <div class="card" style="border-left: 4px solid {{ g_color }};">
+            <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 8px;">Total Gain/Loss</div>
+            <div style="font-size: 2rem; font-weight: 800; font-family: 'Outfit'; color: {{ g_color }};">
+                {{ '+' if stats.gain_loss > 0 }}₹{{ "%.2f"|format(stats.gain_loss) }}
+                <span style="font-size: 1rem; font-weight: 600; opacity: 0.8;">({{ "%.1f"|format(stats.growth_pct) }}%)</span>
+            </div>
+        </div>
+
+        {% set tr_color = 'var(--success-color)' if stats.growth_pct >= 0 else 'var(--expense-color)' %}
+        <div class="card">
+            <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 8px;">Asset Growth Trend</div>
+            <div style="font-size: 1.5rem; font-weight: 700; font-family: 'Outfit'; color: {{ tr_color }};">
+                <i class="ph ph-trend-{{ 'up' if stats.growth_pct >= 0 else 'down' }}"></i>
+                {{ 'Positive' if stats.growth_pct >= 0 else 'Negative' }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Assets List -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 24px;">
+        {% for asset in assets %}
+        <div class="card" data-id="{{ asset.id }}" data-type="asset" style="position: relative; overflow: visible;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+                <div style="display: flex; gap: 16px; align-items: center;">
+                    <div class="icon-box" style="background: rgba(var(--primary-accent-rgb, 79, 140, 255), 0.1); color: var(--primary-accent);">
+                        <i class="ph-bold ph-{% if asset.category == 'Gold' %}sketch-logo{% elif asset.category == 'Property' %}house{% elif asset.category == 'Vehicle' %}car{% elif asset.category == 'Electronics' %}desktop{% else %}armchair{% endif %}"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight: 700; font-size: 1.1rem;">{{ asset.name }}</div>
+                        <div class="text-muted" style="font-size: 0.8rem;">{{ asset.category }}</div>
+                    </div>
+                </div>
+                <button class="dot-menu" onclick="showContextMenu(event, '{{ asset.id }}', 'asset')">
+                    <i class="ph ph-dots-three-vertical"></i>
+                </button>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; margin-bottom: 16px; padding: 12px; background: var(--bg-main); border-radius: 12px;">
+                <div>
+                    <div class="text-muted" style="font-size: 0.7rem; text-transform: uppercase;">Purchase</div>
+                    <div style="font-weight: 700;">₹{{ "%.0f"|format(asset.purchase_value) }}</div>
+                </div>
+                <div style="text-align: right;">
+                    <div class="text-muted" style="font-size: 0.7rem; text-transform: uppercase;">Current</div>
+                    <div style="font-weight: 800; color: var(--primary-accent);">₹{{ "%.0f"|format(asset.current_value) }}</div>
+                </div>
+            </div>
+
+            {% set diff = asset.current_value - asset.purchase_value %}
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span class="text-muted" style="font-size: 0.8rem;">Purchased on {{ asset.purchase_date }}</span>
+                {% set d_color = 'var(--success-color)' if diff >= 0 else 'var(--expense-color)' %}
+                <span style="font-size: 0.85rem; font-weight: 600; color: {{ d_color }};">
+                    {{ '+' if diff > 0 }}{{ "%.1f"|format(diff / asset.purchase_value * 100) if asset.purchase_value > 0 else 0 }}%
+                </span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block drawer_content %}
+<div id="partial-drawer">
+    <div id="add-asset-drawer">
+        <h2 style="font-family: 'Outfit'; margin-bottom: 8px;">Add New Asset</h2>
+        <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 24px;">Track anything of value in your net worth.</p>
+        
+        <form action="/assets/add" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 20px;">
+            <div>
+                <label class="text-muted" style="display: block; margin-bottom: 8px;">Asset Name</label>
+                <input type="text" name="name" required placeholder="e.g. MacBook Pro, Gold Coins, 2BHK Flat" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+            </div>
+            
+            <div>
+                <label class="text-muted" style="display: block; margin-bottom: 8px;">Category</label>
+                <select name="category" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                    <option value="Cash">Cash / Liquid</option>
+                    <option value="Bank Deposit">Bank Deposit / FD</option>
+                    <option value="Gold">Gold / Precious Metals</option>
+                    <option value="Electronics">Electronics / Gadgets</option>
+                    <option value="Vehicle">Vehicle</option>
+                    <option value="Property">Property / Real Estate</option>
+                    <option value="Investments">Investments / Stocks</option>
+                    <option value="Other">Other Assets</option>
+                </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div id="purchase-value-container">
+                    <label class="text-muted" style="display: block; margin-bottom: 8px;">Purchase Value</label>
+                    <input type="number" step="0.01" name="purchase_value" id="asset-purchase-val" required placeholder="0.00" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                </div>
+                <div id="current-value-container">
+                    <label class="text-muted" style="display: block; margin-bottom: 8px;">Current Value</label>
+                    <input type="number" step="0.01" name="current_value" id="asset-current-val" required placeholder="0.00" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                </div>
+            </div>
+
+            <div>
+                <label class="text-muted" style="display: block; margin-bottom: 8px;">Purchase Date</label>
+                <input type="date" name="purchase_date" id="asset-purchase-date" required value="{{ now_date }}" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+            </div>
+
+            <script>
+                (function() {
+                    const dateInput = document.getElementById('asset-purchase-date');
+                    const pVal = document.getElementById('asset-purchase-val');
+                    const cVal = document.getElementById('asset-current-val');
+                    const cContainer = document.getElementById('current-value-container');
+                    const pContainer = document.getElementById('purchase-value-container');
+
+                    if (!dateInput || !pVal || !cVal) return;
+
+                    function toggleVal() {
+                        const today = new Date();
+                        let selectedDate = new Date();
+                        
+                        if (dateInput.value) {
+                            selectedDate = new Date(dateInput.value);
+                        } else {
+                            // Fallback to today if empty
+                            const todayStr = today.toISOString().split('T')[0];
+                            dateInput.value = todayStr;
+                        }
+                        
+                        // Calculate months difference
+                        const monthDiff = (today.getFullYear() - selectedDate.getFullYear()) * 12 + (today.getMonth() - selectedDate.getMonth());
+                        
+                        // Show ONLY if purchased more than 2 months ago
+                        const shouldShow = monthDiff >= 2;
+                        
+                        console.log("Asset Toggle:", { monthDiff, shouldShow });
+                        
+                        if (!shouldShow) {
+                            if (cContainer) cContainer.style.display = 'none';
+                            if (pContainer) pContainer.style.gridColumn = 'span 2';
+                            // Remove required if hidden, and sync
+                            cVal.required = false;
+                            cVal.value = pVal.value;
+                        } else {
+                            if (cContainer) cContainer.style.display = 'block';
+                            if (pContainer) pContainer.style.gridColumn = 'span 1';
+                            cVal.required = true;
+                        }
+                    }
+
+                    dateInput.addEventListener('change', toggleVal);
+                    pVal.addEventListener('input', () => {
+                        const val = dateInput.value || new Date().toISOString().split('T')[0];
+                        const selectedDate = new Date(val);
+                        const today = new Date();
+                        const monthDiff = (today.getFullYear() - selectedDate.getFullYear()) * 12 + (today.getMonth() - selectedDate.getMonth());
+                        
+                        if (monthDiff < 2) {
+                            cVal.value = pVal.value;
+                        }
+                    });
+                    
+                    // Final Sync before submit
+                    const form = dateInput.closest('form');
+                    form?.addEventListener('submit', () => {
+                        const selectedDate = new Date(dateInput.value);
+                        const today = new Date();
+                        const monthDiff = (today.getFullYear() - selectedDate.getFullYear()) * 12 + (today.getMonth() - selectedDate.getMonth());
+                        if (monthDiff < 2) {
+                            cVal.value = pVal.value;
+                        }
+                    });
+
+                    // Force multiple checks to handle SPA injection timing
+                    toggleVal();
+                    setTimeout(toggleVal, 10);
+                    setTimeout(toggleVal, 300);
+                })();
+            </script>
+
+            <div style="background: rgba(var(--primary-accent-rgb, 79, 140, 255), 0.05); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px;">
+                <input type="checkbox" name="depreciation_enabled" id="depreciation_enabled" style="margin-top: 4px;">
+                <div>
+                    <label for="depreciation_enabled" style="font-weight: 700; cursor: pointer; display: block; margin-bottom: 2px;">Track Value Updates</label>
+                    <p class="text-muted" style="font-size: 0.75rem;">Get a monthly reminder to update the current market value of this asset.</p>
+                </div>
+            </div>
+
+            <div>
+                <label class="text-muted" style="display: block; margin-bottom: 8px;">Notes</label>
+                <textarea name="notes" placeholder="Condition, location, or serial numbers..." style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); min-height: 80px;"></textarea>
+            </div>
+
+            <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; margin-top: 10px;">
+                Save Asset
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

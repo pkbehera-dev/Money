@@ -5,14 +5,19 @@
 {% block content %}
 <div class="animate-in">
     <!-- Header -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px;">
         <div>
-            <h1 style="font-family: 'Outfit'; font-size: 2rem;">Transactions</h1>
+            <h1 style="font-family: 'Outfit'; font-size: 2.5rem; margin-bottom: 8px;">Transactions</h1>
             <p class="text-muted">History and management of your financial movements</p>
         </div>
-        <button class="btn-primary" onclick="openDrawer('add-tx-drawer')">
-            <i class="ph ph-plus"></i> Add Transaction
-        </button>
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <button class="btn-secondary" onclick="clearAllTransactions()" title="Clear All History" style="color: var(--expense-color); border-color: rgba(239, 68, 68, 0.2);">
+                <i class="ph ph-trash"></i> Clear All
+            </button>
+            <button class="btn-primary" onclick="openDrawer('page-drawer')">
+                <i class="ph ph-plus-circle"></i> Add Transaction
+            </button>
+        </div>
     </div>
 
     <!-- Advanced Filter Bar -->
@@ -46,42 +51,53 @@
         </form>
     </div>
 
-    <!-- Transaction List -->
-    <div class="card" style="padding: 0; overflow: hidden;">
-        <div style="padding: 16px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-color); display: grid; grid-template-columns: 60px 1fr 140px 140px 120px; font-weight: 800; font-size: 0.75rem; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.1em;">
+    <!-- Transaction List Table -->
+    <div class="card" style="padding: 0; overflow: hidden; border: 1px solid var(--border-color);">
+        <div class="table-header" style="padding: 16px 24px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-color); display: grid; grid-template-columns: 120px 1fr 180px 140px 60px; font-weight: 800; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.1em;">
+            <span>DATE</span>
+            <span>DESCRIPTION / NOTE</span>
+            <span>CATEGORY</span>
+            <span style="text-align: right;">AMOUNT</span>
             <span></span>
-            <span>Category & Note</span>
-            <span>Account</span>
-            <span>Date</span>
-            <span style="text-align: right;">Amount</span>
         </div>
         
-        <div style="display: flex; flex-direction: column; padding: 8px;">
+        <div style="display: flex; flex-direction: column;">
             {% for tx in transactions %}
-            <div class="transaction-row" style="grid-template-columns: 60px 1fr 140px 140px 120px 40px;">
-                <div class="icon-box {{ 'status-income' if tx.type == 'income' else ('status-expense' if tx.type == 'expense' else 'status-transfer') }}">
-                    <i class="ph-fill ph-{{ 'trend-up' if tx.type == 'income' else ('trend-down' if tx.type == 'expense' else 'arrows-left-right') }}"></i>
+            <div class="transaction-row card" data-id="{{ tx.id }}" data-type="transaction" style="padding: 16px 24px; display: grid; grid-template-columns: 120px 1fr 180px 140px 60px; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.03); transition: var(--transition); margin-bottom: 8px;">
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);">
+                    {{ tx.date }}
                 </div>
-                <div>
-                    <div style="font-weight: 600; font-size: 1rem;">{{ tx.category or 'Uncategorized' }}</div>
-                    <div class="text-muted" style="font-size: 0.8rem;">{{ tx.notes or 'No notes added' }}</div>
+                
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="icon-box {{ 'status-income' if tx.type == 'income' else ('status-expense' if tx.type == 'expense' else 'status-transfer') }}" style="width: 32px; height: 32px; font-size: 0.9rem;">
+                        <i class="ph-fill ph-{{ 'trend-up' if tx.type == 'income' else ('trend-down' if tx.type == 'expense' else 'arrows-left-right') }}"></i>
+                    </div>
+                    <div style="font-weight: 500; color: var(--text-primary);">
+                        {{ tx.notes or 'No details' }}
+                    </div>
                 </div>
-                <div style="font-size: 0.9rem; font-weight: 500;">{{ tx.account_name or 'Main Account' }}</div>
-                <div class="text-muted" style="font-size: 0.9rem;">{{ tx.date }}</div>
-                <div style="font-weight: 800; font-size: 1.1rem; text-align: right;" class="{% if tx.type == 'income' %}text-success{% elif tx.type == 'expense' %}text-danger{% else %}text-main{% endif %}">
+
+                <div style="font-size: 0.85rem;">
+                    <span style="padding: 4px 10px; border-radius: 6px; background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-secondary);">
+                        {{ tx.category or 'General' }}
+                    </span>
+                </div>
+
+                <div style="font-weight: 800; font-size: 1.1rem; text-align: right; font-family: 'Outfit';" class="{% if tx.type == 'income' %}text-success{% elif tx.type == 'expense' %}text-danger{% else %}text-main{% endif %}">
                     {% if tx.type == 'expense' %}-{% elif tx.type == 'income' %}+{% endif %}₹{{ "%.2f"|format(tx.amount) }}
                 </div>
-                <div class="action-reveal">
+
+                <div style="text-align: right;">
                     <button class="dot-menu" onclick="showContextMenu(event, '{{ tx.id }}')">
                         <i class="ph-bold ph-dots-three-vertical"></i>
                     </button>
                 </div>
             </div>
             {% else %}
-            <div style="padding: 60px; text-align: center; color: var(--text-secondary);">
-                <i class="ph ph-receipt" style="font-size: 3.5rem; margin-bottom: 20px; opacity: 0.2; display: block; margin-left: auto; margin-right: auto;"></i>
-                <p style="font-weight: 500; font-size: 1.1rem;">No transactions found</p>
-                <p style="font-size: 0.85rem; opacity: 0.7;">Try adjusting your filters or search terms</p>
+            <div style="padding: 80px; text-align: center; color: var(--text-secondary);">
+                <i class="ph ph-receipt" style="font-size: 4rem; margin-bottom: 24px; opacity: 0.2; display: block; margin-left: auto; margin-right: auto;"></i>
+                <h3 style="font-family: 'Outfit';">No transactions found</h3>
+                <p class="text-muted">Adjust filters or add a new transaction.</p>
             </div>
             {% endfor %}
         </div>
@@ -102,35 +118,59 @@
 {% endblock %}
 
 {% block drawer_content %}
-    <form action="{{ url_for('transaction.add_transaction') }}" method="POST" style="display: flex; flex-direction: column; gap: 20px;">
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-            <label class="text-muted">Transaction Type</label>
-            <select name="type" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
-                <option value="expense">Expense</option>
-                <option value="income">Income</option>
-                <option value="transfer">Transfer</option>
-            </select>
+    <h2 style="font-family: 'Outfit'; margin-bottom: 8px;">New Transaction</h2>
+    <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 32px;">Add a record to your financial ledger.</p>
+
+    <form action="{{ url_for('transaction.add_transaction') }}" method="POST" class="ajax-form" autocomplete="off" style="display: flex; flex-direction: column; gap: 20px;">
+        <div>
+            <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Type</label>
+            <div class="tx-type-group" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                <label style="cursor: pointer;">
+                    <input type="radio" name="type" value="income" style="display: none;">
+                    <div class="tx-type-btn" onclick="selectTxType(this)">Income</div>
+                </label>
+                <label style="cursor: pointer;">
+                    <input type="radio" name="type" value="expense" checked style="display: none;">
+                    <div class="tx-type-btn active" onclick="selectTxType(this)">Expense</div>
+                </label>
+                <label style="cursor: pointer;">
+                    <input type="radio" name="type" value="transfer" style="display: none;">
+                    <div class="tx-type-btn" onclick="selectTxType(this)">Transfer</div>
+                </label>
+            </div>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-            <label class="text-muted">Amount</label>
-            <input type="number" step="0.01" name="amount" required style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 1.5rem; font-weight: 700;">
+
+        <div>
+            <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Amount</label>
+            <input type="number" step="0.01" name="amount" required placeholder="0.00" style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 1.5rem; font-weight: 700;">
         </div>
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-            <label class="text-muted">Account</label>
+
+        <div>
+            <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Account</label>
             <select name="account_id" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
                 {% for acc in accounts %}
                 <option value="{{ acc.id }}">{{ acc.name }} (₹{{ "%.2f"|format(acc.balance) }})</option>
                 {% endfor %}
             </select>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-            <label class="text-muted">Category</label>
-            <input type="text" name="category" placeholder="e.g. Food, Salary" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+
+        <div>
+            <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Category</label>
+            <input type="text" name="category" required placeholder="e.g. Food, Salary" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
         </div>
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-            <label class="text-muted">Notes</label>
-            <textarea name="notes" rows="3" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);"></textarea>
+
+        <div>
+            <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;" id="notes-label">Expense Name</label>
+            <input type="text" name="notes" placeholder="Details..." style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
         </div>
-        <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; margin-top: 20px;">Save Transaction</button>
+
+        <div>
+            <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Date</label>
+            <input type="date" name="date" value="{{ now.strftime('%Y-%m-%d') if now else '' }}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+        </div>
+
+        <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; font-size: 1.1rem; margin-top: 10px;">
+            Save Transaction
+        </button>
     </form>
 {% endblock %}

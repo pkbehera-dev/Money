@@ -4,6 +4,11 @@ from services.account_service import AccountService
 
 card_bp = Blueprint('card', __name__)
 
+@card_bp.route('/api/cards')
+def get_cards_api():
+    cards = CreditCardService.get_all_cards()
+    return jsonify(cards)
+
 @card_bp.route('/cards')
 def cards_page():
     filters = {

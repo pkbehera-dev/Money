@@ -55,10 +55,16 @@ def add_transaction():
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({"status": "success"})
     return redirect(url_for('transaction.transactions_page'))
-@transaction_bp.route('/transactions/delete/<int:tx_id>', methods=['POST'])
+
+@transaction_bp.route("/api/transactions/delete/<int:tx_id>", methods=["POST"])
 def delete_transaction(tx_id):
     TransactionService.delete_transaction(tx_id)
-    return jsonify({"status": "success"})
+    return {"status": "success"}
+
+@transaction_bp.route("/api/transactions/clear-all", methods=["POST"])
+def clear_all_transactions():
+    TransactionService.clear_all()
+    return {"status": "success"}
 
 @transaction_bp.route('/transactions/edit/<int:tx_id>', methods=['GET', 'POST'])
 def edit_transaction(tx_id):

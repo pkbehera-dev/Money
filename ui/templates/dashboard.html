@@ -3,94 +3,290 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="animate-in">
+<div id="partial-content" class="animate-in">
     <!-- Header Section -->
     <div style="margin-bottom: 40px; display: flex; justify-content: space-between; align-items: flex-end;">
         <div>
             <h1 style="font-family: 'Outfit'; font-size: 2.5rem; margin-bottom: 8px;">Welcome back, Bapun!</h1>
-            <p class="text-muted">Your financial overview for <span style="color: var(--text-primary); font-weight: 600;">{{ now.strftime('%B %Y') if now else 'This Month' }}</span></p>
+            <p class="text-muted">Your financial overview for <span
+                    style="color: var(--text-primary); font-weight: 600;">{{ now.strftime('%B %Y') if now else 'This
+                    Month' }}</span></p>
         </div>
         <div style="text-align: right;">
-            <div class="text-muted" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px;">Last Sync</div>
+            <div class="text-muted"
+                style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px;">Last
+                Sync</div>
             <div style="font-weight: 600;">Just now</div>
         </div>
     </div>
 
     <!-- Summary KPI Cards -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; margin-bottom: 40px;">
-        <!-- Total Balance -->
+    <div
+        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; margin-bottom: 40px;">
+        <!-- Net Worth Card -->
+        <div class="card kpi-card {{ 'positive' if metrics.net_worth_stats.total >= 0 else 'negative' }}">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div class="text-muted" style="font-size: 0.9rem;">Net Worth</div>
+                <i class="ph ph-briefcase-bold kpi-icon" style="font-size: 1.5rem;"></i>
+            </div>
+            <div style="font-size: 1.75rem; font-weight: 800; font-family: 'Outfit';" class="kpi-value">
+                ₹{{ "%.2f"|format(metrics.net_worth_stats.total) }}
+            </div>
+            <div class="{{ 'text-success' if metrics.net_worth_stats.change_pct >= 0 else 'text-danger' }}"
+                style="font-size: 0.8rem; margin-top: 8px; display: flex; align-items: center; gap: 4px;">
+                <i class="ph ph-trend-{{ 'up' if metrics.net_worth_stats.change_pct >= 0 else 'down' }}"></i>
+                {{ "+" if metrics.net_worth_stats.change_pct >= 0 }}{{ "%.1f"|format(metrics.net_worth_stats.change_pct)
+                }}% this month
+            </div>
+        </div>
+
+        <!-- Assets Card -->
         <div class="card" style="border-left: 4px solid var(--primary-accent);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                <div class="text-muted" style="font-size: 0.9rem;">Total Balance</div>
-                <i class="ph ph-wallet-bold text-primary" style="font-size: 1.5rem;"></i>
+                <div class="text-muted" style="font-size: 0.9rem;">Total Assets</div>
+                <i class="ph ph-bank-bold text-primary" style="font-size: 1.5rem;"></i>
             </div>
-            <div style="font-size: 1.75rem; font-weight: 800; font-family: 'Outfit';">₹{{ "%.2f"|format(metrics.total_balance) }}</div>
-            <div class="text-success" style="font-size: 0.8rem; margin-top: 8px; display: flex; align-items: center; gap: 4px;">
-                <i class="ph ph-shield-check"></i> Live Balance
-            </div>
+            <div style="font-size: 1.75rem; font-weight: 800; font-family: 'Outfit';">₹{{
+                "%.2f"|format(metrics.net_worth_stats.assets) }}</div>
+            <div class="text-muted" style="font-size: 0.8rem; margin-top: 8px;">Liquid + Lent balances</div>
         </div>
 
-        <!-- Monthly Income -->
-        <div class="card" style="border-left: 4px solid var(--success-color);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                <div class="text-muted" style="font-size: 0.9rem;">Monthly Income</div>
-                <i class="ph ph-trend-up text-success" style="font-size: 1.5rem;"></i>
-            </div>
-            <div class="text-success" style="font-size: 1.75rem; font-weight: 800; font-family: 'Outfit';">₹{{ "%.2f"|format(metrics.monthly_income) }}</div>
-            <div class="{{ 'text-success' if metrics.income_pct >= 0 else 'text-danger' }}" style="font-size: 0.8rem; margin-top: 8px; display: flex; align-items: center; gap: 4px;">
-                <i class="ph ph-trend-{{ 'up' if metrics.income_pct >= 0 else 'down' }}"></i> 
-                {{ "+" if metrics.income_pct >= 0 }}{{ "%.1f"|format(metrics.income_pct) }}% vs last month
-            </div>
-        </div>
-
-        <!-- Monthly Expenses -->
+        <!-- Liabilities Card -->
         <div class="card" style="border-left: 4px solid var(--expense-color);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                <div class="text-muted" style="font-size: 0.9rem;">Monthly Expenses</div>
-                <i class="ph ph-trend-down text-danger" style="font-size: 1.5rem;"></i>
+                <div class="text-muted" style="font-size: 0.9rem;">Total Liabilities</div>
+                <i class="ph ph-hand-coins-bold text-danger" style="font-size: 1.5rem;"></i>
             </div>
-            <div class="text-danger" style="font-size: 1.75rem; font-weight: 800; font-family: 'Outfit';">₹{{ "%.2f"|format(metrics.monthly_expense) }}</div>
-            <div class="{{ 'text-danger' if metrics.expense_pct >= 0 else 'text-success' }}" style="font-size: 0.8rem; margin-top: 8px; display: flex; align-items: center; gap: 4px;">
-                <i class="ph ph-trend-{{ 'up' if metrics.expense_pct >= 0 else 'down' }}"></i> 
-                {{ "+" if metrics.expense_pct >= 0 }}{{ "%.1f"|format(metrics.expense_pct) }}% vs last month
+            <div style="font-size: 1.75rem; font-weight: 800; font-family: 'Outfit';">₹{{
+                "%.2f"|format(metrics.net_worth_stats.liabilities) }}</div>
+            <div class="text-danger" style="font-size: 0.8rem; margin-top: 8px;">
+                {% if metrics.net_worth_stats.liabilities > metrics.net_worth_stats.assets %}
+                Loan obligations exceed assets
+                {% else %}
+                Manageable debt levels
+                {% endif %}
             </div>
         </div>
 
-        <!-- Net Savings -->
-        <div class="card" style="border-left: 4px solid var(--warning-color);">
+        <!-- Monthly Cash Flow -->
+        <div class="card" style="border-left: 4px solid var(--success-color);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                <div class="text-muted" style="font-size: 0.9rem;">Net Savings</div>
-                <i class="ph ph-piggy-bank text-warning" style="font-size: 1.5rem;"></i>
+                <div class="text-muted" style="font-size: 0.9rem;">Monthly Cash Flow</div>
+                <i class="ph ph-arrows-left-right-bold text-success" style="font-size: 1.5rem;"></i>
             </div>
-            <div class="text-primary" style="font-size: 1.75rem; font-weight: 800; font-family: 'Outfit';">₹{{ "%.2f"|format(metrics.net_savings) }}</div>
-            <div class="text-muted" style="font-size: 0.8rem; margin-top: 8px;">Saving rate: {{ ((metrics.net_savings / metrics.monthly_income * 100)|round|int) if metrics.monthly_income > 0 else 0 }}%</div>
+            <div style="font-size: 1.75rem; font-weight: 800; font-family: 'Outfit';">₹{{
+                "%.2f"|format(metrics.net_savings) }}</div>
+            <div class="text-muted" style="font-size: 0.8rem; margin-top: 8px;">Income - Expenses</div>
         </div>
     </div>
 
-    <!-- Analytics Section -->
-    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 32px; margin-bottom: 40px;">
+    <!-- Budget and Assets Summary Row -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 40px;">
+        <!-- Budget Tracking -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h3 style="font-family: 'Outfit';">Active Budgets</h3>
+                <a href="/budgets"
+                    style="color: var(--primary-accent); font-size: 0.85rem; text-decoration: none; font-weight: 600;">View
+                    All</a>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                {% for b in budgets[:3] %}
+                <div data-id="{{ b.id }}" data-type="budgets">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.85rem; align-items: center;">
+                            <span style="font-weight: 600;">{{ b.name }}</span>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="text-muted">₹{{ "%.0f"|format(b.spent) }} / ₹{{ "%.0f"|format(b.amount) }}</span>
+                                <i class="ph-bold ph-dots-three-vertical text-muted" style="cursor: pointer;" onclick="showContextMenu(event, '{{ b.id }}', 'budget')"></i>
+                            </div>
+                        </div>
+                    <div style="height: 8px; background: var(--bg-main); border-radius: 4px; overflow: hidden;"
+                        class="progress-{% if b.progress >= 100 %}over{% elif b.progress >= 80 %}warning{% else %}safe{% endif %}">
+                        <div class="budget-progress-fill" style="--w: {{ b.progress }}%; width: var(--w);"></div>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted" style="text-align: center; padding: 20px; font-size: 0.85rem;">No active budgets.
+                    Start one to track spending!</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Assets Overview -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h3 style="font-family: 'Outfit';">Assets Overview</h3>
+                <a href="/assets"
+                    style="color: var(--primary-accent); font-size: 0.85rem; text-decoration: none; font-weight: 600;">Manage
+                    Assets</a>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div
+                    style="padding: 16px; background: var(--bg-main); border-radius: 12px; border: 1px solid var(--border-color);">
+                    <div class="text-muted" style="font-size: 0.75rem; margin-bottom: 4px;">NON-LIQUID ASSETS</div>
+                    <div
+                        style="font-size: 1.5rem; font-weight: 800; font-family: 'Outfit'; color: var(--primary-accent);">
+                        ₹{{ "%.0f"|format(asset_stats.total_current) }}</div>
+                </div>
+                <div style="padding: 16px; background: var(--bg-main); border-radius: 12px; border: 1px solid var(--border-color);"
+                    class="asset-stat {{ 'positive' if asset_stats.gain_loss >= 0 else 'negative' }}">
+                    <div class="text-muted" style="font-size: 0.75rem; margin-bottom: 4px;">TOTAL GROWTH</div>
+                    <div style="font-size: 1.5rem; font-weight: 800; font-family: 'Outfit';" class="stat-value">
+                        {{ '+' if asset_stats.gain_loss > 0 }}₹{{ "%.0f"|format(asset_stats.gain_loss) }}
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top: 20px; display: flex; align-items: center; gap: 12px;">
+                <div class="icon-box"
+                    style="width: 32px; height: 32px; background: rgba(34, 197, 94, 0.1); color: var(--success-color);">
+                    <i class="ph ph-trend-up"></i>
+                </div>
+                <span style="font-size: 0.85rem; font-weight: 600;">Asset growth has increased your net worth by {{
+                    "%.1f"|format(asset_stats.growth_pct) }}%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Goals and Subscriptions Row -->
+    <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 32px; margin-bottom: 40px;">
+        <!-- Goals Progress -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h3 style="font-family: 'Outfit';">Financial Goals</h3>
+                <a href="/goals"
+                    style="color: var(--primary-accent); font-size: 0.85rem; text-decoration: none; font-weight: 600;">View
+                    All</a>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                {% for g in goals[:4] %}
+                <div data-id="{{ g.id }}" data-type="goals"
+                    style="padding: 16px; background: var(--bg-main); border-radius: 12px; border: 1px solid var(--border-color);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 12px; align-items: center;">
+                        <span style="font-weight: 700; font-size: 0.95rem;">{{ g.name }}</span>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="text-muted" style="font-size: 0.8rem;">{{ "%.0f"|format(g.progress) }}%</span>
+                            <i class="ph-bold ph-dots-three-vertical text-muted" style="cursor: pointer;" onclick="showContextMenu(event, '{{ g.id }}', 'goal')"></i>
+                        </div>
+                    </div>
+                    <div
+                        style="height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; margin-bottom: 8px;">
+                        <div class="goal-progress-fill" style="--w: {{ g.progress }}%; width: var(--w);"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem;">
+                        <span class="text-muted">₹{{ "%.0f"|format(g.current_amount) }}</span>
+                        <span style="font-weight: 600;">₹{{ "%.0f"|format(g.target_amount) }}</span>
+                    </div>
+                </div>
+                {% else %}
+                <div style="grid-column: span 2; text-align: center; padding: 20px; color: var(--text-secondary);">No
+                    active goals. Time to dream big!</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Upcoming Subscriptions -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h3 style="font-family: 'Outfit';">Upcoming Renewals</h3>
+                <a href="/subscriptions"
+                    style="color: var(--primary-accent); font-size: 0.85rem; text-decoration: none; font-weight: 600;">Manage</a>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                {% for sub in subscriptions[:5] %}
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.03);">
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--warning-color);"></div>
+                            <div>
+                                <div style="font-weight: 600; font-size: 0.85rem;">{{ sub.name }}</div>
+                                <div class="text-muted" style="font-size: 0.7rem;">Due {{ sub.next_due_date }}</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="font-weight: 700; font-size: 0.9rem;">₹{{ "%.0f"|format(sub.amount) }}</div>
+                            <i class="ph-bold ph-dots-three-vertical text-muted" style="cursor: pointer;" onclick="showContextMenu(event, '{{ sub.id }}', 'subscription')"></i>
+                        </div>
+                    </div>
+                {% else %}
+                <div style="text-align: center; padding: 20px; color: var(--text-secondary);">No renewals in the next 30
+                    days.</div>
+                {% endfor %}
+            </div>
+            <div
+                style="margin-top: 20px; padding: 12px; background: rgba(var(--primary-accent-rgb, 79, 140, 255), 0.05); border-radius: 8px; text-align: center;">
+                <div class="text-muted" style="font-size: 0.75rem;">MONTHLY TOTAL</div>
+                <div style="font-weight: 800; color: var(--primary-accent);">₹{{ "%.2f"|format(sub_stats.monthly_total)
+                    }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Row: Overview Cards (Strict 3-Column Grid) -->
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-bottom: 40px; align-items: stretch;">
+        <!-- Financial Health Card -->
+        <div class="card spotlight-card"
+            style="background: linear-gradient(135deg, rgba(var(--primary-accent-rgb), 0.1) 0%, rgba(var(--primary-accent-rgb), 0.02) 100%);">
+            <div class="card-dots" onclick="showContextMenu(event, 'health', 'system')"><i class="ph-bold ph-dots-three-vertical"></i></div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+                <h3 style="font-family: 'Outfit'; font-size: 1rem;">Financial Health</h3>
+                <span class="badge"
+                    style="background: rgba(255,255,255,0.05); color: var(--text-secondary); font-size: 0.7rem;">
+                    {% if health.trend > 0 %}↑ +{{ health.trend }}{% elif health.trend < 0 %}↓ {{ health.trend }}{% else
+                        %}Stable{% endif %} </span>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 24px;">
+                <!-- Progress Ring -->
+                <div style="position: relative; width: 80px; height: 80px;">
+                    <svg viewBox="0 0 36 36" style="width: 100%; height: 100%; transform: rotate(-90deg);">
+                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                            fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="3" />
+                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                            fill="none" stroke="var(--health-color)"
+                            style="--health-color: var(--{% if health.score >= 80 %}success-color{% elif health.score >= 60 %}primary-accent{% elif health.score >= 40 %}warning-color{% else %}expense-color{% endif %});"
+                            stroke-width="3" stroke-dasharray="{{ health.score }}, 100" />
+                    </svg>
+                    <div
+                        style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: 800; font-size: 1.2rem; font-family: 'Outfit';">
+                        {{ health.score }}
+                    </div>
+                </div>
+
+                <div>
+                    <div class="health-status-text"
+                        style="--health-color: var(--{% if health.score >= 80 %}success-color{% elif health.score >= 60 %}primary-accent{% elif health.score >= 40 %}warning-color{% else %}expense-color{% endif %}); font-weight: 800; font-size: 1.25rem; color: var(--health-color);">
+                        {{ health.status }}
+                    </div>
+                    <div class="text-muted" style="font-size: 0.75rem; line-height: 1.4; margin-top: 4px;">
+                        {% for r in health.reasons[:2] %}
+                        • {{ r }}<br>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
                 <h3 style="font-family: 'Outfit';">Spending Trends</h3>
-                <select style="background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-primary); padding: 4px 12px; border-radius: 8px; font-size: 0.8rem;">
+                <select
+                    style="background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-primary); padding: 4px 12px; border-radius: 8px; font-size: 0.8rem;">
                     <option>Last 30 Days</option>
                     <option>Last 6 Months</option>
                 </select>
             </div>
             <div style="height: 350px;">
-                <canvas id="trendsChart" 
-                        data-labels='{{ metrics.chart_trends.labels | tojson }}'
-                        data-income='{{ metrics.chart_trends.income | tojson }}'
-                        data-expense='{{ metrics.chart_trends.expense | tojson }}'></canvas>
+                <canvas id="trendsChart" data-labels='{{ metrics.chart_trends.labels | tojson }}'
+                    data-income='{{ metrics.chart_trends.income | tojson }}'
+                    data-expense='{{ metrics.chart_trends.expense | tojson }}'></canvas>
             </div>
         </div>
 
         <div class="card">
+            <div class="card-dots" onclick="showContextMenu(event, 'categories', 'system')"><i class="ph-bold ph-dots-three-vertical"></i></div>
             <h3 style="font-family: 'Outfit'; margin-bottom: 24px;">Category Breakdown</h3>
             <div style="height: 350px;">
-                <canvas id="categoryChart"
-                        data-labels='{{ metrics.chart_category.labels | tojson }}'
-                        data-data='{{ metrics.chart_category.data | tojson }}'></canvas>
+                <canvas id="categoryChart" data-labels='{{ metrics.chart_category.labels | tojson }}'
+                    data-data='{{ metrics.chart_category.data | tojson }}'></canvas>
             </div>
         </div>
     </div>
@@ -100,11 +296,16 @@
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
                 <h3 style="font-family: 'Outfit';">Recent Activity</h3>
-                <a href="{{ url_for('transaction.transactions_page') }}" style="color: var(--primary-accent); font-size: 0.9rem; text-decoration: none; font-weight: 600;">View All Transactions</a>
+                <a href="{{ url_for('transaction.transactions_page') }}"
+                    style="color: var(--primary-accent); font-size: 0.9rem; text-decoration: none; font-weight: 600;">View
+                    All Transactions</a>
             </div>
             <div style="display: flex; flex-direction: column; gap: 4px;">
                 {% for tx in metrics.recent_transactions %}
-                <div class="transaction-row">
+                <div class="transaction-row" data-id="{{ tx.id }}" data-type="transactions" style="position: relative;">
+                    <div class="card-dots" style="opacity: 1; top: 50%; transform: translateY(-50%);" onclick="showContextMenu(event, '{{ tx.id }}', 'transaction')">
+                        <i class="ph-bold ph-dots-three-vertical"></i>
+                    </div>
                     <div class="icon-box {{ 'status-income' if tx.type == 'income' else 'status-expense' }}">
                         <i class="ph-fill ph-{{ 'trend-up' if tx.type == 'income' else 'trend-down' }}"></i>
                     </div>
@@ -113,7 +314,8 @@
                         <div class="text-muted" style="font-size: 0.8rem;">{{ tx.date }}</div>
                     </div>
                     <div class="text-muted" style="font-size: 0.9rem;">{{ tx.account_name or 'Cash' }}</div>
-                    <div style="font-weight: 700; font-size: 1.1rem; text-align: right;" class="{% if tx.type == 'income' %}text-success{% else %}text-danger{% endif %}">
+                    <div style="font-weight: 700; font-size: 1.1rem; text-align: right;"
+                        class="{% if tx.type == 'income' %}text-success{% else %}text-danger{% endif %}">
                         {% if tx.type == 'income' %}+{% else %}-{% endif %}₹{{ "%.2f"|format(tx.amount) }}
                     </div>
                 </div>
@@ -138,7 +340,7 @@
                         <div class="text-danger" style="font-weight: 700;">₹{{ "%.2f"|format(card.outstanding) }}</div>
                     </div>
                     {% endfor %}
-                    
+
                     {% for loan in metrics.loan_reminders %}
                     <div style="display: flex; align-items: center; gap: 16px;">
                         <div class="icon-box" style="background: rgba(245, 158, 11, 0.1); color: var(--warning-color);">
@@ -148,19 +350,29 @@
                             <div style="font-weight: 600; font-size: 0.9rem;">{{ loan.name }} EMI</div>
                             <div class="text-muted" style="font-size: 0.75rem;">Due on {{ loan.due_date }}th</div>
                         </div>
-                        <div class="text-danger" style="font-weight: 700;">₹{{ "%.2f"|format(loan.total_to_pay - loan.paid_amount) }}</div>
+                        <div class="text-danger" style="font-weight: 700;">₹{{ "%.2f"|format(loan.total_to_pay -
+                            loan.paid_amount) }}</div>
                     </div>
                     {% endfor %}
                 </div>
             </div>
-            
+
             <!-- Automated AI Insights -->
             <div class="card" style="background: var(--bg-card); border: 1px solid var(--border-color);">
-                <h3 style="font-family: 'Outfit'; margin-bottom: 20px;">AI Insights</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="font-family: 'Outfit';">AI Insights</h3>
+                    <button onclick="refreshInsights(this)" class="btn-icon"
+                        style="background: none; border: none; color: var(--primary-accent); cursor: pointer; transition: transform 0.5s ease;"
+                        title="Refresh Insights">
+                        <i class="ph ph-arrows-clockwise" style="font-size: 1.25rem;"></i>
+                    </button>
+                </div>
                 <div style="display: flex; flex-direction: column; gap: 16px;">
                     {% for insight in insights %}
-                    <div style="display: flex; align-items: flex-start; gap: 12px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.02);">
-                        <div class="icon-box" style="width: 32px; height: 32px; font-size: 0.9rem; background: rgba(79, 140, 255, 0.1); color: var(--primary-accent);">
+                    <div
+                        style="display: flex; align-items: flex-start; gap: 12px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.02);">
+                        <div class="icon-box"
+                            style="width: 32px; height: 32px; font-size: 0.9rem; background: rgba(79, 140, 255, 0.1); color: var(--primary-accent);">
                             <i class="ph {{ insight.icon }}"></i>
                         </div>
                         <div style="font-size: 0.85rem; line-height: 1.4; color: var(--text-primary);">
@@ -179,74 +391,151 @@
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-    // Chart initialization logic wrapped for SPA re-runs
-    function initDashboardCharts() {
-        // Chart.js Theme Config
-        Chart.defaults.color = '#CBD5E1';
-        Chart.defaults.font.family = "'Inter', sans-serif";
+    document.addEventListener('DOMContentLoaded', function () {
+        function initDashboardCharts() {
+            Chart.defaults.color = '#CBD5E1';
+            Chart.defaults.font.family = "'Inter', sans-serif";
 
-        const trendsEl = document.getElementById('trendsChart');
-        if (trendsEl && trendsEl.dataset.labels) {
-            new Chart(trendsEl.getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels: JSON.parse(trendsEl.dataset.labels),
-                    datasets: [{
-                        label: 'Expenses',
-                        data: JSON.parse(trendsEl.dataset.expense),
-                        borderColor: '#EF4444',
-                        borderWidth: 3,
-                        tension: 0.4,
-                        fill: true,
-                        backgroundColor: 'rgba(239, 68, 68, 0.05)'
-                    }, {
-                        label: 'Income',
-                        data: JSON.parse(trendsEl.dataset.income),
-                        borderColor: '#22C55E',
-                        borderWidth: 3,
-                        tension: 0.4,
-                        fill: true,
-                        backgroundColor: 'rgba(34, 197, 94, 0.05)'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, border: { display: false } },
-                        x: { grid: { display: false }, border: { display: false } }
+            const trendsEl = document.getElementById('trendsChart');
+            if (trendsEl && trendsEl.dataset.labels) {
+                // SPA Cleanup
+                const existing = Chart.getChart(trendsEl);
+                if (existing) existing.destroy();
+
+                new Chart(trendsEl.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: JSON.parse(trendsEl.dataset.labels),
+                        datasets: [{
+                            label: 'Expenses',
+                            data: JSON.parse(trendsEl.dataset.expense),
+                            borderColor: '#EF4444',
+                            borderWidth: 3,
+                            tension: 0.4,
+                            fill: true,
+                            backgroundColor: 'rgba(239, 68, 68, 0.05)'
+                        }, {
+                            label: 'Income',
+                            data: JSON.parse(trendsEl.dataset.income),
+                            borderColor: '#22C55E',
+                            borderWidth: 3,
+                            tension: 0.4,
+                            fill: true,
+                            backgroundColor: 'rgba(34, 197, 94, 0.05)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { grid: { color: 'rgba(255,255,255,0.05)' }, border: { display: false } },
+                            x: { grid: { display: false }, border: { display: false } }
+                        }
                     }
-                }
-            });
-        }
+                });
+            }
 
-        const categoryEl = document.getElementById('categoryChart');
-        if (categoryEl && categoryEl.dataset.labels) {
-            new Chart(categoryEl.getContext('2d'), {
-                type: 'doughnut',
-                data: {
-                    labels: JSON.parse(categoryEl.dataset.labels),
-                    datasets: [{
-                        data: JSON.parse(categoryEl.dataset.data),
-                        backgroundColor: ['#4F8CFF', '#8B5CF6', '#F59E0B', '#EF4444', '#10B981', '#3B82F6'],
-                        borderWidth: 0,
-                        hoverOffset: 20
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '75%',
-                    plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } } }
-                }
-            });
+            const categoryEl = document.getElementById('categoryChart');
+            if (categoryEl && categoryEl.dataset.labels) {
+                // SPA Cleanup
+                const existingCat = Chart.getChart(categoryEl);
+                if (existingCat) existingCat.destroy();
+
+                new Chart(categoryEl.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: JSON.parse(categoryEl.dataset.labels),
+                        datasets: [{
+                            data: JSON.parse(categoryEl.dataset.data),
+                            backgroundColor: ['#4F8CFF', '#8B5CF6', '#F59E0B', '#EF4444', '#10B981', '#3B82F6'],
+                            borderWidth: 0,
+                            hoverOffset: 20
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '75%',
+                        plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } } }
+                    }
+                });
+            }
+        }
+        initDashboardCharts();
+    });
+
+    async function refreshInsights(btn) {
+        const icon = btn.querySelector('i');
+        icon.classList.add('animate-spin');
+        try {
+            await fetch('/api/notifications/check', { method: 'POST' });
+            if (window.AppRouter) await AppRouter.navigate('/', false);
+            else window.location.reload();
+        } catch (err) {
+            console.error("Refresh failed", err);
+        } finally {
+            icon.classList.remove('animate-spin');
         }
     }
-
-    // Run on initial load and setup for SPA
-    initDashboardCharts();
-    });
 </script>
+
+<style>
+    .kpi-card.positive {
+        border-left: 4px solid var(--success-color);
+    }
+
+    .kpi-card.positive .kpi-icon {
+        color: var(--success-color);
+    }
+
+    .kpi-card.positive .kpi-value {
+        color: var(--success-color);
+    }
+
+    .kpi-card.negative {
+        border-left: 4px solid var(--warning-color);
+    }
+
+    .kpi-card.negative .kpi-icon {
+        color: var(--warning-color);
+    }
+
+    .kpi-card.negative .kpi-value {
+        color: var(--warning-color);
+    }
+
+    .budget-progress-fill {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.5s ease;
+    }
+
+    .progress-safe .budget-progress-fill {
+        background: var(--primary-accent);
+    }
+
+    .progress-warning .budget-progress-fill {
+        background: var(--warning-color);
+    }
+
+    .progress-over .budget-progress-fill {
+        background: var(--expense-color);
+    }
+
+    .goal-progress-fill {
+        height: 100%;
+        border-radius: 3px;
+        background: var(--primary-accent);
+        transition: width 0.5s ease;
+    }
+
+    .asset-stat.positive .stat-value {
+        color: var(--success-color);
+    }
+
+    .asset-stat.negative .stat-value {
+        color: var(--expense-color);
+    }
+</style>
 {% endblock %}

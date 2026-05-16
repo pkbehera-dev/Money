@@ -36,7 +36,7 @@
     <!-- Account Cards Grid -->
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px;">
         {% for acc in accounts %}
-        <div class="card" style="position: relative; overflow: hidden;">
+        <div class="card" data-id="{{ acc.id }}" data-type="account" style="position: relative; overflow: hidden;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
                 <div class="icon-box" style="background: var(--bg-main); color: var(--primary-accent); border: 1px solid var(--border-color);">
                     <i class="ph-fill ph-{% if acc.type == 'Bank account' %}bank{% elif acc.type == 'Cash' %}money{% else %}wallet{% endif %}"></i>
