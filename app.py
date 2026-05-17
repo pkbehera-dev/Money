@@ -1,9 +1,12 @@
 import os
+import datetime
 from flask import Flask
 from threading import Thread
 import time
+from dotenv import load_dotenv
 
-# Initialize database and process recurring transactions
+# Load environment variables
+load_dotenv()
 from database.connection import init_db
 from services.recurring_service import RecurringService
 from services.analytics_service import AnalyticsService
@@ -58,10 +61,22 @@ app.register_blueprint(action_bp)
 
 # Background worker for analytics and archival
 def run_analytics_worker():
+    print("Analytics worker started.")
     while True:
         try:
+            # 1. Update summaries (Transactions -> KPI tables)
             AnalyticsService.refresh_summaries()
-            time.sleep(3600) # Every hour
+            
+            # 2. Capture Net Worth Snapshot
+            from services.net_worth_service import NetWorthService
+            NetWorthService.update_snapshot()
+            
+            # 3. Process Triggers (Budget alerts, Goal tracking, Renewals)
+            from services.notification_service import NotificationService
+            NotificationService.check_all_triggers()
+            
+            print(f"Background check completed at {datetime.now()}")
+            time.sleep(900) # Every 15 minutes
         except Exception as e:
             print(f"Worker Error: {e}")
             time.sleep(60)

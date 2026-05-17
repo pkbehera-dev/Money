@@ -9,14 +9,14 @@ class CreditCardService:
         cards = [dict(r) for r in conn.execute(query).fetchall()]
         
         for card in cards:
-            # DYNAMIC CALCULATION:
-            # 1. Sum all expenses charged to this card
-            purchases = conn.execute("SELECT SUM(amount) FROM transactions WHERE card_id = ? AND type = 'expense'", (card['id'],)).fetchone()[0] or 0
-            # 2. Sum all transfers paid TO this card (bill payments)
-            # All movements (purchases and payments) are now linked via card_id in the global ledger
-            payments = conn.execute("SELECT SUM(amount) FROM transactions WHERE card_id = ? AND type = 'transfer'", (card['id'],)).fetchone()[0] or 0
+            # 1. Purchases (Direct expenses)
+            purchases = conn.execute("SELECT SUM(amount) FROM transactions WHERE card_id = ? AND type = 'expense' AND deleted_at IS NULL", (card['id'],)).fetchone()[0] or 0
+            # 2. Cash Withdrawals / Transfers FROM Card (Increases debt)
+            withdrawals = conn.execute("SELECT SUM(amount) FROM transactions WHERE card_id = ? AND type = 'transfer' AND account_id IS NULL AND to_account_id IS NOT NULL AND deleted_at IS NULL", (card['id'],)).fetchone()[0] or 0
+            # 3. Bill Payments (Transfers TO Card from a bank account) (Decreases debt)
+            payments = conn.execute("SELECT SUM(amount) FROM transactions WHERE card_id = ? AND type = 'transfer' AND account_id IS NOT NULL AND deleted_at IS NULL", (card['id'],)).fetchone()[0] or 0
             
-            card['outstanding'] = purchases - payments
+            card['outstanding'] = (purchases + withdrawals) - payments
             card['available'] = card['card_limit'] - card['outstanding']
             card['usage_pct'] = (card['outstanding'] / card['card_limit'] * 100) if card['card_limit'] > 0 else 0
 

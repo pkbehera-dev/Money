@@ -63,6 +63,24 @@ class SubscriptionService:
         return [dict(row) for row in rows]
 
     @staticmethod
+    def get_subscription_by_id(sub_id):
+        conn = get_db_connection()
+        row = conn.execute("SELECT * FROM subscriptions WHERE id = ?", (sub_id,)).fetchone()
+        conn.close()
+        return dict(row) if row else None
+
+    @staticmethod
+    def update_subscription(sub_id, name, amount, billing_cycle, next_due_date, category, payment_source):
+        conn = get_db_connection()
+        conn.execute('''
+            UPDATE subscriptions 
+            SET name = ?, amount = ?, billing_cycle = ?, next_due_date = ?, category = ?, payment_source = ?
+            WHERE id = ?
+        ''', (name, amount, billing_cycle, next_due_date, category, payment_source, sub_id))
+        conn.commit()
+        conn.close()
+
+    @staticmethod
     def delete_subscription(sub_id):
         conn = get_db_connection()
         now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')

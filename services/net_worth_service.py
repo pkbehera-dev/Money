@@ -17,12 +17,15 @@ class NetWorthService:
             accounts = conn.execute("SELECT SUM(balance) FROM accounts").fetchone()[0] or 0.0
             
             # 2. Money Lent (Remaining Balances)
-            lent = conn.execute("SELECT SUM(total_amount - paid_amount) FROM people_ledger WHERE type='lent'").fetchone()[0] or 0.0
+            lent = conn.execute("SELECT SUM(total_amount - paid_amount) FROM people_ledger WHERE type='lent' AND deleted_at IS NULL").fetchone()[0] or 0.0
             
             # 3. Non-Liquid Assets
             non_liquid = conn.execute("SELECT SUM(current_value) FROM assets").fetchone()[0] or 0.0
+
+            # 4. Reserved Goals
+            goals = conn.execute("SELECT SUM(current_amount) FROM goals WHERE deleted_at IS NULL").fetchone()[0] or 0.0
             
-            return float(accounts + lent + non_liquid)
+            return float(accounts + lent + non_liquid + goals)
         finally:
             conn.close()
 
@@ -33,7 +36,8 @@ class NetWorthService:
             # 1. Loans Remaining
             loans = conn.execute("SELECT SUM(total_to_pay - paid_amount) FROM loans WHERE status='active'").fetchone()[0] or 0.0
             
-            # 2. Credit Card Outstanding (Live Transaction Logic - Only Active Cards)
+            # 2. Credit Card Outstanding (Live Transaction Logic)
+            # Purchases + Withdrawals - Payments
             card_purchases = conn.execute("""
                 SELECT SUM(t.amount) 
                 FROM transactions t
@@ -41,21 +45,35 @@ class NetWorthService:
                 WHERE t.card_id IS NOT NULL 
                 AND t.type = 'expense' 
                 AND c.status = 'active'
-                AND COALESCE(t.tags, '') NOT LIKE '%Silent%'
+                AND t.deleted_at IS NULL
             """).fetchone()[0] or 0.0
             
+            card_withdrawals = conn.execute("""
+                SELECT SUM(t.amount) 
+                FROM transactions t
+                JOIN credit_cards c ON t.card_id = c.id
+                WHERE t.card_id IS NOT NULL 
+                AND t.type = 'transfer'
+                AND t.account_id IS NULL
+                AND t.to_account_id IS NOT NULL
+                AND c.status = 'active'
+                AND t.deleted_at IS NULL
+            """).fetchone()[0] or 0.0
+
             card_payments = conn.execute("""
                 SELECT SUM(t.amount) 
                 FROM transactions t
                 JOIN credit_cards c ON t.card_id = c.id
                 WHERE t.card_id IS NOT NULL 
                 AND t.type = 'transfer'
+                AND t.account_id IS NOT NULL
                 AND c.status = 'active'
+                AND t.deleted_at IS NULL
             """).fetchone()[0] or 0.0
-            cards = card_purchases - card_payments
+            cards = (card_purchases + card_withdrawals) - card_payments
             
             # 3. Money Borrowed (Remaining Balances)
-            borrowed = conn.execute("SELECT SUM(total_amount - paid_amount) FROM people_ledger WHERE type='borrowed'").fetchone()[0] or 0.0
+            borrowed = conn.execute("SELECT SUM(total_amount - paid_amount) FROM people_ledger WHERE type='borrowed' AND deleted_at IS NULL").fetchone()[0] or 0.0
             
             return float(loans + cards + borrowed)
         finally:

@@ -46,11 +46,28 @@ body {
     color: var(--text-primary);
     overflow-x: hidden;
     transition: var(--transition);
+    min-height: 100vh;
+}
+
+/* --- Autofill & Focus Consistency Fix --- */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--text-primary) !important;
+    -webkit-box-shadow: 0 0 0px 1000px var(--sidebar-bg) inset !important;
+    transition: background-color 5000s ease-in-out 0s;
+    border: 1px solid var(--border-color) !important;
 }
 
 /* --- Custom Scrollbar --- */
 ::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -256,6 +273,24 @@ body {
     transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     padding: 40px;
     border-left: 1px solid var(--border-color);
+    overflow-y: auto;
+}
+
+.drawer-overlay::-webkit-scrollbar {
+    width: 6px;
+}
+
+.drawer-overlay::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.drawer-overlay::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 10px;
+}
+
+.drawer-overlay::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
 }
 
 .drawer-overlay.active {

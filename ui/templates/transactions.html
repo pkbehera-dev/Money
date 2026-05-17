@@ -52,33 +52,48 @@
     </div>
 
     <!-- Transaction List Table -->
-    <div class="card" style="padding: 0; overflow: hidden; border: 1px solid var(--border-color);">
-        <div class="table-header" style="padding: 16px 24px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-color); display: grid; grid-template-columns: 120px 1fr 180px 140px 60px; font-weight: 800; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.1em;">
+    <div class="card" style="padding: 0; overflow: visible; border: 1px solid var(--border-color); background: transparent; box-shadow: none;">
+        <div class="table-header" style="padding: 16px 24px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-bottom: 2px solid var(--border-color); display: grid; grid-template-columns: 100px 1.5fr 1fr 1fr 120px 40px; gap: 20px; font-weight: 800; font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.1em; border-radius: 16px 16px 0 0;">
             <span>DATE</span>
-            <span>DESCRIPTION / NOTE</span>
+            <span>DESCRIPTION</span>
+            <span>ACCOUNT</span>
             <span>CATEGORY</span>
             <span style="text-align: right;">AMOUNT</span>
             <span></span>
         </div>
         
-        <div style="display: flex; flex-direction: column;">
+        <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px;">
             {% for tx in transactions %}
-            <div class="transaction-row card" data-id="{{ tx.id }}" data-type="transaction" style="padding: 16px 24px; display: grid; grid-template-columns: 120px 1fr 180px 140px 60px; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.03); transition: var(--transition); margin-bottom: 8px;">
-                <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);">
+            <div class="transaction-row" data-id="{{ tx.id }}" data-type="transaction" 
+                 style="padding: 12px 24px; display: grid; grid-template-columns: 100px 1.5fr 1fr 1fr 120px 40px; gap: 20px; align-items: center; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; transition: var(--transition);">
+                
+                <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); font-family: 'Outfit';">
                     {{ tx.date }}
                 </div>
                 
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div class="icon-box {{ 'status-income' if tx.type == 'income' else ('status-expense' if tx.type == 'expense' else 'status-transfer') }}" style="width: 32px; height: 32px; font-size: 0.9rem;">
+                <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+                    <div class="icon-box {{ 'status-income' if tx.type == 'income' else ('status-expense' if tx.type == 'expense' else 'status-transfer') }}" style="width: 28px; height: 28px; font-size: 0.8rem; flex-shrink: 0;">
                         <i class="ph-fill ph-{{ 'trend-up' if tx.type == 'income' else ('trend-down' if tx.type == 'expense' else 'arrows-left-right') }}"></i>
                     </div>
-                    <div style="font-weight: 500; color: var(--text-primary);">
+                    <div style="font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.95rem;">
                         {{ tx.notes or 'No details' }}
                     </div>
                 </div>
 
+                <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600; min-width: 0;">
+                    {% if tx.type == 'transfer' %}
+                        <div style="display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            <span style="color: var(--text-primary);">{{ tx.account_name or 'N/A' }}</span>
+                            <i class="ph ph-arrow-right" style="font-size: 0.7rem; color: var(--primary-accent);"></i>
+                            <span style="color: var(--primary-accent);">{{ tx.to_account_name or 'N/A' }}</span>
+                        </div>
+                    {% else %}
+                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">{{ tx.account_name or 'N/A' }}</span>
+                    {% endif %}
+                </div>
+
                 <div style="font-size: 0.85rem;">
-                    <span style="padding: 4px 10px; border-radius: 6px; background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-secondary);">
+                    <span style="padding: 4px 10px; border-radius: 6px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); color: var(--text-secondary); font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">
                         {{ tx.category or 'General' }}
                     </span>
                 </div>
@@ -94,7 +109,7 @@
                 </div>
             </div>
             {% else %}
-            <div style="padding: 80px; text-align: center; color: var(--text-secondary);">
+            <div style="padding: 80px; text-align: center; color: var(--text-secondary); background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 16px;">
                 <i class="ph ph-receipt" style="font-size: 4rem; margin-bottom: 24px; opacity: 0.2; display: block; margin-left: auto; margin-right: auto;"></i>
                 <h3 style="font-family: 'Outfit';">No transactions found</h3>
                 <p class="text-muted">Adjust filters or add a new transaction.</p>

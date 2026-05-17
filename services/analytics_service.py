@@ -133,11 +133,15 @@ class AnalyticsService:
         loan_payments = conn.execute("SELECT SUM(amount) FROM loan_payments").fetchone()[0] or 0
         loan_debt = loans_total - loan_payments
         
-        card_purchases = conn.execute("SELECT SUM(amount) FROM transactions WHERE card_id IS NOT NULL AND type = 'expense' AND deleted_at IS NULL AND tags NOT LIKE '%Silent%'").fetchone()[0] or 0
-        card_payments = conn.execute("SELECT SUM(amount) FROM transactions WHERE card_id IS NOT NULL AND type = 'transfer' AND deleted_at IS NULL").fetchone()[0] or 0
-        card_debt = card_purchases - card_payments
+        card_purchases = conn.execute("SELECT SUM(amount) FROM transactions WHERE card_id IS NOT NULL AND type = 'expense' AND deleted_at IS NULL").fetchone()[0] or 0
+        card_withdrawals = conn.execute("SELECT SUM(amount) FROM transactions WHERE card_id IS NOT NULL AND type = 'transfer' AND account_id IS NULL AND to_account_id IS NOT NULL AND deleted_at IS NULL").fetchone()[0] or 0
+        card_payments = conn.execute("SELECT SUM(amount) FROM transactions WHERE card_id IS NOT NULL AND type = 'transfer' AND account_id IS NOT NULL AND deleted_at IS NULL").fetchone()[0] or 0
+        card_debt = (card_purchases + card_withdrawals) - card_payments
 
-        total_assets = liquid + non_liquid + lent_total
+        # Reserved Goals
+        goal_total = conn.execute("SELECT SUM(current_amount) FROM goals WHERE deleted_at IS NULL").fetchone()[0] or 0
+
+        total_assets = liquid + non_liquid + lent_total + goal_total
         total_liabilities = loan_debt + card_debt + borrowed_total
         net_worth = total_assets - total_liabilities
         
@@ -222,18 +226,48 @@ class AnalyticsService:
         
         if m1 and m2 and m2[0] > 0:
             change = ((m1[0] - m2[0]) / m2[0]) * 100
-            if change > 10: insights.append({"type": "warning", "text": f"Spending rose {change:.1f}% vs last month."})
-            elif change < -5: insights.append({"type": "success", "text": f"Spending down {abs(change):.1f}% vs last month."})
+            if change > 10: 
+                insights.append({"type": "warning", "icon": "ph-trend-up", "text": f"Spending rose {change:.1f}% vs last month."})
+            elif change < -5: 
+                insights.append({"type": "success", "icon": "ph-trend-down", "text": f"Spending down {abs(change):.1f}% vs last month."})
 
+        # 2. Spending Category Spikes
         spikes = conn.execute("SELECT category, total FROM category_summaries WHERE month = ? AND total > 5000 ORDER BY total DESC LIMIT 2", (this_month,)).fetchall()
-        for s in spikes: insights.append({"type": "tip", "text": f"{s[0]} is a top expense (₹{s[1]:.0f})."})
+        for s in spikes: 
+            insights.append({"type": "tip", "icon": "ph-lightbulb", "text": f"{s[0]} is a top expense (₹{s[1]:.0f})."})
 
+        # 3. Budget Thresholds
         from services.budget_service import BudgetService
         budgets = BudgetService.get_all_budgets()
         for b in budgets:
-            if b.status == 'active' and b.progress > 80:
-                insights.append({"type": "warning" if b.progress >= 100 else "tip", "text": f"Budget '{b.name}' is {b.progress:.1f}% used."})
+            if b.get('status') == 'active' and b.get('progress', 0) > 80:
+                insights.append({
+                    "type": "warning" if b['progress'] >= 100 else "tip", 
+                    "icon": "ph-warning-circle" if b['progress'] >= 100 else "ph-info",
+                    "text": f"Budget '{b['name']}' is {b['progress']:.1f}% used."
+                })
 
-        if not insights: insights.append({"type": "tip", "text": "Keep tracking to get AI insights."})
+        # 4. Goal Velocity Insights
+        from services.goal_service import GoalService
+        goals = GoalService.get_all_goals()
+        for g in goals:
+            if g['status'] == 'active':
+                if g['tracking_text'] == 'Behind':
+                    insights.append({"type": "warning", "icon": "ph-warning", "text": f"Goal '{g['name']}' is behind schedule. Consider increasing contributions."})
+                elif g['tracking_text'] == 'Ahead':
+                    insights.append({"type": "success", "icon": "ph-rocket-launch", "text": f"You're ahead of schedule on '{g['name']}'! Excellent velocity."})
+
+        # 5. Net Worth Insight
+        from services.net_worth_service import NetWorthService
+        nw_change = NetWorthService.get_monthly_change()
+        if nw_change > 2:
+            insights.append({"type": "success", "icon": "ph-chart-line-up", "text": f"Your net worth grew by {nw_change:.1f}% this month. Great job!"})
+        elif nw_change < -2:
+            insights.append({"type": "warning", "icon": "ph-chart-line-down", "text": f"Net worth decreased by {abs(nw_change):.1f}%. Check your latest liabilities."})
+
+        # 6. General Tips
+        if not insights: 
+            insights.append({"type": "tip", "icon": "ph-sparkle", "text": "Keep tracking your daily expenses to get deeper AI insights."})
+        
         conn.close()
         return insights

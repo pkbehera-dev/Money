@@ -755,17 +755,21 @@
                 if (toSelect) toSelect.required = false;
             }
 
-            // FILTER: Hide credit cards ONLY for income.
-            const filtered = globalAccounts.filter(acc => {
-                const type = (acc.type || '').toLowerCase();
-                const isCard = type.includes('card');
-                if (txType === 'income') return !isCard;
-                return true;
-            });
+            // FILTER: Merge accounts and cards for expenses/transfers
+            let filtered = [...globalAccounts];
+            if (txType === 'expense' || txType === 'transfer') {
+                filtered = [...filtered, ...globalCards];
+            } else if (txType === 'income') {
+                // For income, only show standard accounts
+                filtered = globalAccounts.filter(acc => !(acc.type || '').toLowerCase().includes('card'));
+            }
 
-            const optionsHtml = filtered.map(acc =>
-                `<option value="${acc.id}">${acc.name} (₹${acc.balance.toFixed(2)})</option>`
-            ).join('');
+            const optionsHtml = filtered.map(acc => {
+                const balance = acc.balance !== undefined ? acc.balance : (acc.available !== undefined ? acc.available : 0);
+                const label = acc.balance !== undefined ? 'Balance' : 'Available';
+                const idPrefix = acc.balance !== undefined ? 'A' : 'C';
+                return `<option value="${idPrefix}${acc.id}">${acc.name} (${label}: ₹${balance.toFixed(2)})</option>`;
+            }).join('');
 
             select.innerHTML = optionsHtml;
             if (toSelect) toSelect.innerHTML = `<option value="">Select destination...</option>` + optionsHtml;
@@ -1072,15 +1076,16 @@
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                                 <div>
                                     <label class="text-muted">Billing Cycle</label>
-                                    <select name="billing_cycle">
-                                        <option value="Monthly" ${data.billing_cycle === 'Monthly' ? 'selected' : ''}>Monthly</option>
-                                        <option value="Yearly" ${data.billing_cycle === 'Yearly' ? 'selected' : ''}>Yearly</option>
+                                    <select name="billing_cycle" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
                                         <option value="Weekly" ${data.billing_cycle === 'Weekly' ? 'selected' : ''}>Weekly</option>
+                                        <option value="Monthly" ${data.billing_cycle === 'Monthly' ? 'selected' : ''}>Monthly</option>
+                                        <option value="Quarterly" ${data.billing_cycle === 'Quarterly' ? 'selected' : ''}>Quarterly</option>
+                                        <option value="Yearly" ${data.billing_cycle === 'Yearly' ? 'selected' : ''}>Yearly</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label class="text-muted">Next Due Date</label>
-                                    <input type="date" name="next_due_date" value="${data.next_due_date}" required>
+                                    <input type="date" name="next_due_date" value="${data.next_due_date}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
                                 </div>
                             </div>
                             <div>
@@ -1095,7 +1100,7 @@
                                     </optgroup>
                                 </select>
                             </div>
-                            <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center;">Save Changes</button>
+                            <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; margin-top: 10px;">Save Changes</button>
                         </form>
                     `;
                 } else if (type === 'asset') {
@@ -1299,12 +1304,15 @@
         }
 
         // --- Lifecycle Initialization ---
-        window.addEventListener('popstate', () => {
-            AppRouter.navigate(window.location.pathname + window.location.search, false);
+        document.addEventListener('DOMContentLoaded', () => {
+            disableAutocomplete();
+            fetchNotifications(); // Initial fetch
+            setInterval(fetchNotifications, 60000); // Check every minute
+            SpotlightEngine.init();
         });
 
-        document.addEventListener('DOMContentLoaded', disableAutocomplete);
         window.addEventListener('popstate', () => {
+            AppRouter.navigate(window.location.pathname + window.location.search, false);
             disableAutocomplete();
         });
 
@@ -1313,6 +1321,7 @@
         AppRouter.navigate = async function (url, push = true) {
             await originalNavigate.apply(this, [url, push]);
             disableAutocomplete();
+            fetchNotifications(); // Update badge on navigation
         };
         // --- Spotlight Command Palette Engine ---
         const SpotlightEngine = {

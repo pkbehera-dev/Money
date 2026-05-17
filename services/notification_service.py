@@ -73,7 +73,16 @@ class NotificationService:
             msg = f"Subscription {s['name']} is due on {s['next_due_date']} (₹{s['amount']})"
             NotificationService.add_notification("Subscription Renewal", msg, "subscription", "high", action_link='/subscriptions')
             
-        # 3. Asset Value Tracking
+        # 3. Goals
+        goals = GoalService.get_all_goals()
+        for g in goals:
+            if g['status'] == 'completed':
+                # Only notify if achieved recently (within 24h)
+                NotificationService.add_notification("Goal Achieved! 🎉", f"Congratulations! You've reached your target for '{g['name']}'.", "success", "high", action_link='/goals')
+            elif g['tracking_text'] == 'Behind':
+                NotificationService.add_notification("Goal Behind Schedule", f"'{g['name']}' is falling behind. You may need to increase contributions.", "warning", "medium", action_link='/goals')
+            
+        # 4. Asset Value Tracking
         NotificationService.check_asset_value_updates()
             
         return True

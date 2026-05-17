@@ -77,9 +77,10 @@
 </style>
 
 <script>
-    const chatForm = document.getElementById('chat-form');
-    const chatInput = document.getElementById('chat-input');
-    const chatMessages = document.getElementById('chat-messages');
+    // Use var to allow re-declaration in SPA mode
+    var chatForm = document.getElementById('chat-form');
+    var chatInput = document.getElementById('chat-input');
+    var chatMessages = document.getElementById('chat-messages');
 
     function appendMessage(text, isUser, source = '') {
         const div = document.createElement('div');
@@ -93,10 +94,13 @@
         return div;
     }
 
-    function sendPrompt(text) {
-        chatInput.value = text;
-        chatForm.dispatchEvent(new Event('submit'));
-    }
+    // Attach to window for onclick handlers
+    window.sendPrompt = function(text) {
+        if (chatInput) {
+            chatInput.value = text;
+            chatForm.dispatchEvent(new Event('submit'));
+        }
+    };
 
     chatForm.addEventListener('submit', async (e) => {
         e.preventDefault();

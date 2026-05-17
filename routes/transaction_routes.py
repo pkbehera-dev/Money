@@ -33,10 +33,30 @@ def add_transaction():
     amount = float(request.form.get('amount'))
     category = request.form.get('category')
     date = request.form.get('date')
-    account_id = int(request.form.get('account_id'))
-    to_account_id = request.form.get('to_account_id')
-    to_account_id = int(to_account_id) if to_account_id else None
+    # Parse Semantic IDs (A = Account, C = Card)
+    raw_acc = request.form.get('account_id')
+    raw_to = request.form.get('to_account_id')
+    
+    account_id = None
+    card_id = None
+    to_account_id = None
+    
+    if raw_acc:
+        if raw_acc.startswith('A'): account_id = int(raw_acc[1:])
+        elif raw_acc.startswith('C'): card_id = int(raw_acc[1:])
+        else: account_id = int(raw_acc) # Fallback for old style
+
+    if raw_to:
+        if raw_to.startswith('A'): to_account_id = int(raw_to[1:])
+        elif raw_to.startswith('C'): 
+            # If target is a card, we treat it as the card_id for the transaction
+            # (especially for transfers/bill payments)
+            card_id = int(raw_to[1:])
+            to_account_id = -1 # Special flag to indicate "To Card"
+        else: to_account_id = int(raw_to)
+    
     transfer_fee = float(request.form.get('transfer_fee', 0.0) or 0.0)
+
     notes = request.form.get('notes')
     tags = request.form.get('tags')
     
@@ -50,7 +70,19 @@ def add_transaction():
             'total_to_pay': float(request.form.get('emi_total_to_pay', 0) or 0)
         }
     
-    TransactionService.add_transaction(t_type, amount, category, date, account_id, to_account_id, notes, tags, transfer_fee, emi_data=emi_data)
+    TransactionService.add_transaction(
+        type=t_type, 
+        amount=amount, 
+        category=category, 
+        date=date, 
+        account_id=account_id, 
+        to_account_id=to_account_id, 
+        notes=notes, 
+        tags=tags, 
+        transfer_fee=transfer_fee, 
+        card_id=card_id,
+        emi_data=emi_data
+    )
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({"status": "success"})

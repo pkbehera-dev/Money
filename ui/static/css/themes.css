@@ -1,24 +1,26 @@
 :root {
-  /* Default: Dark Theme based on user request */
-  --bg-color: #0F1117;
+  /* Default: Dark Theme */
+  --bg-main: #0F1117;
   --sidebar-bg: #171923;
   --card-bg: #1E2230;
   --border-color: #2A3142;
   --primary-accent: #4F8CFF;
+  --primary-glow: rgba(79, 140, 255, 0.2);
   --success-color: #22C55E;
   --expense-color: #EF4444;
   --warning-color: #F59E0B;
-  --special-color: #8B5CF6; /* Credit Card / Loans */
+  --special-color: #8B5CF6;
   --text-primary: #FFFFFF;
-  --text-secondary: #A1A1AA;
+  --text-secondary: #CBD5E1;
 }
 
 [data-theme="light"] {
-  --bg-color: #F5F7FB;
+  --bg-main: #F5F7FB;
   --sidebar-bg: #FFFFFF;
   --card-bg: #FFFFFF;
   --border-color: #E4E7EC;
   --primary-accent: #2563EB;
+  --primary-glow: rgba(37, 99, 235, 0.1);
   --success-color: #16A34A;
   --expense-color: #DC2626;
   --warning-color: #D97706;

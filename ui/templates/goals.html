@@ -55,13 +55,20 @@
             </div>
 
             {% if g.status != 'completed' %}
-            <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px;">
-                <button class="btn-secondary" style="justify-content: center; padding: 12px;" onclick="openContributionModal('{{ g.id }}', '{{ g.name }}')">
-                    <i class="ph ph-plus"></i> Add Contribution
-                </button>
-                <div style="display: flex; align-items: center; gap: 8px; padding: 0 12px; background: var(--bg-main); border-radius: 12px; font-size: 0.8rem; font-weight: 600;">
-                    <i class="ph ph-trend-up text-success"></i>
-                    On Track
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px;">
+                    <button class="btn-secondary" style="justify-content: center; padding: 12px;" onclick="openContributionModal('{{ g.id }}', '{{ g.name }}')">
+                        <i class="ph ph-plus"></i> Add Contribution
+                    </button>
+                    {% if g.current_amount > 0 %}
+                    <button class="btn-secondary" style="padding: 12px; color: var(--expense-color);" onclick="openWithdrawModal('{{ g.id }}', '{{ g.name }}', {{ g.current_amount }})" title="Emergency Withdraw">
+                        <i class="ph ph-hand-withdraw"></i>
+                    </button>
+                    {% endif %}
+                </div>
+                <div style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 12px; background: var(--bg-main); border-radius: 12px; font-size: 0.8rem; font-weight: 600;">
+                    <i class="ph {{ g.tracking_icon }} {{ g.tracking_class }}"></i>
+                    <span class="{{ g.tracking_class }}">{{ g.tracking_text }}</span>
                 </div>
             </div>
             {% endif %}
@@ -70,19 +77,37 @@
     </div>
 </div>
 
-<!-- Modal for Contribution -->
-<div id="contribution-modal" class="spotlight-overlay" style="display: none; z-index: 2000;">
-    <div class="card" style="max-width: 400px; width: 90%; margin: 100px auto;">
-        <h3 id="contribute-goal-name" style="margin-bottom: 20px; font-family: 'Outfit';">Add to Goal</h3>
-        <form id="contribution-form" onsubmit="handleContribution(event)">
-            <input type="hidden" id="contribute-goal-id">
+<!-- Modal for Goal Actions -->
+<div id="goal-action-modal" class="spotlight-overlay" style="display: none; z-index: 2000;">
+    <div class="card" style="max-width: 450px; width: 95%; margin: 80px auto;">
+        <h3 id="action-modal-title" style="margin-bottom: 8px; font-family: 'Outfit';">Goal Action</h3>
+        <p id="action-modal-subtitle" class="text-muted" style="font-size: 0.9rem; margin-bottom: 24px;">Confirm details below.</p>
+        
+        <form id="goal-action-form">
+            <input type="hidden" id="action-goal-id">
+            <input type="hidden" id="action-type">
+            
             <div style="margin-bottom: 20px;">
                 <label class="text-muted" style="display: block; margin-bottom: 8px;">Amount</label>
-                <input type="number" id="contribute-amount" required placeholder="₹0" style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 1.5rem; font-weight: 700;">
+                <input type="number" id="action-amount" required placeholder="₹0" style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 1.5rem; font-weight: 700;">
             </div>
+
+            <div style="margin-bottom: 24px;">
+                <label class="text-muted" style="display: block; margin-bottom: 8px;">Select Bank Account</label>
+                <select id="action-account" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                    <option value="">-- Choose Account --</option>
+                    {% for acc in accounts %}
+                    <option value="{{ acc.id }}">{{ acc.name }} (₹{{ "%.2f"|format(acc.balance) }})</option>
+                    {% endfor %}
+                </select>
+                <p class="text-muted" style="font-size: 0.75rem; margin-top: 8px;">
+                    <i class="ph ph-info"></i> This will automatically update your account balance.
+                </p>
+            </div>
+
             <div style="display: flex; gap: 12px;">
-                <button type="button" class="btn-secondary" onclick="closeContributionModal()" style="flex: 1; justify-content: center;">Cancel</button>
-                <button type="submit" class="btn-primary" style="flex: 2; justify-content: center;">Confirm</button>
+                <button type="button" class="btn-secondary" onclick="closeActionModal()" style="flex: 1; justify-content: center;">Cancel</button>
+                <button type="submit" id="action-submit-btn" class="btn-primary" style="flex: 2; justify-content: center;">Confirm</button>
             </div>
         </form>
     </div>
@@ -90,32 +115,63 @@
 
 <script>
     function openContributionModal(id, name) {
-        document.getElementById('contribute-goal-id').value = id;
-        document.getElementById('contribute-goal-name').innerText = 'Contribute to ' + name;
-        document.getElementById('contribution-modal').style.display = 'block';
-        document.getElementById('contribute-amount').focus();
+        document.getElementById('action-goal-id').value = id;
+        document.getElementById('action-type').value = 'contribute';
+        document.getElementById('action-modal-title').innerText = 'Contribute to Goal';
+        document.getElementById('action-modal-subtitle').innerText = 'Save money towards ' + name;
+        document.getElementById('action-submit-btn').innerText = 'Confirm Contribution';
+        document.getElementById('action-amount').max = '';
+        
+        document.getElementById('goal-action-modal').style.display = 'block';
+        document.getElementById('action-amount').focus();
+    }
+
+    function openWithdrawModal(id, name, maxAmount) {
+        document.getElementById('action-goal-id').value = id;
+        document.getElementById('action-type').value = 'withdraw';
+        document.getElementById('action-modal-title').innerText = 'Emergency Withdrawal';
+        document.getElementById('action-modal-subtitle').innerText = 'Withdraw from ' + name + ' to bank';
+        document.getElementById('action-submit-btn').innerText = 'Withdraw Funds';
+        document.getElementById('action-amount').max = maxAmount;
+        document.getElementById('action-amount').value = maxAmount;
+        
+        document.getElementById('goal-action-modal').style.display = 'block';
+        document.getElementById('action-amount').focus();
     }
     
-    function closeContributionModal() {
-        document.getElementById('contribution-modal').style.display = 'none';
+    function closeActionModal() {
+        document.getElementById('goal-action-modal').style.display = 'none';
+        document.getElementById('goal-action-form').reset();
     }
     
-    async function handleContribution(e) {
+    document.getElementById('goal-action-form').onsubmit = async function(e) {
         e.preventDefault();
-        const id = document.getElementById('contribute-goal-id').value;
-        const amount = document.getElementById('contribute-amount').value;
+        const id = document.getElementById('action-goal-id').value;
+        const type = document.getElementById('action-type').value;
+        const amount = document.getElementById('action-amount').value;
+        const account_id = document.getElementById('action-account').value;
         
-        const resp = await fetch(`/goals/contribute/${id}`, {
-            method: 'POST',
-            body: new URLSearchParams({'amount': amount})
-        });
+        const endpoint = type === 'contribute' ? `/goals/contribute/${id}` : `/goals/withdraw/${id}`;
         
-        if (resp.ok) {
-            closeContributionModal();
-            if (window.AppRouter) AppRouter.navigate('/goals');
-            else window.location.reload();
+        try {
+            const resp = await fetch(endpoint, {
+                method: 'POST',
+                body: new URLSearchParams({'amount': amount, 'account_id': account_id})
+            });
+            
+            if (resp.ok) {
+                closeActionModal();
+                if (window.AppRouter) AppRouter.navigate('/goals');
+                else window.location.reload();
+                showToast(type === 'contribute' ? 'Contribution successful!' : 'Withdrawal successful!', 'success');
+            } else {
+                const data = await resp.json();
+                showToast(data.message || 'Action failed', 'error');
+            }
+        } catch (err) {
+            showToast('Network error', 'error');
         }
-    }
+    };
 </script>
     <style>
         .goal-card { border-top: 4px solid var(--primary-accent); }

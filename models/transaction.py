@@ -16,6 +16,8 @@ class Transaction:
     card_id: Optional[int] = None
     person_id: Optional[int] = None
     deleted_at: Optional[str] = None
+    account_name: Optional[str] = None
+    to_account_name: Optional[str] = None
 
     @classmethod
     def from_row(cls, row):

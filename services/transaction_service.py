@@ -8,38 +8,41 @@ class TransactionService:
         """Fetches transactions with optional filtering and sorting."""
         conn = get_db_connection()
         query = """
-            SELECT * FROM transactions 
+            SELECT t.*, a1.name as account_name, a2.name as to_account_name
+            FROM transactions t
+            LEFT JOIN accounts a1 ON t.account_id = a1.id
+            LEFT JOIN accounts a2 ON t.to_account_id = a2.id
             WHERE 1=1 
-            AND deleted_at IS NULL
-            AND category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration')
-            AND tags NOT LIKE '%Silent%'
+            AND t.deleted_at IS NULL
+            AND t.category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration')
+            AND t.tags NOT LIKE '%Silent%'
         """
         params = []
 
         if filters:
             if filters.get('type'):
-                query += " AND type = ?"
+                query += " AND t.type = ?"
                 params.append(filters['type'])
             if filters.get('category'):
-                query += " AND category = ?"
+                query += " AND t.category = ?"
                 params.append(filters['category'])
             if filters.get('account_id'):
-                query += " AND account_id = ?"
+                query += " AND t.account_id = ?"
                 params.append(filters['account_id'])
             if filters.get('date_from'):
-                query += " AND date >= ?"
+                query += " AND t.date >= ?"
                 params.append(filters['date_from'])
             if filters.get('date_to'):
-                query += " AND date <= ?"
+                query += " AND t.date <= ?"
                 params.append(filters['date_to'])
             if filters.get('min_amount'):
-                query += " AND amount >= ?"
+                query += " AND t.amount >= ?"
                 params.append(float(filters['min_amount']))
             if filters.get('max_amount'):
-                query += " AND amount <= ?"
+                query += " AND t.amount <= ?"
                 params.append(float(filters['max_amount']))
             if filters.get('search'):
-                query += " AND (category LIKE ? OR notes LIKE ? OR tags LIKE ?)"
+                query += " AND (t.category LIKE ? OR t.notes LIKE ? OR t.tags LIKE ?)"
                 search_q = f"%{filters['search']}%"
                 params.extend([search_q, search_q, search_q])
 

@@ -21,14 +21,26 @@ def loans_page():
                            active_filters=filters, 
                            partial=request.args.get('partial'))
 
+def safe_float(val, default=0.0):
+    try:
+        return float(val) if val and str(val).strip() else default
+    except (ValueError, TypeError):
+        return default
+
+def safe_int(val, default=0):
+    try:
+        return int(val) if val and str(val).strip() else default
+    except (ValueError, TypeError):
+        return default
+
 @loan_bp.route('/loans/add', methods=['POST'])
 def add_loan():
     name = request.form.get('name')
-    principal = float(request.form.get('principal', 0))
-    total_to_pay = float(request.form.get('total_to_pay', 0))
-    tenure = int(request.form.get('tenure', 0))
-    due_date = int(request.form.get('due_date', 1))
-    initial_paid = float(request.form.get('initial_paid', 0))
+    principal = safe_float(request.form.get('principal'))
+    total_to_pay = safe_float(request.form.get('total_to_pay'))
+    tenure = safe_int(request.form.get('tenure'))
+    due_date = safe_int(request.form.get('due_date'), 1)
+    initial_paid = safe_float(request.form.get('initial_paid'))
     start_date = request.form.get('start_date')
     account_id = request.form.get('account_id')
     
@@ -40,8 +52,8 @@ def add_loan():
 
 @loan_bp.route('/loans/payment', methods=['POST'])
 def add_payment():
-    loan_id = int(request.form.get('loan_id'))
-    amount = float(request.form.get('amount'))
+    loan_id = safe_int(request.form.get('loan_id'))
+    amount = safe_float(request.form.get('amount'))
     date = request.form.get('date')
     p_type = request.form.get('type')
     notes = request.form.get('notes')
@@ -65,10 +77,10 @@ def delete_loan(loan_id):
 def edit_loan(loan_id):
     if request.method == "POST":
         name = request.form.get("name")
-        principal = float(request.form.get("principal"))
-        total_to_pay = float(request.form.get("total_to_pay"))
-        tenure = int(request.form.get("tenure"))
-        due_date = int(request.form.get("due_date"))
+        principal = safe_float(request.form.get("principal"))
+        total_to_pay = safe_float(request.form.get("total_to_pay"))
+        tenure = safe_int(request.form.get("tenure"))
+        due_date = safe_int(request.form.get("due_date"))
         LoanService.update_loan(loan_id, name, principal, total_to_pay, tenure, due_date)
         return jsonify({"status": "success"})
     
