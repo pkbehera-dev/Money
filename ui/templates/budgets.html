@@ -36,7 +36,7 @@
         </h3>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
             {% for insight in insights %}
-            <div class="card" style="padding: 16px; border-left: 4px solid var(--{{ insight.type }}-color); background: rgba(var(--{{ insight.type }}-color-rgb, 100, 100, 100), 0.05);">
+            <div class="card" style="padding: 16px; border-left: 4px solid var(--{{ insight.type }}-color); background: rgba(var(--{{ insight.type }}-color-rgb), 0.05);">
                 <div style="display: flex; gap: 12px; align-items: flex-start;">
                     <div class="icon-box" style="width: 32px; height: 32px; background: none; color: var(--{{ insight.type }}-color);">
                         <i class="ph-bold {{ insight.icon }}"></i>
@@ -76,7 +76,7 @@
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-top: 10px;">
                     <span class="text-muted" style="font-size: 0.75rem; font-weight: 600;">
-                        {{ "₹%.0f remaining"|format(b.remaining) if b.remaining >= 0 else "₹%.0f over"|format(abs(b.remaining)) }}
+                        {{ "₹%.0f remaining"|format(b.remaining) if b.remaining >= 0 else "₹%.0f over"|format(b.remaining|abs) }}
                     </span>
                     <span style="font-size: 0.75rem; font-weight: 700; color: {{ 'var(--expense-color)' if b.prediction > b.amount else 'var(--text-muted)' }};">
                         <i class="ph ph-magic-wand"></i> Est. ₹{{ "%.0f"|format(b.prediction) }}
@@ -84,7 +84,7 @@
                 </div>
             </div>
 
-            <div style="padding: 14px; background: rgba(var(--primary-accent-rgb, 79, 140, 255), 0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="padding: 14px; background: rgba(var(--primary-accent-rgb), 0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
                 <div style="display: flex; align-items: center; gap: 10px; font-size: 0.8rem;">
                     <i class="ph-fill ph-trend-{{ 'up' if b.prediction > b.amount else 'check' }}" style="color: {{ 'var(--expense-color)' if b.prediction > b.amount else 'var(--success-color)' }};"></i>
                     {% if b.prediction > b.amount %}

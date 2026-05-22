@@ -123,5 +123,20 @@ def run_analytics_worker():
 worker_thread = Thread(target=run_analytics_worker, daemon=True)
 worker_thread.start()
 
+# Background worker for soft delete permanent cleanup
+def run_undo_cleanup_worker():
+    print("Undo cleanup worker started.")
+    from services.undo_service import UndoService
+    while True:
+        try:
+            UndoService.permanent_delete_cron()
+            time.sleep(3600)
+        except Exception as e:
+            print(f"Undo cleanup error: {e}")
+            time.sleep(10)
+
+cleanup_thread = Thread(target=run_undo_cleanup_worker, daemon=True)
+cleanup_thread.start()
+
 if __name__ == '__main__':
     app.run(debug=True, host='::', port=5000)

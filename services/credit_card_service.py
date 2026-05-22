@@ -67,8 +67,10 @@ class CreditCardService:
 
     @staticmethod
     def delete_card(card_id: int):
+        from datetime import datetime
         conn = get_db_connection()
-        conn.execute("DELETE FROM credit_cards WHERE id = ?", (card_id,))
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        conn.execute("UPDATE credit_cards SET deleted_at = ? WHERE id = ?", (now, card_id))
         conn.commit()
         conn.close()
 

@@ -1,0 +1,246 @@
+{% extends "base.html" if not partial|default(false) else "blank.html" %}
+
+{% block title %}Trash Bin{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px;">
+        <div>
+            <h1 style="font-family: 'Outfit'; font-size: 2.5rem; margin-bottom: 8px;">Trash Bin</h1>
+            <p class="text-muted">Restore soft-deleted items or permanently remove them. Items are auto-deleted after 30 days.</p>
+        </div>
+        <div style="font-size: 0.85rem; background: rgba(231, 76, 60, 0.05); color: var(--expense-color); padding: 6px 16px; border-radius: 20px; border: 1px solid rgba(231, 76, 60, 0.15); display: inline-flex; align-items: center; gap: 8px;">
+            <i class="ph-bold ph-hourglass" style="font-size: 0.95rem;"></i>
+            <span>{{ deleted_items|length }} items in Trash Bin</span>
+        </div>
+    </div>
+
+    <!-- Filter & Search Bar -->
+    <div class="card" style="margin-bottom: 32px; padding: 16px;">
+        <form action="/trash" method="GET" id="filter-form">
+            <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+                <div style="position: relative; flex: 1; min-width: 250px;">
+                    <i class="ph ph-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-secondary);"></i>
+                    <input type="text" name="search" placeholder="Search deleted items by name or amount..." value="{{ active_filters.search or '' }}"
+                           style="width: 100%; padding: 10px 12px 10px 40px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); outline: none;">
+                </div>
+                
+                <select name="type" onchange="this.form.submit()" style="padding: 10px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); min-width: 160px;">
+                    <option value="">All Types</option>
+                    <option value="transaction" {% if active_filters.type == 'transaction' %}selected{% endif %}>Transactions</option>
+                    <option value="account" {% if active_filters.type == 'account' %}selected{% endif %}>Accounts</option>
+                    <option value="card" {% if active_filters.type == 'card' %}selected{% endif %}>Credit Cards</option>
+                    <option value="budget" {% if active_filters.type == 'budget' %}selected{% endif %}>Budgets</option>
+                    <option value="goal" {% if active_filters.type == 'goal' %}selected{% endif %}>Goals</option>
+                    <option value="subscription" {% if active_filters.type == 'subscription' %}selected{% endif %}>Subscriptions</option>
+                    <option value="asset" {% if active_filters.type == 'asset' %}selected{% endif %}>Assets</option>
+                    <option value="loan" {% if active_filters.type == 'loan' %}selected{% endif %}>Loans</option>
+                    <option value="ledger" {% if active_filters.type == 'ledger' %}selected{% endif %}>Lent/Borrow</option>
+                </select>
+
+                <div style="display: flex; gap: 8px;">
+                    <a href="/trash" class="text-danger" style="text-decoration: none; font-size: 0.85rem; font-weight: 600; padding: 8px 16px; border: 1px solid var(--border-color); border-radius: 10px;">Clear Filters</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Deleted Items List -->
+    <div class="card" style="padding: 0; overflow: visible; border: 1px solid var(--border-color); background: transparent; box-shadow: none;">
+        <div class="table-header" style="padding: 16px 24px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-bottom: 2px solid var(--border-color); display: grid; grid-template-columns: 1.5fr 1fr 1fr 100px 1fr 100px; gap: 20px; font-weight: 800; font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.1em; border-radius: 16px 16px 0 0;">
+            <span>DELETED ITEM</span>
+            <span>TYPE</span>
+            <span>DATE DELETED</span>
+            <span>DAYS LEFT</span>
+            <span style="text-align: right;">AMOUNT / VALUE</span>
+            <span style="text-align: right;">ACTIONS</span>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;" id="trash-list-container">
+            {% for item in deleted_items %}
+            <div class="trash-row" data-id="{{ item.id }}" data-type="{{ item.type }}" 
+                 style="padding: 14px 24px; display: grid; grid-template-columns: 1.5fr 1fr 1fr 100px 1fr 100px; gap: 20px; align-items: center; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; transition: var(--transition);">
+                
+                <!-- Name/Description -->
+                <div style="font-weight: 600; color: var(--text-primary); font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    {{ item.name or 'Unnamed Item' }}
+                </div>
+                
+                <!-- Type Badge -->
+                <div>
+                    {% if item.type == 'transaction' %}
+                        <span style="padding: 4px 10px; border-radius: 20px; background: rgba(79, 140, 255, 0.1); color: var(--primary-accent); border: 1px solid rgba(79, 140, 255, 0.2); font-size: 0.75rem; font-weight: 700;">
+                            <i class="ph ph-arrows-left-right" style="margin-right: 4px;"></i> Transaction
+                        </span>
+                    {% elif item.type == 'account' %}
+                        <span style="padding: 4px 10px; border-radius: 20px; background: rgba(155, 89, 182, 0.1); color: #af7ac5; border: 1px solid rgba(155, 89, 182, 0.2); font-size: 0.75rem; font-weight: 700;">
+                            <i class="ph ph-bank" style="margin-right: 4px;"></i> Account
+                        </span>
+                    {% elif item.type == 'card' %}
+                        <span style="padding: 4px 10px; border-radius: 20px; background: rgba(241, 196, 15, 0.1); color: #f4d03f; border: 1px solid rgba(241, 196, 15, 0.2); font-size: 0.75rem; font-weight: 700;">
+                            <i class="ph ph-credit-card" style="margin-right: 4px;"></i> Credit Card
+                        </span>
+                    {% elif item.type == 'budget' %}
+                        <span style="padding: 4px 10px; border-radius: 20px; background: rgba(46, 204, 113, 0.1); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.2); font-size: 0.75rem; font-weight: 700;">
+                            <i class="ph ph-chart-pie-slice" style="margin-right: 4px;"></i> Budget
+                        </span>
+                    {% elif item.type == 'goal' %}
+                        <span style="padding: 4px 10px; border-radius: 20px; background: rgba(26, 188, 156, 0.1); color: #1abc9c; border: 1px solid rgba(26, 188, 156, 0.2); font-size: 0.75rem; font-weight: 700;">
+                            <i class="ph ph-target" style="margin-right: 4px;"></i> Goal
+                        </span>
+                    {% elif item.type == 'subscription' %}
+                        <span style="padding: 4px 10px; border-radius: 20px; background: rgba(231, 76, 60, 0.1); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.2); font-size: 0.75rem; font-weight: 700;">
+                            <i class="ph ph-calendar-check" style="margin-right: 4px;"></i> Subscription
+                        </span>
+                    {% elif item.type == 'asset' %}
+                        <span style="padding: 4px 10px; border-radius: 20px; background: rgba(22, 160, 133, 0.1); color: #16a085; border: 1px solid rgba(22, 160, 133, 0.2); font-size: 0.75rem; font-weight: 700;">
+                            <i class="ph ph-armchair" style="margin-right: 4px;"></i> Asset
+                        </span>
+                    {% elif item.type == 'loan' %}
+                        <span style="padding: 4px 10px; border-radius: 20px; background: rgba(192, 57, 43, 0.1); color: #e74c3c; border: 1px solid rgba(192, 57, 43, 0.2); font-size: 0.75rem; font-weight: 700;">
+                            <i class="ph ph-hand-coins" style="margin-right: 4px;"></i> Loan
+                        </span>
+                    {% elif item.type == 'ledger' %}
+                        <span style="padding: 4px 10px; border-radius: 20px; background: rgba(52, 152, 219, 0.1); color: #3498db; border: 1px solid rgba(52, 152, 219, 0.2); font-size: 0.75rem; font-weight: 700;">
+                            <i class="ph ph-users-three" style="margin-right: 4px;"></i> Lent/Borrow
+                        </span>
+                    {% else %}
+                        <span style="padding: 4px 10px; border-radius: 20px; background: rgba(255, 255, 255, 0.05); color: var(--text-secondary); border: 1px solid var(--border-color); font-size: 0.75rem; font-weight: 700;">
+                            {{ item.label }}
+                        </span>
+                    {% endif %}
+                </div>
+                
+                <!-- Deleted Date -->
+                <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">
+                    {{ item.deleted_at }}
+                </div>
+                
+                <!-- Days Left -->
+                <div>
+                    <span style="font-size: 0.85rem; font-weight: 700; color: {% if item.days_left <= 5 %}var(--expense-color){% elif item.days_left <= 15 %}var(--warning-color){% else %}var(--income-color){% endif %};">
+                        {{ item.days_left }} days
+                    </span>
+                </div>
+                
+                <!-- Amount -->
+                <div style="font-weight: 800; font-size: 1.05rem; text-align: right; font-family: 'Outfit'; color: var(--text-primary);">
+                    ₹{{ "%.2f"|format(item.amount) }}
+                </div>
+                
+                <!-- Actions -->
+                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                    <button class="nav-link" title="Restore Item" onclick="restoreTrashItem('{{ item.id }}', '{{ item.type }}', this)" 
+                            style="padding: 8px; border: 1px solid rgba(46, 204, 113, 0.2); background: rgba(46, 204, 113, 0.05); border-radius: 8px; color: #2ecc71; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                        <i class="ph ph-arrows-counter-clockwise" style="font-size: 1.1rem;"></i>
+                    </button>
+                    <button class="nav-link" title="Delete Permanently" onclick="confirmPermanentDelete('{{ item.id }}', '{{ item.type }}', this)" 
+                            style="padding: 8px; border: 1px solid rgba(231, 76, 60, 0.2); background: rgba(231, 76, 60, 0.05); border-radius: 8px; color: #e74c3c; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                        <i class="ph ph-trash" style="font-size: 1.1rem;"></i>
+                    </button>
+                </div>
+            </div>
+            {% else %}
+            <!-- Empty State -->
+            <div style="padding: 80px; text-align: center; color: var(--text-secondary); background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 16px;" id="trash-empty-state">
+                <i class="ph ph-trash-simple" style="font-size: 4rem; margin-bottom: 24px; opacity: 0.15; display: block; margin-left: auto; margin-right: auto;"></i>
+                <h3 style="font-family: 'Outfit';">Trash Bin is empty</h3>
+                <p class="text-muted">Items you delete will appear here and can be restored within 30 days.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+    async function restoreTrashItem(id, type, button) {
+        const formData = new FormData();
+        formData.append('id', id);
+        formData.append('type', type);
+        
+        try {
+            const resp = await fetch('/api/actions/restore', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (resp.ok) {
+                showToast('Item restored successfully!', 'success');
+                animateRowRemoval(button.closest('.trash-row'));
+                
+                // If it's the last item, show empty state
+                checkTrashCount();
+            } else {
+                showToast('Failed to restore item.', 'error');
+            }
+        } catch (err) {
+            console.error('Error restoring:', err);
+            showToast('Error communicating with server.', 'error');
+        }
+    }
+
+    function confirmPermanentDelete(id, type, button) {
+        showConfirmationModal(
+            "Delete Permanently?",
+            "Are you absolutely sure you want to permanently purge this item? This action CANNOT BE UNDONE.",
+            async () => {
+                const formData = new FormData();
+                formData.append('id', id);
+                formData.append('type', type);
+                
+                try {
+                    const resp = await fetch('/api/actions/permanent-delete', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (resp.ok) {
+                        showToast('Item permanently deleted.', 'info');
+                        animateRowRemoval(button.closest('.trash-row'));
+                        
+                        // If it's the last item, show empty state
+                        checkTrashCount();
+                    } else {
+                        showToast('Failed to delete item.', 'error');
+                    }
+                } catch (err) {
+                    console.error('Error deleting:', err);
+                    showToast('Error communicating with server.', 'error');
+                }
+            }
+        );
+    }
+
+    function animateRowRemoval(row) {
+        row.style.opacity = '0';
+        row.style.transform = 'translateX(50px)';
+        row.style.transition = 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)';
+        setTimeout(() => {
+            row.remove();
+            checkTrashCount();
+        }, 350);
+    }
+
+    function checkTrashCount() {
+        const container = document.getElementById('trash-list-container');
+        const rows = container.querySelectorAll('.trash-row');
+        if (rows.length === 0) {
+            // Remove header count
+            const emptyState = document.createElement('div');
+            emptyState.style.padding = '80px';
+            emptyState.style.textAlign = 'center';
+            emptyState.style.color = 'var(--text-secondary)';
+            emptyState.style.background = 'var(--card-bg)';
+            emptyState.style.border = '1px solid var(--border-color)';
+            emptyState.style.borderRadius = '16px';
+            emptyState.innerHTML = `
+                <i class="ph ph-trash-simple" style="font-size: 4rem; margin-bottom: 24px; opacity: 0.15; display: block; margin-left: auto; margin-right: auto;"></i>
+                <h3 style="font-family: 'Outfit';">Trash Bin is empty</h3>
+                <p class="text-muted">Items you delete will appear here and can be restored within 30 days.</p>
+            `;
+            container.appendChild(emptyState);
+        }
+    }
+</script>
+{% endblock %}

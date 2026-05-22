@@ -87,17 +87,28 @@
         <div class="spotlight-content">
             <div class="spotlight-header">
                 <i class="ph ph-magnifying-glass"></i>
-                <input type="text" id="spotlight-input" placeholder="Search anything... (Right Alt + Space)"
+                <input type="text" id="spotlight-input" placeholder="Search anything... (Ctrl + K)"
                     autocomplete="off">
-                <div class="spotlight-shortcut-hint">ESC</div>
+                <i id="spotlight-clear" class="ph ph-x-circle" style="cursor: pointer; opacity: 0; pointer-events: none; transition: opacity 0.2s;" onclick="SpotlightEngine.clearSearch()"></i>
             </div>
             <div id="spotlight-results" class="spotlight-results-container">
                 <div class="spotlight-empty-state">
-                    <p>Start typing to search...</p>
+                    <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 12px;">Recent Searches</p>
                     <div class="suggestion-chips">
                         <span onclick="setSearch('Today')">Today</span>
                         <span onclick="setSearch('Food')">Food</span>
                         <span onclick="setSearch('SBI')">SBI</span>
+                    </div>
+                    <div style="margin-top: 24px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                        <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 12px;">Search Syntax Shortcuts</p>
+                        <div class="spotlight-syntax-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; justify-items: center; max-width: 500px; margin: 0 auto;">
+                            <span class="spotlight-syntax-chip" onclick="setSearch('>')"><kbd>&gt;</kbd> Commands</span>
+                            <span class="spotlight-syntax-chip" onclick="setSearch('t:')"><kbd>t:</kbd> Transactions</span>
+                            <span class="spotlight-syntax-chip" onclick="setSearch('a:')"><kbd>a:</kbd> Accounts</span>
+                            <span class="spotlight-syntax-chip" onclick="setSearch('p:')"><kbd>p:</kbd> Contacts</span>
+                            <span class="spotlight-syntax-chip" onclick="setSearch('l:')"><kbd>l:</kbd> Loans</span>
+                            <span class="spotlight-syntax-chip" onclick="setSearch('c:')"><kbd>c:</kbd> Categories</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -106,7 +117,7 @@
                     <span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
                     <span><kbd>↵</kbd> Select</span>
                 </div>
-                <div class="text-muted">Right Alt + Space</div>
+                <div class="text-muted"><kbd>Ctrl</kbd> + <kbd>K</kbd></div>
             </div>
         </div>
     </div>
@@ -170,6 +181,8 @@
                     <ul class="nav-items">
                         <li class="nav-item"><a href="{{ url_for('settings.settings_page') }}" class="nav-link"><i
                                     class="ph ph-gear"></i> <span>Settings</span></a></li>
+                        <li class="nav-item"><a href="{{ url_for('action.trash_page') }}" class="nav-link"><i
+                                    class="ph ph-trash"></i> <span>Trash Bin</span></a></li>
                     </ul>
                 </div>
             </nav>
@@ -189,7 +202,7 @@
                     <div class="search-container" style="max-width: 450px; width: 100%; position: relative;">
                         <i class="ph ph-magnifying-glass"
                             style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-secondary);"></i>
-                        <input type="text" id="global-search" placeholder="Search anything... (Right Alt + Space)"
+                        <input type="text" id="global-search" placeholder="Search anything... (Ctrl + K)"
                             onclick="SpotlightEngine.toggle(true)" readonly
                             style="width: 100%; padding: 12px 16px 12px 48px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); outline: none; transition: var(--transition); cursor: pointer;">
                         <div id="search-results" class="card"
@@ -609,6 +622,9 @@
                         closeDrawer();
                         if (form.id !== 'filter-form') form.reset();
                         
+                        // Invalidate spotlight index to ensure next search fetches fresh database state
+                        SpotlightEngine.index = null;
+                        
                         // Force cache invalidation for current path
                         const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
                         AppRouter.pageCache.delete(currentPath);
@@ -839,7 +855,7 @@
             }
             if (deletableTypes.includes(type)) {
                 html += `
-                    <div class="context-menu-item danger" onclick="deleteItem('${type}', '${id}')">
+                    <div class="context-menu-item danger" onclick="triggerSoftDelete('${id}', '${type}', '${label}')">
                         <i class="ph ph-trash"></i> Delete ${label}
                     </div>
                 `;
@@ -1183,8 +1199,10 @@
                     // Update summaries silently
                     const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
                     AppRouter.pageCache.delete(currentPath);
+                    SpotlightEngine.index = null; // Invalidate spotlight index
                     await AppRouter.navigate(window.location.pathname, false, true);
-                    showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} deleted`, 'info');
+                    currentUndoItem = { id, type };
+                    showUndoToast(`${type.charAt(0).toUpperCase() + type.slice(1)} moved to Trash Bin`);
                 }
             } catch (err) {
                 console.error('Delete error:', err);
@@ -1196,6 +1214,7 @@
                 try {
                     const response = await fetch('/api/transactions/clear-all', { method: 'POST' });
                     if (response.ok) {
+                        SpotlightEngine.index = null; // Invalidate spotlight index
                         const path = '/transactions';
                         AppRouter.pageCache.delete(path);
                         AppRouter.navigate(path);
@@ -1314,7 +1333,7 @@
             disableAutocomplete();
             fetchNotifications(); // Initial fetch
             setInterval(fetchNotifications, 60000); // Check every minute
-            SpotlightEngine.init();
+            SpotlightEngine.setupListeners(); // Lazily register listener without loading database index yet
         });
 
         window.addEventListener('popstate', () => {
@@ -1336,21 +1355,36 @@
             isOpen: false,
             recentSearches: JSON.parse(localStorage.getItem('recent_searches') || '[]'),
             currentMatches: [],
+            listenersSet: false,
+            isLoading: false,
 
             async init() {
+                if (this.isLoading) return;
+                this.isLoading = true;
                 try {
                     const response = await fetch('/api/search/index');
                     this.index = await response.json();
+                    const currentQuery = document.getElementById('spotlight-input')?.value;
+                    if (currentQuery) {
+                        this.search(currentQuery);
+                    }
                 } catch (err) {
                     console.error("Failed to load search index", err);
+                } finally {
+                    this.isLoading = false;
                 }
                 this.setupListeners();
             },
 
             setupListeners() {
+                if (this.listenersSet) return;
+                this.listenersSet = true;
+                
+                // Key listener for shortcuts and navigation
                 document.addEventListener('keydown', (e) => {
-                    // Shortcut: Ctrl + Space (Modern Spotlight)
-                    if (e.ctrlKey && e.code === 'Space') {
+                    const isK = (e.key === 'k' || e.key === 'K') && (e.ctrlKey || e.metaKey);
+                    const isCtrlSpace = e.ctrlKey && e.code === 'Space';
+                    if (isK || isCtrlSpace) {
                         e.preventDefault();
                         e.stopPropagation();
                         this.toggle();
@@ -1360,6 +1394,13 @@
                     }
                     if (this.isOpen) {
                         this.handleNavigation(e);
+                    }
+                });
+
+                // Dismiss on backdrop click
+                document.getElementById('spotlight-modal').addEventListener('click', (e) => {
+                    if (e.target.id === 'spotlight-modal') {
+                        this.toggle(false);
                     }
                 });
 
@@ -1383,48 +1424,232 @@
                 }
             },
 
+            clearSearch() {
+                const input = document.getElementById('spotlight-input');
+                if (input) {
+                    input.value = '';
+                    this.search('');
+                    input.focus();
+                }
+            },
+
+            highlight(text, query) {
+                if (!text) return '';
+                if (!query) return text;
+                const escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                const regex = new RegExp(`(${escapedQuery})`, 'gi');
+                return text.replace(regex, '<mark class="search-highlight">$1</mark>');
+            },
+
             search(query) {
                 const resultsContainer = document.getElementById('spotlight-results');
+                const clearBtn = document.getElementById('spotlight-clear');
+                
+                if (clearBtn) {
+                    clearBtn.style.opacity = query ? '1' : '0';
+                    clearBtn.style.pointerEvents = query ? 'auto' : 'none';
+                }
+
+                if (!this.index && query) {
+                    resultsContainer.innerHTML = `
+                        <div style="padding: 40px; text-align: center; color: var(--text-secondary);">
+                            <i class="ph ph-circle-notch animate-spin" style="font-size: 1.5rem; margin-bottom: 8px;"></i>
+                            <p>Loading search index...</p>
+                        </div>
+                    `;
+                    return;
+                }
+
                 if (!query) {
                     resultsContainer.innerHTML = this.renderEmptyState();
                     this.currentMatches = [];
                     return;
                 }
 
-                const q = query.toLowerCase();
+                // 1. Prefix Operators Parsing
+                let q = query.toLowerCase().trim();
+                let filterType = null;
+                if (q.startsWith('>')) {
+                    filterType = 'command';
+                    q = q.substring(1).trim();
+                } else if (q.startsWith('t:')) {
+                    filterType = 'transaction';
+                    q = q.substring(2).trim();
+                } else if (q.startsWith('a:')) {
+                    filterType = 'account';
+                    q = q.substring(2).trim();
+                } else if (q.startsWith('p:')) {
+                    filterType = 'person';
+                    q = q.substring(2).trim();
+                } else if (q.startsWith('l:')) {
+                    filterType = 'loan';
+                    q = q.substring(2).trim();
+                } else if (q.startsWith('c:')) {
+                    filterType = 'category';
+                    q = q.substring(2).trim();
+                }
+
                 const matches = [];
 
-                // 1. Quick Actions
-                const actions = [
-                    { title: 'Add Transaction', type: 'Action', icon: 'ph-plus-circle', action: () => openDrawer('add-tx-drawer') },
-                    { title: 'View Reports', type: 'Action', icon: 'ph-chart-line', action: () => AppRouter.navigate('/reports') },
-                    { title: 'Open Settings', type: 'Action', icon: 'ph-gear', action: () => AppRouter.navigate('/settings') }
-                ];
-                matches.push(...actions.filter(a => a.title.toLowerCase().includes(q)));
+                // Score matching function with word-boundary priority
+                const scoreMatch = (text, queryVal) => {
+                    if (!text || !queryVal) return 0;
+                    const textLower = text.toLowerCase();
+                    const queryLower = queryVal.toLowerCase();
+                    const idx = textLower.indexOf(queryLower);
+                    if (idx === -1) return 0;
+                    if (idx === 0) return 100; // Starts with query (highest)
+                    
+                    // Word boundary check (whitespace, hyphens, underscores)
+                    const beforeChar = textLower.charAt(idx - 1);
+                    if (beforeChar === ' ' || beforeChar === '-' || beforeChar === '_') {
+                        return 85; // Word boundary match
+                    }
+                    return 50;   // Contains query (medium)
+                };
 
-                // 2. Index Matching
-                if (this.index) {
-                    this.index.people.forEach(p => {
-                        if (p.person_name.toLowerCase().includes(q)) {
-                            matches.push({ title: p.person_name, sub: `Outstanding: ₹${p.balance}`, type: 'Person', icon: 'ph-user' });
-                        }
-                    });
-                    this.index.accounts.forEach(a => {
-                        if (a.name.toLowerCase().includes(q)) {
-                            matches.push({ title: a.name, sub: `${a.type} • Balance: ₹${a.balance}`, type: 'Account', icon: 'ph-bank' });
-                        }
-                    });
-                    this.index.transactions.slice(0, 30).forEach(t => {
-                        if (t.category?.toLowerCase().includes(q) || t.account_name?.toLowerCase().includes(q)) {
-                            matches.push({ title: t.category, sub: `₹${t.amount} on ${t.date} via ${t.account_name}`, type: 'Transaction', icon: 'ph-receipt' });
+                // 2. Command Palette Navigation & Actions
+                if (filterType === 'command' || !filterType) {
+                    const actions = [
+                        { title: 'Add Transaction / Quick Add', type: 'Action', icon: 'ph-plus-circle', action: () => openDrawer('add-tx-drawer') },
+                        { title: 'Go to Dashboard', type: 'Navigation', icon: 'ph-squares-four', action: () => AppRouter.navigate('/') },
+                        { title: 'View Transactions History', type: 'Navigation', icon: 'ph-arrows-left-right', action: () => AppRouter.navigate('/transactions') },
+                        { title: 'Manage Accounts & Balances', type: 'Navigation', icon: 'ph-bank', action: () => AppRouter.navigate('/accounts') },
+                        { title: 'Credit Cards Outstanding & Limits', type: 'Navigation', icon: 'ph-credit-card', action: () => AppRouter.navigate('/cards') },
+                        { title: 'Loans & EMI Details', type: 'Navigation', icon: 'ph-hand-coins', action: () => AppRouter.navigate('/loans') },
+                        { title: 'Lent / Borrow Ledger', type: 'Navigation', icon: 'ph-users-three', action: () => AppRouter.navigate('/ledger') },
+                        { title: 'Manage Monthly Budgets', type: 'Navigation', icon: 'ph-chart-pie-slice', action: () => AppRouter.navigate('/budgets') },
+                        { title: 'View Financial Goals', type: 'Navigation', icon: 'ph-target', action: () => AppRouter.navigate('/goals') },
+                        { title: 'Manage Subscriptions', type: 'Navigation', icon: 'ph-calendar-check', action: () => AppRouter.navigate('/subscriptions') },
+                        { title: 'Asset Valuation Tracking', type: 'Navigation', icon: 'ph-armchair', action: () => AppRouter.navigate('/assets') },
+                        { title: 'Financial Reports & Analytics', type: 'Navigation', icon: 'ph-chart-line-up', action: () => AppRouter.navigate('/reports') },
+                        { title: 'Talk to AI Assistant', type: 'Navigation', icon: 'ph-sparkle', action: () => AppRouter.navigate('/ai-assistant') },
+                        { title: 'System Settings', type: 'Navigation', icon: 'ph-gear', action: () => AppRouter.navigate('/settings') }
+                    ];
+
+                    actions.forEach(a => {
+                        const score = scoreMatch(a.title, q);
+                        if (score > 0) {
+                            matches.push({ ...a, score: score + 10 });
                         }
                     });
                 }
 
-                this.renderResults(matches);
+                // 3. Index Matching
+                if (this.index) {
+                    // Match People
+                    if (filterType === 'person' || !filterType) {
+                        this.index.people.forEach(p => {
+                            const score = scoreMatch(p.person_name, q);
+                            if (score > 0) {
+                                matches.push({
+                                    title: p.person_name,
+                                    sub: `Outstanding Balance: ₹${p.balance.toFixed(2)}`,
+                                    type: 'Person',
+                                    icon: 'ph-user',
+                                    score: score,
+                                    action: () => AppRouter.navigate('/ledger')
+                                });
+                            }
+                        });
+                    }
+
+                    // Match Accounts & Cards
+                    if (filterType === 'account' || !filterType) {
+                        this.index.accounts.forEach(a => {
+                            const score = Math.max(scoreMatch(a.name, q), scoreMatch(a.type, q));
+                            if (score > 0) {
+                                const balance = a.balance !== undefined ? a.balance : 0;
+                                matches.push({
+                                    title: a.name,
+                                    sub: `${a.type} • Balance: ₹${balance.toFixed(2)}`,
+                                    type: 'Account',
+                                    icon: a.type?.toLowerCase().includes('card') ? 'ph-credit-card' : 'ph-bank',
+                                    score: score,
+                                    action: () => AppRouter.navigate(a.type?.toLowerCase().includes('card') ? '/cards' : '/accounts')
+                                });
+                            }
+                        });
+                    }
+
+                    // Match Loans
+                    if (filterType === 'loan' || !filterType) {
+                        this.index.loans.forEach(l => {
+                            const score = scoreMatch(l.name, q);
+                            if (score > 0) {
+                                const remaining = l.remaining !== undefined ? l.remaining : 0;
+                                matches.push({
+                                    title: l.name,
+                                    sub: `Active Loan • Remaining: ₹${remaining.toFixed(2)}`,
+                                    type: 'Loan',
+                                    icon: 'ph-hand-coins',
+                                    score: score,
+                                    action: () => AppRouter.navigate('/loans')
+                                });
+                            }
+                        });
+                    }
+
+                    // Match Categories
+                    if (filterType === 'category' || !filterType) {
+                        this.index.categories.forEach(c => {
+                            const score = scoreMatch(c.name, q);
+                            if (score > 0) {
+                                matches.push({
+                                    title: `${c.name} Category`,
+                                    sub: `View all ${c.type} transactions under ${c.name}`,
+                                    type: 'Category',
+                                    icon: c.type === 'income' ? 'ph-trend-up' : 'ph-trend-down',
+                                    score: score + 5,
+                                    action: () => AppRouter.navigate(`/transactions?category=${encodeURIComponent(c.name)}`)
+                                });
+                            }
+                        });
+                    }
+
+                    // Match Transactions (Combined Amount & Text search)
+                    if (filterType === 'transaction' || !filterType) {
+                        this.index.transactions.forEach(t => {
+                            let score = 0;
+                            const isNum = !isNaN(q) && q.trim() !== '';
+                            let amountScore = 0;
+                            if (isNum) {
+                                const amtStr = t.amount.toString();
+                                if (amtStr === q) amountScore = 100;
+                                else if (amtStr.startsWith(q)) amountScore = 80;
+                                else if (amtStr.includes(q)) amountScore = 40;
+                            }
+                            const textScore = Math.max(
+                                scoreMatch(t.notes, q),
+                                scoreMatch(t.category, q),
+                                scoreMatch(t.account_name, q),
+                                scoreMatch(t.tags, q)
+                            );
+                            score = Math.max(amountScore, textScore);
+
+                            if (score > 0) {
+                                const txTitle = t.notes || t.category || 'Transaction';
+                                const txSub = `${t.type.toUpperCase()} • ₹${t.amount.toFixed(2)} on ${t.date} via ${t.account_name || 'Account'}`;
+                                matches.push({
+                                    title: txTitle,
+                                    sub: txSub,
+                                    type: 'Transaction',
+                                    icon: t.type === 'income' ? 'ph-trend-up' : (t.type === 'transfer' ? 'ph-swap' : 'ph-trend-down'),
+                                    score: score - 10, // slight penalty so direct matches (people/accounts) rank higher
+                                    action: () => AppRouter.navigate('/transactions')
+                                });
+                            }
+                        });
+                    }
+                }
+
+                // Sort by score descending
+                matches.sort((a, b) => b.score - a.score);
+
+                this.renderResults(matches.slice(0, 15), q);
             },
 
-            renderResults(matches) {
+            renderResults(matches, queryText) {
                 const container = document.getElementById('spotlight-results');
                 this.currentMatches = matches;
                 this.selectedIndex = matches.length > 0 ? 0 : -1;
@@ -1434,18 +1659,65 @@
                     return;
                 }
 
-                container.innerHTML = matches.map((m, i) => `
-                    <div class="spotlight-item ${i === 0 ? 'selected' : ''}" data-index="${i}" onclick="SpotlightEngine.execute(${i})">
-                        <div class="spotlight-item-icon"><i class="ph ${m.icon}"></i></div>
-                        <div class="spotlight-item-details">
-                            <div class="spotlight-item-title">${m.title}</div>
-                            <div class="spotlight-item-subtitle">${m.sub || ''}</div>
-                        </div>
-                        <div class="spotlight-item-meta">
-                            <span class="priority-badge">${m.type}</span>
-                        </div>
-                    </div>
-                `).join('');
+                // Group matches by type
+                const groups = {};
+                const groupOrder = ['Navigation', 'Action', 'Account', 'Person', 'Loan', 'Category', 'Transaction'];
+                const groupLabels = {
+                    'Navigation': 'Navigation',
+                    'Action': 'Actions',
+                    'Account': 'Accounts & Cards',
+                    'Person': 'Contacts & Ledger',
+                    'Loan': 'Loans',
+                    'Category': 'Categories',
+                    'Transaction': 'Recent Transactions'
+                };
+
+                matches.forEach(m => {
+                    if (!groups[m.type]) {
+                        groups[m.type] = [];
+                    }
+                    groups[m.type].push(m);
+                });
+
+                // Build HTML with group labels
+                let html = '';
+                let overallIdx = 0;
+
+                groupOrder.forEach(type => {
+                    const itemsInGroup = groups[type];
+                    if (itemsInGroup && itemsInGroup.length > 0) {
+                        html += `<div class="spotlight-group-label">${groupLabels[type]}</div>`;
+                        itemsInGroup.forEach(m => {
+                            m.overallIndex = overallIdx;
+                            const isSelected = overallIdx === this.selectedIndex;
+                            
+                            const highlightedTitle = this.highlight(m.title, queryText);
+                            const highlightedSub = m.sub ? this.highlight(m.sub, queryText) : '';
+                            
+                            let subHtml = highlightedSub;
+                            if (m.type === 'Transaction') {
+                                const amountColor = m.icon === 'ph-trend-up' ? 'var(--success-color)' : (m.icon === 'ph-swap' ? 'var(--primary-accent)' : 'var(--expense-color)');
+                                subHtml = highlightedSub.replace(/(₹[0-9.,]+)/g, `<span style="color: ${amountColor}; font-weight: 600;">$1</span>`);
+                            }
+
+                            html += `
+                                <div class="spotlight-item ${isSelected ? 'selected' : ''}" data-index="${overallIdx}" onclick="SpotlightEngine.execute(${overallIdx})">
+                                    <div class="spotlight-item-icon"><i class="ph ${m.icon}"></i></div>
+                                    <div class="spotlight-item-details">
+                                        <div class="spotlight-item-title">${highlightedTitle}</div>
+                                        <div class="spotlight-item-subtitle">${subHtml}</div>
+                                    </div>
+                                    <div class="spotlight-item-meta">
+                                        <span class="priority-badge ${m.type === 'Transaction' ? 'priority-low' : (m.type === 'Account' ? 'priority-high' : 'priority-medium')}">${m.type}</span>
+                                    </div>
+                                </div>
+                            `;
+                            overallIdx++;
+                        });
+                    }
+                });
+
+                container.innerHTML = html;
             },
 
             handleNavigation(e) {
@@ -1489,10 +1761,21 @@
             renderEmptyState() {
                 const recent = this.recentSearches.map(s => `<span onclick="setSearch('${s}')">${s}</span>`).join('');
                 return `
-                    <div style="padding: 24px; text-align: center;">
+                    <div class="spotlight-empty-state" style="padding: 24px; text-align: center;">
                         <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 12px;">Recent Searches</p>
                         <div class="suggestion-chips">
-                            ${recent || '<span>Today</span><span>Food</span><span>SBI</span>'}
+                            ${recent || '<span onclick="setSearch(\'Today\')">Today</span><span onclick="setSearch(\'Food\')">Food</span><span onclick="setSearch(\'SBI\')">SBI</span>'}
+                        </div>
+                        <div style="margin-top: 24px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                            <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 12px;">Search Syntax Shortcuts</p>
+                            <div class="spotlight-syntax-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; justify-items: center; max-width: 500px; margin: 0 auto;">
+                                <span class="spotlight-syntax-chip" onclick="setSearch('>')"><kbd>&gt;</kbd> Commands</span>
+                                <span class="spotlight-syntax-chip" onclick="setSearch('t:')"><kbd>t:</kbd> Transactions</span>
+                                <span class="spotlight-syntax-chip" onclick="setSearch('a:')"><kbd>a:</kbd> Accounts</span>
+                                <span class="spotlight-syntax-chip" onclick="setSearch('p:')"><kbd>p:</kbd> Contacts</span>
+                                <span class="spotlight-syntax-chip" onclick="setSearch('l:')"><kbd>l:</kbd> Loans</span>
+                                <span class="spotlight-syntax-chip" onclick="setSearch('c:')"><kbd>c:</kbd> Categories</span>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -1535,12 +1818,7 @@
         AppRouter.initPageScripts();
         AppRouter.highlightActiveLink = highlightActiveLink;
 
-        // Initialize Spotlight
-        SpotlightEngine.init();
 
-        // Initialize polling
-        setInterval(fetchNotifications, 60000);
-        fetchNotifications();
     </script>
 
     {% block extra_body %}{% endblock %}
@@ -1599,14 +1877,36 @@
             document.getElementById('confirmation-modal').style.display = 'none';
         }
 
+        function getItemElements(id, type) {
+            const selectors = [
+                `[data-id="${id}"][data-type="${type}"]`,
+                `.transaction-row[data-id="${id}"]`,
+                `.card[data-id="${id}"]`,
+                `.table-row-hover[data-id="${id}"]`,
+                `.loan-card[data-id="${id}"]`,
+                `.goal-card[data-id="${id}"]`,
+                `.person-card[data-id="${id}"]`,
+                `.budget-card[data-id="${id}"]`,
+                `.subscription-card[data-id="${id}"]`,
+                `.asset-card[data-id="${id}"]`,
+                `#${type}-${id}`
+            ];
+            const elements = [];
+            selectors.forEach(s => {
+                document.querySelectorAll(s).forEach(el => elements.push(el));
+            });
+            return elements;
+        }
+
         function triggerSoftDelete(id, type, label = "Item") {
             showConfirmationModal(
                 `Delete ${label}?`,
                 "This action can be undone for 30 seconds.",
                 async () => {
+                    const mappedType = typeMap[type] || type;
                     const formData = new FormData();
                     formData.append('id', id);
-                    formData.append('type', type);
+                    formData.append('type', mappedType);
 
                     const resp = await fetch('/api/actions/soft-delete', {
                         method: 'POST',
@@ -1615,12 +1915,14 @@
 
                     if (resp.ok) {
                         currentUndoItem = { id, type };
-                        showUndoToast(`${label} moved to trash`);
-                        // Instantly hide the element if it exists
-                        const el = document.querySelector(`[data-id="${id}"][data-type="${type}"]`) ||
-                            document.querySelector(`.card[data-id="${id}"]`) ||
-                            document.getElementById(`${type}-${id}`);
-                        if (el) el.style.display = 'none';
+                        showUndoToast(`${label} moved to Trash Bin`);
+                        
+                        // Hide matching elements
+                        getItemElements(id, type).forEach(el => {
+                            el.style.display = 'none';
+                        });
+
+                        SpotlightEngine.index = null; // Invalidate spotlight index
 
                         // If we're on a specific page, we might want to refresh after some time
                         // or just let the user continue.
@@ -1637,7 +1939,7 @@
             if (undoTimer) clearTimeout(undoTimer);
             undoTimer = setTimeout(() => {
                 closeUndoToast();
-            }, 30000);
+            }, 8000);
         }
 
         function closeUndoToast() {
@@ -1648,9 +1950,10 @@
         async function performUndo() {
             if (!currentUndoItem) return;
 
+            const mappedType = typeMap[currentUndoItem.type] || currentUndoItem.type;
             const formData = new FormData();
             formData.append('id', currentUndoItem.id);
-            formData.append('type', currentUndoItem.type);
+            formData.append('type', mappedType);
 
             const resp = await fetch('/api/actions/restore', {
                 method: 'POST',
@@ -1658,14 +1961,14 @@
             });
 
             if (resp.ok) {
-                // Restore the element visibility
+                // Restore matching elements visibility
                 const id = currentUndoItem.id;
                 const type = currentUndoItem.type;
-                const el = document.querySelector(`[data-id="${id}"][data-type="${type}"]`) ||
-                    document.querySelector(`.card[data-id="${id}"]`) ||
-                    document.getElementById(`${type}-${id}`);
-                if (el) el.style.display = '';
+                getItemElements(id, type).forEach(el => {
+                    el.style.display = '';
+                });
 
+                SpotlightEngine.index = null; // Invalidate spotlight index
                 closeUndoToast();
                 // If it's a complex page, reload might be better
                 if (window.location.pathname !== '/') {

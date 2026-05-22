@@ -3,7 +3,8 @@ CREATE TABLE IF NOT EXISTS accounts (
     name TEXT NOT NULL,
     type TEXT NOT NULL,
     balance REAL DEFAULT 0.0,
-    notes TEXT
+    notes TEXT,
+    deleted_at DATETIME
 );
 
 CREATE TABLE IF NOT EXISTS transactions (
@@ -17,6 +18,8 @@ CREATE TABLE IF NOT EXISTS transactions (
     notes TEXT,
     tags TEXT,
     recurring_id INTEGER,
+    card_id INTEGER,
+    person_id INTEGER,
     deleted_at DATETIME,
     FOREIGN KEY(account_id) REFERENCES accounts(id),
     FOREIGN KEY(to_account_id) REFERENCES accounts(id)
@@ -47,7 +50,10 @@ CREATE TABLE IF NOT EXISTS credit_cards (
     card_limit REAL NOT NULL,
     outstanding REAL DEFAULT 0.0,
     billing_date INTEGER, -- day of month
-    due_date INTEGER -- day of month
+    due_date INTEGER, -- day of month
+    status TEXT DEFAULT 'active',
+    deleted_at DATETIME,
+    credit_limit REAL DEFAULT 100000
 );
 
 CREATE TABLE IF NOT EXISTS loans (
@@ -60,6 +66,7 @@ CREATE TABLE IF NOT EXISTS loans (
     due_date INTEGER, -- day of month
     status TEXT DEFAULT 'active', -- active, closed
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    start_date DATE,
     deleted_at DATETIME
 );
 
@@ -80,25 +87,63 @@ CREATE TABLE IF NOT EXISTS people_ledger (
     total_amount REAL NOT NULL,
     paid_amount REAL DEFAULT 0.0,
     notes TEXT,
+    status TEXT DEFAULT 'active',
     deleted_at DATETIME
 );
 
 -- Summary Tables for Performance
 CREATE TABLE IF NOT EXISTS daily_summaries (
-    date TEXT PRIMARY KEY,
-    income_total REAL DEFAULT 0,
-    expense_total REAL DEFAULT 0,
-    tx_count INTEGER DEFAULT 0
+    date TEXT PRIMARY KEY, -- YYYY-MM-DD
+    income REAL DEFAULT 0.0,
+    expense REAL DEFAULT 0.0,
+    savings REAL DEFAULT 0.0,
+    net_worth REAL DEFAULT 0.0,
+    financial_score INTEGER DEFAULT 0,
+    credit_usage REAL DEFAULT 0.0,
+    category_totals TEXT, -- JSON string
+    tx_count INTEGER DEFAULT 0,
+    summary_version INTEGER DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS weekly_summaries (
+    week TEXT PRIMARY KEY, -- YYYY-Www (e.g. 2026-W20)
+    start_date TEXT,
+    end_date TEXT,
+    income REAL DEFAULT 0.0,
+    expense REAL DEFAULT 0.0,
+    savings REAL DEFAULT 0.0,
+    net_worth REAL DEFAULT 0.0,
+    financial_score INTEGER DEFAULT 0,
+    credit_usage REAL DEFAULT 0.0,
+    category_totals TEXT, -- JSON string
+    tx_count INTEGER DEFAULT 0,
+    summary_version INTEGER DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS monthly_summaries (
     month TEXT PRIMARY KEY, -- YYYY-MM
-    income_total REAL DEFAULT 0,
-    expense_total REAL DEFAULT 0,
-    savings REAL DEFAULT 0,
-    loan_repayments REAL DEFAULT 0,
-    credit_usage REAL DEFAULT 0,
-    tx_count INTEGER DEFAULT 0
+    income REAL DEFAULT 0.0,
+    expense REAL DEFAULT 0.0,
+    savings REAL DEFAULT 0.0,
+    net_worth REAL DEFAULT 0.0,
+    financial_score INTEGER DEFAULT 0,
+    credit_usage REAL DEFAULT 0.0,
+    category_totals TEXT, -- JSON string
+    tx_count INTEGER DEFAULT 0,
+    summary_version INTEGER DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS yearly_summaries (
+    year TEXT PRIMARY KEY, -- YYYY
+    income REAL DEFAULT 0.0,
+    expense REAL DEFAULT 0.0,
+    savings REAL DEFAULT 0.0,
+    net_worth REAL DEFAULT 0.0,
+    financial_score INTEGER DEFAULT 0,
+    credit_usage REAL DEFAULT 0.0,
+    category_totals TEXT, -- JSON string
+    tx_count INTEGER DEFAULT 0,
+    summary_version INTEGER DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS category_summaries (
@@ -135,13 +180,13 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE TABLE IF NOT EXISTS budgets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    type TEXT NOT NULL, -- Overall, Category, Account
-    target_id TEXT,    -- Category name OR Account ID
+    type TEXT NOT NULL,
+    target_id TEXT,
     amount REAL NOT NULL,
-    period TEXT NOT NULL, -- Weekly, Monthly, Yearly, Custom
+    period TEXT NOT NULL,
     start_date TEXT,
     end_date TEXT,
-    status TEXT DEFAULT 'active', -- active, paused
+    status TEXT DEFAULT 'active',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     deleted_at DATETIME
 );
@@ -149,7 +194,7 @@ CREATE TABLE IF NOT EXISTS budgets (
 CREATE TABLE IF NOT EXISTS assets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    category TEXT NOT NULL, -- Cash, Gold, Property, Electronics, etc.
+    category TEXT NOT NULL,
     purchase_value REAL NOT NULL,
     current_value REAL NOT NULL,
     purchase_date TEXT NOT NULL,
@@ -165,10 +210,10 @@ CREATE TABLE IF NOT EXISTS goals (
     target_amount REAL NOT NULL,
     current_amount REAL DEFAULT 0.0,
     target_date TEXT,
-    category TEXT, -- Savings, Purchase, Emergency, Debt, Custom
-    priority TEXT DEFAULT 'medium', -- low, medium, high
+    category TEXT,
+    priority TEXT DEFAULT 'medium',
     notes TEXT,
-    status TEXT DEFAULT 'active', -- active, paused, completed
+    status TEXT DEFAULT 'active',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     deleted_at DATETIME
 );
@@ -177,13 +222,13 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     amount REAL NOT NULL,
-    billing_cycle TEXT NOT NULL, -- Weekly, Monthly, Quarterly, Yearly, Custom
+    billing_cycle TEXT NOT NULL,
     next_due_date TEXT NOT NULL,
     category TEXT,
-    payment_source TEXT, -- Account Name/ID or Card Name/ID
+    payment_source TEXT,
     auto_renew INTEGER DEFAULT 1,
     notes TEXT,
-    status TEXT DEFAULT 'active', -- active, paused, cancelled
+    status TEXT DEFAULT 'active',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     deleted_at DATETIME
 );
@@ -200,10 +245,33 @@ CREATE TABLE IF NOT EXISTS health_history (
 CREATE TABLE IF NOT EXISTS categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    type TEXT NOT NULL, -- income, expense
-    color TEXT,
+    type TEXT NOT NULL,
     icon TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     deleted_at DATETIME,
+    color TEXT,
     UNIQUE(name, type)
 );
+
+CREATE TABLE IF NOT EXISTS networth_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date DATE UNIQUE,
+    assets REAL,
+    liabilities REAL,
+    networth REAL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS ai_logic_cache (
+    query_hash TEXT,
+    summary_hash TEXT,
+    response TEXT,
+    timestamp DATETIME,
+    PRIMARY KEY(query_hash, summary_hash)
+);
+
+-- Indexes for Search and Query Optimization
+CREATE INDEX IF NOT EXISTS idx_transactions_deleted_date ON transactions (deleted_at, date DESC);
+CREATE INDEX IF NOT EXISTS idx_transactions_account_id ON transactions (account_id);
+CREATE INDEX IF NOT EXISTS idx_people_ledger_deleted ON people_ledger (deleted_at);
+CREATE INDEX IF NOT EXISTS idx_loans_status_deleted ON loans (status, deleted_at);
+CREATE INDEX IF NOT EXISTS idx_categories_deleted ON categories (deleted_at);

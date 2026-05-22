@@ -1,4 +1,5 @@
 from google import genai
+from google.genai import types
 import sqlite3
 import json
 import os
@@ -38,6 +39,14 @@ class GeminiService:
     @classmethod
     def ask_reasoning_minimal(cls, user_query, summary_json, mode):
         """Highly optimized Gemini call using minimal tokens."""
+        system_instruction = (
+            "You are a helpful personal finance AI assistant for an Indian user. "
+            "All monetary values and amounts in the provided summary JSON and user query are in Indian Rupees (₹). "
+            "Always formulate your responses using the Rupee symbol '₹' (e.g., ₹10,000) and NEVER use dollars ($). "
+            "Deliver highly optimized, concise, actionable, and mathematically accurate financial advice. "
+            "Reason clearly about affordability, budget adherence, deficits, and savings, ensuring your tone is encouraging yet realistic."
+        )
+        
         prompt = f"Analyze summary: {summary_json}\nUser: {user_query}\nMode: {mode}\nReply concisely."
         
         client = cls._get_client()
@@ -47,7 +56,10 @@ class GeminiService:
         try:
             response = client.models.generate_content(
                 model='gemini-2.5-flash',
-                contents=prompt
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction
+                )
             )
             return response.text
         except Exception as e:
@@ -58,4 +70,4 @@ class LocalAIService:
     def ask_llama(user_query, context):
         """Simulated call to Llama 3.2:1B via local provider (e.g. Ollama)."""
         # In a real implementation, use requests.post('http://localhost:11434/api/generate', ...)
-        return f"Local analysis: Based on your ${context.split(':')[1].split(',')[0]} balance, your spending pattern in {context.split('Spending: ')[1][:20]}... seems normal.", "Llama 3.2"
+        return f"Local analysis: Based on your ₹{context.split(':')[1].split(',')[0]} balance, your spending pattern in {context.split('Spending: ')[1][:20]}... seems normal.", "Llama 3.2"

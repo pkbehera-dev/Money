@@ -875,3 +875,57 @@ kbd {
 .toast-success { border-left: 4px solid var(--success-color); }
 .toast-error { border-left: 4px solid var(--danger-color); }
 .toast-info { border-left: 4px solid var(--primary-accent); }
+
+/* --- Optimized Spotlight Search Styling --- */
+.search-highlight {
+    background: rgba(var(--primary-accent-rgb), 0.15) !important;
+    color: var(--primary-accent) !important;
+    font-weight: 700;
+    border-radius: 4px;
+    padding: 0 2px;
+}
+
+.spotlight-syntax-chip {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+[data-theme="light"] .spotlight-syntax-chip {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.spotlight-syntax-chip:hover {
+    background: rgba(var(--primary-accent-rgb), 0.1);
+    border-color: var(--primary-accent);
+    color: var(--text-primary);
+    transform: translateY(-1px);
+}
+
+.spotlight-syntax-chip kbd {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 1px 4px;
+    font-family: inherit;
+}
+
+#spotlight-clear {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    transition: var(--transition);
+}
+
+#spotlight-clear:hover {
+    color: var(--expense-color);
+    transform: scale(1.1);
+}
+

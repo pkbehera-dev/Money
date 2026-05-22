@@ -122,10 +122,10 @@ class LoanService:
             
     @staticmethod
     def delete_loan(loan_id: int):
+        from datetime import datetime
         conn = get_db_connection()
-        # Delete payments first (foreign key integrity)
-        conn.execute("DELETE FROM loan_payments WHERE loan_id = ?", (loan_id,))
-        conn.execute("DELETE FROM loans WHERE id = ?", (loan_id,))
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        conn.execute("UPDATE loans SET deleted_at = ? WHERE id = ?", (now, loan_id))
         conn.commit()
         conn.close()
         return True

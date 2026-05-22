@@ -76,7 +76,8 @@ class PersonService:
                 category='Debt Repayment',
                 date=datetime.now().strftime('%Y-%m-%d'),
                 account_id=account_id,
-                notes=f"Repayment for {person['person_name']}"
+                notes=f"Repayment for {person['person_name']}",
+                person_id=person_id
             )
 
         conn.commit()
@@ -123,9 +124,11 @@ class PersonService:
 
     @staticmethod
     def delete_person(person_id: int):
+        from datetime import datetime
         conn = get_db_connection()
-        conn.execute("DELETE FROM transactions WHERE person_id = ?", (person_id,))
-        conn.execute("DELETE FROM people_ledger WHERE id = ?", (person_id,))
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        conn.execute("UPDATE transactions SET deleted_at = ? WHERE person_id = ?", (now, person_id))
+        conn.execute("UPDATE people_ledger SET deleted_at = ? WHERE id = ?", (now, person_id))
         conn.commit()
         conn.close()
 

@@ -20,19 +20,18 @@ class AIService:
         if any(word in query for word in ['spend', 'spent', 'how much', 'cost', 'expense']):
             return 'spending'
         
-        # 2. Debt / Ledger Queries
+        # 2. Salary / Income Queries
+        if any(word in query for word in ['salary', 'my salary', 'income', 'paycheck', 'earning']):
+            return 'salary'
+        
+        # 3. Debt / Ledger Queries
         if any(word in query for word in ['who owes', 'lent', 'borrow', 'debt', 'repayment']):
             return 'debt'
-        
-        # 3. Affordability / Advice (Needs Reasoning)
-        if any(word in query for word in ['afford', 'should i', 'buy', 'save', 'advice']):
-            return 'reasoning'
-        
-        # 4. Patterns / Predictions
-        if any(word in query for word in ['pattern', 'predict', 'trend', 'future']):
-            return 'prediction'
-            
-        return 'general'
+        # 4. Income Summary Queries (e.g., highest income previous month)
+        if any(word in query for word in ['highest income', 'max income', 'most income', 'previous month income', 'income last month']):
+            return 'income_summary'
+        # Default fallback – treat as a reasoning/advice query
+        return 'reasoning'
 
     @classmethod
     def build_summary(cls, intent, query):
@@ -51,8 +50,9 @@ class AIService:
                 (SELECT SUM(total_to_pay - paid_amount) FROM loans WHERE status='active') as loan_debt
         """).fetchone()
         
+        summary['currency'] = 'INR'
         summary['overview'] = {
-            "liquid": float(overview['liquid'] or 0),
+            "liquid_assets": float(overview['liquid'] or 0),
             "total_debt": float((overview['card_debt'] or 0) + (overview['loan_debt'] or 0))
         }
 
@@ -90,17 +90,52 @@ class AIService:
             }
 
         elif intent in ['reasoning', 'prediction']:
-            # More comprehensive context for advice
+            # Current month stats (partial / month-to-date)
             monthly = conn.execute("""
                 SELECT 
                     SUM(CASE WHEN type='income' THEN amount ELSE 0 END) as inc,
                     SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) as exp
                 FROM transactions WHERE strftime('%Y-%m', date) = ?
             """, (this_month,)).fetchone()
-            summary['monthly_stats'] = {
-                "income": float(monthly['inc'] or 0),
-                "expenses": float(monthly['exp'] or 0)
+            
+            today_day = datetime.now().day
+            summary['current_month'] = {
+                "month": this_month,
+                "note": f"PARTIAL data (day {today_day} of month, salary may not have arrived yet)",
+                "income_so_far": float(monthly['inc'] or 0),
+                "expenses_so_far": float(monthly['exp'] or 0)
             }
+            
+            # Last full completed month for accurate baseline
+            last_month = (datetime.now().replace(day=1) - timedelta(days=1)).strftime('%Y-%m')
+            prev_monthly = conn.execute("""
+                SELECT income, expense, savings FROM monthly_summaries WHERE month = ?
+            """, (last_month,)).fetchone()
+            if prev_monthly:
+                summary['last_full_month'] = {
+                    "month": last_month,
+                    "income": float(prev_monthly['income'] or 0),
+                    "expenses": float(prev_monthly['expense'] or 0),
+                    "savings": float(prev_monthly['savings'] or 0)
+                }
+            
+            # Average monthly stats from last 12 months for reliable baseline
+            try:
+                avg_row = conn.execute("""
+                    SELECT AVG(income) as avg_inc, AVG(expense) as avg_exp, AVG(savings) as avg_sav
+                    FROM monthly_summaries
+                    WHERE month >= strftime('%Y-%m', date('now', '-12 months'))
+                    AND month < ?
+                """, (this_month,)).fetchone()
+                if avg_row and avg_row['avg_inc']:
+                    summary['avg_monthly'] = {
+                        "note": "Average over last 12 completed months (reliable baseline)",
+                        "avg_income": round(float(avg_row['avg_inc']), 0),
+                        "avg_expenses": round(float(avg_row['avg_exp']), 0),
+                        "avg_savings": round(float(avg_row['avg_sav']), 0)
+                    }
+            except Exception:
+                pass
             
             # Enrich with precomputed multi-year comparison stats
             try:
@@ -116,6 +151,17 @@ class AIService:
                     }
                     for y in years_rows
                 ]
+            except Exception:
+                pass
+            
+            # Goals context
+            try:
+                goals = conn.execute("SELECT name, target_amount, current_amount, target_date, priority FROM goals WHERE status='active'").fetchall()
+                if goals:
+                    summary['active_goals'] = [
+                        {"name": g['name'], "target": float(g['target_amount']), "saved": float(g['current_amount']), "deadline": g['target_date'], "priority": g['priority']}
+                        for g in goals
+                    ]
             except Exception:
                 pass
             
@@ -147,31 +193,105 @@ class AIService:
 
     @classmethod
     def get_ai_response(cls, query):
-        # 1. Intent
+        # 1. Determine intent
         intent = cls.classify_intent(query)
-        
-        # 2. Build Summary
+
+        # 2. Salary intent – fast local answer using LocalAIService
+        if intent == 'salary':
+            try:
+                conn_salary = sqlite3.connect(DB_PATH)
+                this_month = datetime.now().strftime('%Y-%m')
+                inc_row = conn_salary.execute(
+                    """
+                    SELECT SUM(amount) as total_income FROM transactions 
+                    WHERE type='income' AND strftime('%Y-%m', date) = ?
+                    """,
+                    (this_month,)
+                ).fetchone()
+                salary_amount = float(inc_row['total_income'] or 0)
+                conn_salary.close()
+                from services.ai_services import LocalAIService
+                context = f"Income this month: {salary_amount}"
+                response, _ = LocalAIService.ask_llama(query, context)
+                return response, "Local"
+            except Exception:
+                # Fallback to Gemini if something goes wrong
+                pass
+
+        # 3. Build summary for other intents
         summary = cls.build_summary(intent, query)
         summary_json = json.dumps(summary, separators=(',', ':'))
-        
-        # 3. Caching Check
+
+        # 4. Caching check
         query_hash = hashlib.md5(query.encode()).hexdigest()
         summary_hash = hashlib.md5(summary_json.encode()).hexdigest()
-        
         cached = cls.get_cache(query_hash, summary_hash)
         if cached:
             return cached, "Cache"
 
-        # 4. Prompt Builder (Minimal)
-        # Choose mode based on summary size
+        # 5. Choose response method based on intent
+        if intent in ['salary', 'spending']:
+            # Use the fast local model for straightforward data
+            from services.ai_services import LocalAIService
+            # Provide a concise textual summary to the local model
+            context = json.dumps(summary, separators=(',', ':'))
+            try:
+                response, _ = LocalAIService.ask_llama(query, context)
+            except Exception:
+                # Fallback to Gemini if local model fails
+                mode = "Small"
+                if len(summary_json) > 300:
+                    mode = "Medium"
+                if intent in ['reasoning', 'prediction']:
+                    mode = "Large"
+                from services.ai_services import GeminiService
+                response = GeminiService.ask_reasoning_minimal(query, summary_json, mode)
+            cls.set_cache(query_hash, summary_hash, response)
+            return response, "Local"
+        elif intent == 'income_summary':
+            # Calculate previous month (full month before current month)
+            today = datetime.now()
+            # Get the last day of previous month then format month string
+            first_of_current = today.replace(day=1)
+            prev_month_date = first_of_current - timedelta(days=1)
+            prev_month = prev_month_date.strftime('%Y-%m')
+            # Sum income for that month
+            conn_local = sqlite3.connect(DB_PATH)
+            inc_row = conn_local.execute(
+                """
+                SELECT SUM(amount) as total_income FROM transactions
+                WHERE type='income' AND strftime('%Y-%m', date) = ?
+                """,
+                (prev_month,)
+            ).fetchone()
+            conn_local.close()
+            # Use previously computed last_full_month income if available
+            last_month_data = summary.get('last_full_month', {})
+            income_amount = last_month_data.get('income')
+            if income_amount is None:
+                # Fallback: compute directly from DB
+                conn_income = sqlite3.connect(DB_PATH)
+                prev_month = (datetime.now().replace(day=1) - timedelta(days=1)).strftime('%Y-%m')
+                inc_row = conn_income.execute(
+                    """
+                    SELECT SUM(amount) as total_income FROM transactions
+                    WHERE type='income' AND strftime('%Y-%m', date) = ?
+                    """,
+                    (prev_month,)
+                ).fetchone()
+                income_amount = float(inc_row['total_income'] or 0)
+                conn_income.close()
+            response = f"Your total income for {last_month_data.get('month', prev_month)} was ₹{income_amount:,.2f}."
+            cls.set_cache(query_hash, summary_hash, response)
+            return response, "Local"
+        # Fallback to Gemini for reasoning / prediction heavy queries
         mode = "Small"
-        if len(summary_json) > 300: mode = "Medium"
-        if intent in ['reasoning', 'prediction']: mode = "Large"
-        
+        if len(summary_json) > 300:
+            mode = "Medium"
+        if intent in ['reasoning', 'prediction']:
+            mode = "Large"
         from services.ai_services import GeminiService
         response = GeminiService.ask_reasoning_minimal(query, summary_json, mode)
-        
-        # 5. Save Cache
+        # 6. Save to cache
         cls.set_cache(query_hash, summary_hash, response)
-        
         return response, f"Gemini ({mode})"

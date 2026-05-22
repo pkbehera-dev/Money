@@ -105,7 +105,11 @@ class BudgetService:
 
         # Query transactions
         conn = get_db_connection()
-        query = "SELECT SUM(amount) FROM transactions WHERE type = 'expense' AND date BETWEEN ? AND ? AND deleted_at IS NULL"
+        query = """
+            SELECT SUM(amount) FROM transactions 
+            WHERE type = 'expense' AND date BETWEEN ? AND ? AND deleted_at IS NULL
+            AND category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration')
+        """
         params = [start_date, end_date]
 
         if budget['type'] == 'Category':
@@ -150,21 +154,87 @@ class BudgetService:
             prog = b['progress']
             thresholds = [50, 70, 90, 100]
             
+            # Find the highest threshold currently exceeded
+            highest_threshold = None
             for t in thresholds:
-                # We use a naming convention for unique notifications to avoid duplicates: budget_{id}_{threshold}
-                # Check if this specific threshold alert was already sent this period
-                # (For simplicity here, we'll just check if it's currently exceeding)
-                
                 if prog >= t:
-                    label = f"Budget Alert: {b['name']}"
+                    highest_threshold = t
+            
+            if highest_threshold is not None:
+                # Determine date range based on period to only check notifications in the current period
+                now = datetime.now()
+                if b['period'] == 'Monthly':
+                    start_date = now.replace(day=1).strftime('%Y-%m-%d')
+                elif b['period'] == 'Weekly':
+                    start_date = (now - timedelta(days=now.weekday())).strftime('%Y-%m-%d')
+                elif b['period'] == 'Yearly':
+                    start_date = now.replace(month=1, day=1).strftime('%Y-%m-%d')
+                else:  # Custom or other
+                    start_date = b['start_date'] or now.strftime('%Y-%m-%d')
+                
+                # Check if a notification for this threshold or higher was already sent in this period
+                conn = get_db_connection()
+                title = f"Budget Alert: {b['name']}"
+                
+                # Fetch all active notifications for this budget created in the current period
+                rows = conn.execute("""
+                    SELECT message FROM notifications 
+                    WHERE type = 'budget' AND title = ? AND deleted_at IS NULL AND created_at >= ?
+                """, (title, start_date)).fetchall()
+                conn.close()
+                
+                already_notified = False
+                for r in rows:
+                    msg = r['message']
+                    # Check if notification of same or higher threshold was already sent
+                    if highest_threshold == 100:
+                        if "exceeded" in msg or "100%" in msg:
+                            already_notified = True
+                            break
+                    elif highest_threshold == 90:
+                        if "exceeded" in msg or "100%" in msg or "90%" in msg:
+                            already_notified = True
+                            break
+                    elif highest_threshold == 70:
+                        if "exceeded" in msg or "100%" in msg or "90%" in msg or "70%" in msg:
+                            already_notified = True
+                            break
+                    elif highest_threshold == 50:
+                        if "exceeded" in msg or "100%" in msg or "90%" in msg or "70%" in msg or "50%" in msg:
+                            already_notified = True
+                            break
+                
+                if not already_notified:
+                    label = title
                     msg = f"You have reached {prog:.1f}% of your {b['period'].lower()} budget ({b['name']})."
-                    if prog >= 100:
+                    if highest_threshold == 100:
                         msg = f"CRITICAL: Budget '{b['name']}' exceeded by ₹{abs(b['remaining']):.2f}!"
                     
                     notifications.append({
                         'title': label,
                         'message': msg,
-                        'priority': 'high' if prog >= 100 else 'medium',
+                        'priority': 'high' if highest_threshold == 100 else 'medium',
                         'type': 'budget'
                     })
         return notifications
+
+    @staticmethod
+    def delete_budget(budget_id):
+        from datetime import datetime
+        conn = get_db_connection()
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Get budget name to clean up notifications
+        budget = conn.execute("SELECT name FROM budgets WHERE id = ?", (budget_id,)).fetchone()
+        if budget:
+            budget_name = budget['name']
+            conn.execute("""
+                UPDATE notifications 
+                SET deleted_at = ? 
+                WHERE type = 'budget' AND (title = ? OR message LIKE ?) AND deleted_at IS NULL
+            """, (now, f"Budget Alert: {budget_name}", f"%{budget_name}%"))
+            
+        conn.execute("UPDATE budgets SET deleted_at = ? WHERE id = ?", (now, budget_id))
+        conn.commit()
+        conn.close()
+

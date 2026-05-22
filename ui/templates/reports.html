@@ -105,7 +105,6 @@
             </div>
         </div>
     </div>
-    </div>
 </div>
 
 <script>
@@ -211,9 +210,12 @@
                 <span style="font-weight: 700; font-size: 0.85rem;">₹${d.total.toFixed(0)}</span>
             </div>
         `).join('');
+
+        console.log("initCharts finished. Chart.instances:", window.Chart && Chart.instances ? Object.keys(Chart.instances) : "no Chart.instances");
     }
 
     initCharts();
+    console.log("Script body finished. Chart.instances:", window.Chart && Chart.instances ? Object.keys(Chart.instances) : "no Chart.instances");
 </script>
 
 <style>

@@ -49,7 +49,7 @@ class NotificationService:
     def clear_all():
         conn = get_db_connection()
         now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        conn.execute("UPDATE notifications SET deleted_at = ? WHERE read_status = 1", (now,))
+        conn.execute("UPDATE notifications SET deleted_at = ? WHERE deleted_at IS NULL", (now,))
         conn.commit()
         conn.close()
 

@@ -27,6 +27,7 @@ class AnalyticsService:
                 SELECT date, type, category, SUM(amount) as total, COUNT(*) as cnt
                 FROM transactions
                 WHERE date >= ? AND deleted_at IS NULL
+                AND category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration')
                 GROUP BY date, type, category
                 ORDER BY date ASC
             """
@@ -78,6 +79,7 @@ class AnalyticsService:
                 SELECT date, SUM(amount) as total
                 FROM transactions
                 WHERE card_id IS NOT NULL AND type='expense' AND deleted_at IS NULL AND date >= ?
+                AND category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration')
                 GROUP BY date
             """, (active_threshold,)).fetchall()
             credit_cache = {}
@@ -371,10 +373,10 @@ class AnalyticsService:
     @staticmethod
     def get_behavior_analytics():
         conn = get_db_connection()
-        weekday_avg = conn.execute("SELECT AVG(amount) FROM transactions WHERE type='expense' AND deleted_at IS NULL AND strftime('%w', date) BETWEEN '1' AND '5'").fetchone()[0] or 0
-        weekend_avg = conn.execute("SELECT AVG(amount) FROM transactions WHERE type='expense' AND deleted_at IS NULL AND strftime('%w', date) IN ('0', '6')").fetchone()[0] or 0
+        weekday_avg = conn.execute("SELECT AVG(amount) FROM transactions WHERE type='expense' AND deleted_at IS NULL AND category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration') AND strftime('%w', date) BETWEEN '1' AND '5'").fetchone()[0] or 0
+        weekend_avg = conn.execute("SELECT AVG(amount) FROM transactions WHERE type='expense' AND deleted_at IS NULL AND category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration') AND strftime('%w', date) IN ('0', '6')").fetchone()[0] or 0
         
-        active_day_idx = conn.execute("SELECT strftime('%w', date) as day, SUM(amount) as total FROM transactions WHERE type='expense' AND deleted_at IS NULL GROUP BY day ORDER BY total DESC LIMIT 1").fetchone()
+        active_day_idx = conn.execute("SELECT strftime('%w', date) as day, SUM(amount) as total FROM transactions WHERE type='expense' AND deleted_at IS NULL AND category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration') GROUP BY day ORDER BY total DESC LIMIT 1").fetchone()
         
         days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
         active_day = days[int(active_day_idx[0])] if active_day_idx and active_day_idx[0] is not None else "None"
