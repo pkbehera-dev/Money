@@ -1,13 +1,11 @@
 import sqlite3
 import datetime
-from database.connection import DB_PATH
+from database.connection import get_db_connection
 
 class NetWorthService:
     @staticmethod
     def get_db():
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        return conn
+        return get_db_connection()
 
     @classmethod
     def calculate_assets(cls):

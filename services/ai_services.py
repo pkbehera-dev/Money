@@ -1,15 +1,28 @@
-import google.generativeai as genai
+from google import genai
 import sqlite3
 import json
 import os
 from datetime import datetime, timedelta
 from database.connection import DB_PATH
 
-# Configure Gemini
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "YOUR_GEMINI_API_KEY") 
-genai.configure(api_key=GEMINI_API_KEY)
-
 class GeminiService:
+    _client = None
+
+    @classmethod
+    def _get_client(cls):
+        if cls._client is None:
+            api_key = os.environ.get("GEMINI_API_KEY")
+            if api_key and "YOUR_GEMINI_API_KEY" not in api_key:
+                orig_google_key = os.environ.pop("GOOGLE_API_KEY", None)
+                try:
+                    cls._client = genai.Client(api_key=api_key)
+                except Exception:
+                    pass
+                finally:
+                    if orig_google_key:
+                        os.environ["GOOGLE_API_KEY"] = orig_google_key
+        return cls._client
+
     @staticmethod
     def _get_cache_conn():
         conn = sqlite3.connect(DB_PATH)
@@ -27,10 +40,15 @@ class GeminiService:
         """Highly optimized Gemini call using minimal tokens."""
         prompt = f"Analyze summary: {summary_json}\nUser: {user_query}\nMode: {mode}\nReply concisely."
         
+        client = cls._get_client()
+        if not client:
+            return "Service Error: Gemini API key is not configured."
+        
         try:
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            # Use generation_config to limit tokens further if needed
-            response = model.generate_content(prompt)
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt
+            )
             return response.text
         except Exception as e:
             return f"Service Error: {str(e)}"

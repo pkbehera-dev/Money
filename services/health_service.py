@@ -76,13 +76,58 @@ class HealthService:
         elif total_score >= 40: status = "Needs Attention"
         else: status = "Poor"
         
-        # Reasons
+        # Reasons Engine (Always outputs detailed, context-aware factors explaining the score)
         reasons = []
-        if savings_rate > 20: reasons.append("Savings rate is healthy (>20%)")
-        if over_budget_count > 0: reasons.append(f"Exceeded {over_budget_count} budget(s)")
-        if usage_ratio > 50: reasons.append("High credit card utilization")
-        if liquid_cash > upcoming_dues: reasons.append("Good liquidity for upcoming dues")
         
+        # Savings Rate feedback
+        if income > 0:
+            if savings_rate > 20:
+                reasons.append(f"Savings rate is healthy ({savings_rate:.1f}%)")
+            elif savings_rate > 0:
+                reasons.append(f"Low savings rate ({savings_rate:.1f}%) - try to save >20%")
+            else:
+                reasons.append("Savings are negative (spending exceeds income)")
+        else:
+            reasons.append("No active monthly income recorded")
+            
+        # Budget discipline feedback
+        if active_budgets:
+            if over_budget_count > 0:
+                reasons.append(f"Exceeded {over_budget_count} active budget limits")
+            else:
+                reasons.append("Zero budget overruns - great spending control")
+        else:
+            reasons.append("No budgets created to track discipline")
+            
+        # Credit usage feedback
+        if credit_debt > 0:
+            if usage_ratio > 50:
+                reasons.append(f"High credit utilization ({usage_ratio:.1f}%)")
+            elif usage_ratio > 30:
+                reasons.append(f"Moderate credit utilization ({usage_ratio:.1f}%)")
+            else:
+                reasons.append(f"Excellent credit card utilization ({usage_ratio:.1f}%)")
+        else:
+            reasons.append("Zero outstanding credit card balance")
+            
+        # Liquidity & upcoming dues feedback
+        if upcoming_dues > 0:
+            if liquid_cash > upcoming_dues:
+                reasons.append("Good liquid cash buffer for upcoming dues")
+            else:
+                reasons.append("Tight liquidity vs outstanding card/loan dues")
+        else:
+            reasons.append("No outstanding short-term debt/EMI pressure")
+            
+        # Goal progress feedback
+        if goals:
+            if avg_progress >= 50:
+                reasons.append(f"Excellent progress on active goals (avg: {avg_progress:.0f}%)")
+            else:
+                reasons.append(f"Goal progress is slow (avg: {avg_progress:.0f}%) - consider contributing")
+        else:
+            reasons.append("No active financial goals established")
+
         res = {
             "score": total_score,
             "status": status,
@@ -99,39 +144,39 @@ class HealthService:
     @staticmethod
     def save_to_history(data):
         conn = get_db_connection()
-        # Only save if today doesn't have an entry or score is different
         today = datetime.now().strftime('%Y-%m-%d')
-        last = conn.execute("SELECT score FROM health_history ORDER BY date DESC LIMIT 1").fetchone()
+        # Check if today already has an entry
+        exists = conn.execute("SELECT id FROM health_history WHERE date = ?", (today,)).fetchone()
         
-        if not last or last[0] != data['score']:
+        if exists:
+            conn.execute('''
+                UPDATE health_history 
+                SET score = ?, status = ?, reasons = ?
+                WHERE date = ?
+            ''', (data['score'], data['status'], json.dumps(data['reasons']), today))
+        else:
             conn.execute('''
                 INSERT INTO health_history (date, score, status, reasons)
                 VALUES (?, ?, ?, ?)
             ''', (today, data['score'], data['status'], json.dumps(data['reasons'])))
-            conn.commit()
+        conn.commit()
         conn.close()
 
     @staticmethod
     def get_latest_health():
-        conn = get_db_connection()
-        row = conn.execute("SELECT * FROM health_history ORDER BY date DESC LIMIT 1").fetchone()
+        # Always calculate the fresh score to ensure live parity, saving it to history
+        fresh_health = HealthService.calculate_current_score()
         
-        if not row:
-            # Recalculate if no history
-            conn.close()
-            return HealthService.calculate_current_score()
-            
-        # Get trend (compare with previous)
+        conn = get_db_connection()
+        # Get trend (compare with previous day's snapshot)
         prev = conn.execute("SELECT score FROM health_history ORDER BY date DESC LIMIT 1 OFFSET 1").fetchone()
         trend = 0
         if prev:
-            trend = row['score'] - prev['score']
+            trend = fresh_health['score'] - prev['score']
             
-        res = dict(row)
-        res['reasons'] = json.loads(res['reasons'])
-        res['trend'] = trend
+        fresh_health['trend'] = trend
         conn.close()
-        return res
+        return fresh_health
 
     @staticmethod
     def get_history(limit=12):

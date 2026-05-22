@@ -518,7 +518,9 @@
                             drawerArea.innerHTML = newDrawer.innerHTML;
                         }
 
-                        this.initPageScripts();
+                        setTimeout(() => {
+                            this.initPageScripts();
+                        }, 0);
                         UIState.setPage(url);
                         
                         // Update address bar ONLY if requested
@@ -547,11 +549,15 @@
                     ...(drawerArea ? drawerArea.querySelectorAll('script') : [])
                 ];
 
-                allScripts.forEach(oldScript => {
+                allScripts.forEach((oldScript, idx) => {
+                    console.log(`Executing script ${idx + 1}/${allScripts.length}:`, oldScript.innerHTML.slice(0, 100) + "...");
                     const newScript = document.createElement('script');
                     Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-                    newScript.appendChild(document.createTextNode(oldScript.innerHTML));
-                    oldScript.parentNode.replaceChild(newScript, oldScript);
+                    newScript.text = oldScript.innerHTML;
+                    document.head.appendChild(newScript).parentNode.removeChild(newScript);
+                    if (oldScript.parentNode) {
+                        oldScript.parentNode.removeChild(oldScript);
+                    }
                 });
             }
         };

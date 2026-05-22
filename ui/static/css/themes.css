@@ -5,6 +5,7 @@
   --card-bg: #1E2230;
   --border-color: #2A3142;
   --primary-accent: #4F8CFF;
+  --primary-accent-rgb: 79, 140, 255;
   --primary-glow: rgba(79, 140, 255, 0.2);
   --success-color: #22C55E;
   --expense-color: #EF4444;
@@ -20,6 +21,7 @@
   --card-bg: #FFFFFF;
   --border-color: #E4E7EC;
   --primary-accent: #2563EB;
+  --primary-accent-rgb: 37, 99, 235;
   --primary-glow: rgba(37, 99, 235, 0.1);
   --success-color: #16A34A;
   --expense-color: #DC2626;

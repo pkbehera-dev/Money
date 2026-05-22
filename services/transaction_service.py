@@ -8,14 +8,15 @@ class TransactionService:
         """Fetches transactions with optional filtering and sorting."""
         conn = get_db_connection()
         query = """
-            SELECT t.*, a1.name as account_name, a2.name as to_account_name
+            SELECT t.*, a1.name as account_name, a2.name as to_account_name, c.name as card_name
             FROM transactions t
             LEFT JOIN accounts a1 ON t.account_id = a1.id
             LEFT JOIN accounts a2 ON t.to_account_id = a2.id
+            LEFT JOIN credit_cards c ON t.card_id = c.id
             WHERE 1=1 
             AND t.deleted_at IS NULL
             AND t.category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration')
-            AND t.tags NOT LIKE '%Silent%'
+            AND COALESCE(t.tags, '') NOT LIKE '%Silent%'
         """
         params = []
 
@@ -101,16 +102,22 @@ class TransactionService:
                 conn.execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', (amount, account_id))
             elif type == 'expense':
                 conn.execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', (amount, account_id))
-            elif type == 'transfer' and to_account_id:
-                # Deduct from source account
-                conn.execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', (amount + transfer_fee, account_id))
-                # If target is another account, add to it
-                if to_account_id > 0:
+            elif type == 'transfer':
+                # Deduct from source account (if specified)
+                if account_id:
+                    conn.execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', (amount + transfer_fee, account_id))
+                # Add to target account (if specified)
+                if to_account_id and to_account_id > 0:
                     conn.execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', (amount, to_account_id))
         
         conn.commit()
         new_id = cursor.lastrowid
         conn.close()
+        
+        # Trigger real-time summaries refresh and alert checks
+        from services.analytics_service import AnalyticsService
+        AnalyticsService.refresh_summaries()
+        
         return new_id
     @staticmethod
     def get_transaction_by_id(tx_id: int):
@@ -150,6 +157,10 @@ class TransactionService:
         conn.execute("UPDATE transactions SET deleted_at = ? WHERE id = ?", (now, tx_id))
         conn.commit()
         conn.close()
+        
+        # Trigger real-time summaries refresh and alert checks
+        from services.analytics_service import AnalyticsService
+        AnalyticsService.refresh_summaries()
 
     @staticmethod
     def restore_transaction(tx_id: int):
@@ -178,6 +189,10 @@ class TransactionService:
         conn.execute("UPDATE transactions SET deleted_at = NULL WHERE id = ?", (tx_id,))
         conn.commit()
         conn.close()
+        
+        # Trigger real-time summaries refresh and alert checks
+        from services.analytics_service import AnalyticsService
+        AnalyticsService.refresh_summaries()
 
     @staticmethod
     def update_transaction(tx_id: int, type: str, amount: float, category: str, date: str, 
@@ -198,13 +213,18 @@ class TransactionService:
                 conn.execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', (amount, account_id))
             elif type == 'expense':
                 conn.execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', (amount, account_id))
-            elif type == 'transfer' and to_account_id:
-                conn.execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', (amount, account_id))
-                if to_account_id > 0:
+            elif type == 'transfer':
+                if account_id:
+                    conn.execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', (amount, account_id))
+                if to_account_id and to_account_id > 0:
                     conn.execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', (amount, to_account_id))
         
         conn.commit()
         conn.close()
+        
+        # Trigger real-time summaries refresh and alert checks
+        from services.analytics_service import AnalyticsService
+        AnalyticsService.refresh_summaries()
     @staticmethod
     def get_categories(type_filter='expense'):
         from services.category_service import CategoryService

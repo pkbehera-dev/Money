@@ -48,7 +48,7 @@
                     <div>
                         <div style="font-weight: 700; font-size: 1.25rem;">{{ loan.name }}</div>
                         <div class="text-muted" style="font-size: 0.85rem;">
-                            Due on {{ loan.due_date }}th of month
+                            {{ loan.due_date|days_left }}
                         </div>
                     </div>
                 </div>

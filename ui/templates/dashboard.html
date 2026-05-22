@@ -257,7 +257,7 @@
                         {{ health.status }}
                     </div>
                     <div class="text-muted" style="font-size: 0.75rem; line-height: 1.4; margin-top: 4px;">
-                        {% for r in health.reasons[:2] %}
+                        {% for r in health.reasons[:4] %}
                         • {{ r }}<br>
                         {% endfor %}
                     </div>
@@ -266,13 +266,16 @@
         </div>
 
         <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
                 <h3 style="font-family: 'Outfit';">Spending Trends</h3>
-                <select
-                    style="background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-primary); padding: 4px 12px; border-radius: 8px; font-size: 0.8rem;">
-                    <option>Last 30 Days</option>
-                    <option>Last 6 Months</option>
-                </select>
+                <div class="range-selector">
+                    <button onclick="updateChartRange('1m')" class="range-btn" data-range="1m">1M</button>
+                    <button onclick="updateChartRange('3m')" class="range-btn" data-range="3m">3M</button>
+                    <button onclick="updateChartRange('6m')" class="range-btn active" data-range="6m">6M</button>
+                    <button onclick="updateChartRange('1y')" class="range-btn" data-range="1y">1Y</button>
+                    <button onclick="updateChartRange('3y')" class="range-btn" data-range="3y">3Y</button>
+                    <button onclick="updateChartRange('all')" class="range-btn" data-range="all">ALL</button>
+                </div>
             </div>
             <div style="height: 350px;">
                 <canvas id="trendsChart" data-labels='{{ metrics.chart_trends.labels | tojson }}'
@@ -306,17 +309,45 @@
                     <div class="card-dots" style="opacity: 1; top: 50%; transform: translateY(-50%);" onclick="showContextMenu(event, '{{ tx.id }}', 'transaction')">
                         <i class="ph-bold ph-dots-three-vertical"></i>
                     </div>
-                    <div class="icon-box {{ 'status-income' if tx.type == 'income' else 'status-expense' }}">
-                        <i class="ph-fill ph-{{ 'trend-up' if tx.type == 'income' else 'trend-down' }}"></i>
+                    <div class="icon-box {% if tx.type == 'income' %}status-income{% elif tx.type == 'expense' %}status-expense{% else %}status-main{% endif %}">
+                        <i class="ph-fill ph-{% if tx.type == 'income' %}trend-up{% elif tx.type == 'expense' %}trend-down{% else %}arrows-left-right{% endif %}"></i>
                     </div>
                     <div>
                         <div style="font-weight: 600;">{{ tx.category or 'Uncategorized' }}</div>
                         <div class="text-muted" style="font-size: 0.8rem;">{{ tx.date }}</div>
                     </div>
-                    <div class="text-muted" style="font-size: 0.9rem;">{{ tx.account_name or 'Cash' }}</div>
-                    <div style="font-weight: 700; font-size: 1.1rem; text-align: right;"
-                        class="{% if tx.type == 'income' %}text-success{% else %}text-danger{% endif %}">
-                        {% if tx.type == 'income' %}+{% else %}-{% endif %}₹{{ "%.2f"|format(tx.amount) }}
+                    <div class="text-muted" style="font-size: 0.85rem; font-weight: 600; min-width: 0;">
+                        {% if tx.type == 'transfer' %}
+                            <div style="display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                {% if tx.account_name %}
+                                    <span style="color: var(--text-primary);">{{ tx.account_name }}</span>
+                                {% elif tx.card_name and not tx.to_account_name %}
+                                    <span style="color: var(--text-primary);">{{ tx.card_name }}</span>
+                                {% else %}
+                                    <span style="color: var(--text-primary);">N/A</span>
+                                {% endif %}
+                                
+                                <i class="ph ph-arrow-right" style="font-size: 0.7rem; color: var(--primary-accent);"></i>
+                                
+                                {% if tx.to_account_name %}
+                                    <span style="color: var(--primary-accent);">{{ tx.to_account_name }}</span>
+                                {% elif tx.card_name and tx.account_name %}
+                                    <span style="color: var(--primary-accent);">{{ tx.card_name }}</span>
+                                {% else %}
+                                    <span style="color: var(--primary-accent);">N/A</span>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            {% if tx.card_id and tx.card_name %}
+                                <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; color: var(--primary-accent);">{{ tx.card_name }}</span>
+                            {% else %}
+                                <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">{{ tx.account_name or 'N/A' }}</span>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                    <div style="font-weight: 700; font-size: 1.1rem; text-align: right; font-family: 'Outfit';"
+                        class="{% if tx.type == 'income' %}text-success{% elif tx.type == 'expense' %}text-danger{% else %}text-main{% endif %}">
+                        {% if tx.type == 'income' %}+{% elif tx.type == 'expense' %}-{% endif %}₹{{ "%.2f"|format(tx.amount) }}
                     </div>
                 </div>
                 {% endfor %}
@@ -326,7 +357,7 @@
         <div style="display: flex; flex-direction: column; gap: 32px;">
             <!-- Upcoming EMI -->
             <div class="card" style="background: var(--bg-main);">
-                <h3 style="font-family: 'Outfit'; margin-bottom: 20px;">Dues This Week</h3>
+                <h3 style="font-family: 'Outfit'; margin-bottom: 20px;">Upcoming Dues</h3>
                 <div style="display: flex; flex-direction: column; gap: 16px;">
                     {% for card in metrics.card_reminders %}
                     <div style="display: flex; align-items: center; gap: 16px;">
@@ -335,7 +366,7 @@
                         </div>
                         <div style="flex: 1;">
                             <div style="font-weight: 600; font-size: 0.9rem;">{{ card.name }}</div>
-                            <div class="text-muted" style="font-size: 0.75rem;">Due on {{ card.due_date }}th</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">{{ card.due_date|days_left }}</div>
                         </div>
                         <div class="text-danger" style="font-weight: 700;">₹{{ "%.2f"|format(card.outstanding) }}</div>
                     </div>
@@ -348,7 +379,7 @@
                         </div>
                         <div style="flex: 1;">
                             <div style="font-weight: 600; font-size: 0.9rem;">{{ loan.name }} EMI</div>
-                            <div class="text-muted" style="font-size: 0.75rem;">Due on {{ loan.due_date }}th</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">{{ loan.due_date|days_left }}</div>
                         </div>
                         <div class="text-danger" style="font-weight: 700;">₹{{ "%.2f"|format(loan.total_to_pay -
                             loan.paid_amount) }}</div>
@@ -391,79 +422,115 @@
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        function initDashboardCharts() {
-            Chart.defaults.color = '#CBD5E1';
-            Chart.defaults.font.family = "'Inter', sans-serif";
+    var trendsChartInstance = window.trendsChartInstance || null;
+    var categoryChartInstance = window.categoryChartInstance || null;
 
-            const trendsEl = document.getElementById('trendsChart');
-            if (trendsEl && trendsEl.dataset.labels) {
-                // SPA Cleanup
-                const existing = Chart.getChart(trendsEl);
-                if (existing) existing.destroy();
+    function initDashboardCharts() {
+        Chart.defaults.color = '#CBD5E1';
+        Chart.defaults.font.family = "'Inter', sans-serif";
 
-                new Chart(trendsEl.getContext('2d'), {
-                    type: 'line',
-                    data: {
-                        labels: JSON.parse(trendsEl.dataset.labels),
-                        datasets: [{
-                            label: 'Expenses',
-                            data: JSON.parse(trendsEl.dataset.expense),
-                            borderColor: '#EF4444',
-                            borderWidth: 3,
-                            tension: 0.4,
-                            fill: true,
-                            backgroundColor: 'rgba(239, 68, 68, 0.05)'
-                        }, {
-                            label: 'Income',
-                            data: JSON.parse(trendsEl.dataset.income),
-                            borderColor: '#22C55E',
-                            borderWidth: 3,
-                            tension: 0.4,
-                            fill: true,
-                            backgroundColor: 'rgba(34, 197, 94, 0.05)'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: {
-                            y: { grid: { color: 'rgba(255,255,255,0.05)' }, border: { display: false } },
-                            x: { grid: { display: false }, border: { display: false } }
-                        }
+        const trendsEl = document.getElementById('trendsChart');
+        if (trendsEl && trendsEl.dataset.labels) {
+            // SPA Cleanup
+            const existing = Chart.getChart(trendsEl);
+            if (existing) existing.destroy();
+
+            trendsChartInstance = new Chart(trendsEl.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: JSON.parse(trendsEl.dataset.labels),
+                    datasets: [{
+                        label: 'Expenses',
+                        data: JSON.parse(trendsEl.dataset.expense),
+                        borderColor: '#EF4444',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        backgroundColor: 'rgba(239, 68, 68, 0.05)'
+                    }, {
+                        label: 'Income',
+                        data: JSON.parse(trendsEl.dataset.income),
+                        borderColor: '#22C55E',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        backgroundColor: 'rgba(34, 197, 94, 0.05)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, border: { display: false } },
+                        x: { grid: { display: false }, border: { display: false } }
                     }
-                });
-            }
-
-            const categoryEl = document.getElementById('categoryChart');
-            if (categoryEl && categoryEl.dataset.labels) {
-                // SPA Cleanup
-                const existingCat = Chart.getChart(categoryEl);
-                if (existingCat) existingCat.destroy();
-
-                new Chart(categoryEl.getContext('2d'), {
-                    type: 'doughnut',
-                    data: {
-                        labels: JSON.parse(categoryEl.dataset.labels),
-                        datasets: [{
-                            data: JSON.parse(categoryEl.dataset.data),
-                            backgroundColor: ['#4F8CFF', '#8B5CF6', '#F59E0B', '#EF4444', '#10B981', '#3B82F6'],
-                            borderWidth: 0,
-                            hoverOffset: 20
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        cutout: '75%',
-                        plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } } }
-                    }
-                });
-            }
+                }
+            });
         }
-        initDashboardCharts();
-    });
+
+        const categoryEl = document.getElementById('categoryChart');
+        if (categoryEl && categoryEl.dataset.labels) {
+            // SPA Cleanup
+            const existingCat = Chart.getChart(categoryEl);
+            if (existingCat) existingCat.destroy();
+
+            categoryChartInstance = new Chart(categoryEl.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: JSON.parse(categoryEl.dataset.labels),
+                    datasets: [{
+                        data: JSON.parse(categoryEl.dataset.data),
+                        backgroundColor: ['#4F8CFF', '#8B5CF6', '#F59E0B', '#EF4444', '#10B981', '#3B82F6', '#6366F1', '#EC4899', '#84CC16', '#06B6D4'],
+                        borderWidth: 0,
+                        hoverOffset: 20
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%',
+                    plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } } }
+                }
+            });
+        }
+    }
+
+    initDashboardCharts();
+
+    async function updateChartRange(range) {
+        document.querySelectorAll('.range-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.getAttribute('data-range') === range) {
+                btn.classList.add('active');
+            }
+        });
+
+        try {
+            const res = await fetch('/api/dashboard/trends?range=' + range);
+            const data = await res.json();
+            
+            if (data.error) {
+                console.error("API error:", data.error);
+                return;
+            }
+
+            if (trendsChartInstance) {
+                trendsChartInstance.data.labels = data.trends.labels;
+                trendsChartInstance.data.datasets[0].data = data.trends.expense;
+                trendsChartInstance.data.datasets[1].data = data.trends.income;
+                trendsChartInstance.update();
+            }
+
+            if (categoryChartInstance) {
+                categoryChartInstance.data.labels = data.categories.labels;
+                categoryChartInstance.data.datasets[0].data = data.categories.data;
+                categoryChartInstance.update();
+            }
+        } catch (err) {
+            console.error("Failed to update chart range:", err);
+        }
+    }
 
     async function refreshInsights(btn) {
         const icon = btn.querySelector('i');
@@ -481,6 +548,39 @@
 </script>
 
 <style>
+    .range-selector {
+        display: flex;
+        gap: 6px;
+        background: var(--bg-main);
+        padding: 4px;
+        border-radius: 20px;
+        border: 1px solid var(--border-color);
+        align-items: center;
+    }
+
+    .range-btn {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        padding: 6px 12px;
+        border-radius: 16px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .range-btn:hover {
+        color: var(--text-primary);
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .range-btn.active {
+        background: var(--primary-accent);
+        color: white;
+        box-shadow: 0 4px 12px rgba(79, 140, 255, 0.3);
+    }
+
     .kpi-card.positive {
         border-left: 4px solid var(--success-color);
     }

@@ -15,7 +15,7 @@ class ReportService:
             FROM transactions 
             WHERE type='expense' AND date >= ?
             AND category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration')
-            AND tags NOT LIKE '%Silent%'
+            AND COALESCE(tags, '') NOT LIKE '%Silent%'
             GROUP BY category
         '''
         rows = conn.execute(query, (month_start,)).fetchall()
@@ -40,7 +40,7 @@ class ReportService:
             FROM transactions 
             WHERE date >= ?
             AND category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration')
-            AND tags NOT LIKE '%Silent%'
+            AND COALESCE(tags, '') NOT LIKE '%Silent%'
             GROUP BY date
             ORDER BY date ASC
         '''

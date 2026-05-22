@@ -57,11 +57,11 @@
             {% if g.status != 'completed' %}
             <div style="display: flex; flex-direction: column; gap: 12px;">
                 <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px;">
-                    <button class="btn-secondary" style="justify-content: center; padding: 12px;" onclick="openContributionModal('{{ g.id }}', '{{ g.name }}')">
+                    <button class="btn-secondary" style="justify-content: center; padding: 12px;" data-goal-id="{{ g.id }}" data-goal-name="{{ g.name }}" onclick="openContributionModal(this)">
                         <i class="ph ph-plus"></i> Add Contribution
                     </button>
                     {% if g.current_amount > 0 %}
-                    <button class="btn-secondary" style="padding: 12px; color: var(--expense-color);" onclick="openWithdrawModal('{{ g.id }}', '{{ g.name }}', {{ g.current_amount }})" title="Emergency Withdraw">
+                    <button class="btn-secondary" style="padding: 12px; color: var(--expense-color);" data-goal-id="{{ g.id }}" data-goal-name="{{ g.name }}" data-goal-amount="{{ g.current_amount }}" onclick="openWithdrawModal(this)" title="Emergency Withdraw">
                         <i class="ph ph-hand-withdraw"></i>
                     </button>
                     {% endif %}
@@ -114,7 +114,9 @@
 </div>
 
 <script>
-    function openContributionModal(id, name) {
+    function openContributionModal(btn) {
+        const id = btn.getAttribute('data-goal-id');
+        const name = btn.getAttribute('data-goal-name');
         document.getElementById('action-goal-id').value = id;
         document.getElementById('action-type').value = 'contribute';
         document.getElementById('action-modal-title').innerText = 'Contribute to Goal';
@@ -126,7 +128,10 @@
         document.getElementById('action-amount').focus();
     }
 
-    function openWithdrawModal(id, name, maxAmount) {
+    function openWithdrawModal(btn) {
+        const id = btn.getAttribute('data-goal-id');
+        const name = btn.getAttribute('data-goal-name');
+        const maxAmount = parseFloat(btn.getAttribute('data-goal-amount'));
         document.getElementById('action-goal-id').value = id;
         document.getElementById('action-type').value = 'withdraw';
         document.getElementById('action-modal-title').innerText = 'Emergency Withdrawal';

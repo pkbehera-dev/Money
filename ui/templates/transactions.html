@@ -9,12 +9,13 @@
         <div>
             <h1 style="font-family: 'Outfit'; font-size: 2.5rem; margin-bottom: 8px;">Transactions</h1>
             <p class="text-muted">History and management of your financial movements</p>
+            <div style="font-size: 0.75rem; background: rgba(79, 140, 255, 0.05); color: var(--primary-accent); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(79, 140, 255, 0.15); display: inline-flex; align-items: center; gap: 6px; margin-top: 8px;">
+                <i class="ph-bold ph-archive" style="font-size: 0.85rem;"></i>
+                <span>Transactions older than 12 months are archived & summarized to maintain peak performance.</span>
+            </div>
         </div>
         <div style="display: flex; align-items: center; gap: 16px;">
-            <button class="btn-secondary" onclick="clearAllTransactions()" title="Clear All History" style="color: var(--expense-color); border-color: rgba(239, 68, 68, 0.2);">
-                <i class="ph ph-trash"></i> Clear All
-            </button>
-            <button class="btn-primary" onclick="openDrawer('page-drawer')">
+            <button class="btn-primary" onclick="openDrawer('add-tx-drawer')">
                 <i class="ph ph-plus-circle"></i> Add Transaction
             </button>
         </div>
@@ -83,12 +84,30 @@
                 <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600; min-width: 0;">
                     {% if tx.type == 'transfer' %}
                         <div style="display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                            <span style="color: var(--text-primary);">{{ tx.account_name or 'N/A' }}</span>
+                            {% if tx.account_name %}
+                                <span style="color: var(--text-primary);">{{ tx.account_name }}</span>
+                            {% elif tx.card_name and not tx.to_account_name %}
+                                <span style="color: var(--text-primary);">{{ tx.card_name }}</span>
+                            {% else %}
+                                <span style="color: var(--text-primary);">N/A</span>
+                            {% endif %}
+                            
                             <i class="ph ph-arrow-right" style="font-size: 0.7rem; color: var(--primary-accent);"></i>
-                            <span style="color: var(--primary-accent);">{{ tx.to_account_name or 'N/A' }}</span>
+                            
+                            {% if tx.to_account_name %}
+                                <span style="color: var(--primary-accent);">{{ tx.to_account_name }}</span>
+                            {% elif tx.card_name and tx.account_name %}
+                                <span style="color: var(--primary-accent);">{{ tx.card_name }}</span>
+                            {% else %}
+                                <span style="color: var(--primary-accent);">N/A</span>
+                            {% endif %}
                         </div>
                     {% else %}
-                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">{{ tx.account_name or 'N/A' }}</span>
+                        {% if tx.card_id and tx.card_name %}
+                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; color: var(--primary-accent);">{{ tx.card_name }}</span>
+                        {% else %}
+                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">{{ tx.account_name or 'N/A' }}</span>
+                        {% endif %}
                     {% endif %}
                 </div>
 
@@ -130,62 +149,4 @@
         document.getElementById('filter-form').submit();
     }
 </script>
-{% endblock %}
-
-{% block drawer_content %}
-    <h2 style="font-family: 'Outfit'; margin-bottom: 8px;">New Transaction</h2>
-    <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 32px;">Add a record to your financial ledger.</p>
-
-    <form action="{{ url_for('transaction.add_transaction') }}" method="POST" class="ajax-form" autocomplete="off" style="display: flex; flex-direction: column; gap: 20px;">
-        <div>
-            <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Type</label>
-            <div class="tx-type-group" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
-                <label style="cursor: pointer;">
-                    <input type="radio" name="type" value="income" style="display: none;">
-                    <div class="tx-type-btn" onclick="selectTxType(this)">Income</div>
-                </label>
-                <label style="cursor: pointer;">
-                    <input type="radio" name="type" value="expense" checked style="display: none;">
-                    <div class="tx-type-btn active" onclick="selectTxType(this)">Expense</div>
-                </label>
-                <label style="cursor: pointer;">
-                    <input type="radio" name="type" value="transfer" style="display: none;">
-                    <div class="tx-type-btn" onclick="selectTxType(this)">Transfer</div>
-                </label>
-            </div>
-        </div>
-
-        <div>
-            <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Amount</label>
-            <input type="number" step="0.01" name="amount" required placeholder="0.00" style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 1.5rem; font-weight: 700;">
-        </div>
-
-        <div>
-            <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Account</label>
-            <select name="account_id" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
-                {% for acc in accounts %}
-                <option value="{{ acc.id }}">{{ acc.name }} (₹{{ "%.2f"|format(acc.balance) }})</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div>
-            <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Category</label>
-            <input type="text" name="category" required placeholder="e.g. Food, Salary" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
-        </div>
-
-        <div>
-            <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;" id="notes-label">Expense Name</label>
-            <input type="text" name="notes" placeholder="Details..." style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
-        </div>
-
-        <div>
-            <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Date</label>
-            <input type="date" name="date" value="{{ now.strftime('%Y-%m-%d') if now else '' }}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
-        </div>
-
-        <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; justify-content: center; font-size: 1.1rem; margin-top: 10px;">
-            Save Transaction
-        </button>
-    </form>
 {% endblock %}

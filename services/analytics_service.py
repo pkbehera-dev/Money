@@ -6,95 +6,257 @@ from datetime import datetime, timedelta
 class AnalyticsService:
     @staticmethod
     def refresh_summaries():
-        """Aggregates raw transactions into summary tables. Ignores soft-deleted items."""
+        """Recalculates daily, weekly, monthly, and yearly summaries for the active 12-month window."""
         conn = get_db_connection()
-        
-        # 0. Clear existing summaries
-        conn.execute("DELETE FROM monthly_summaries")
-        conn.execute("DELETE FROM category_summaries")
-        conn.execute("DELETE FROM daily_summaries")
-        
-        # 1. Update Monthly Summaries
-        conn.execute('''
-            INSERT INTO monthly_summaries (month, income_total, expense_total, savings, tx_count)
-            SELECT 
-                strftime('%Y-%m', date) as month,
-                SUM(CASE WHEN type='income' THEN amount ELSE 0 END),
-                SUM(CASE WHEN type='expense' THEN amount ELSE 0 END),
-                SUM(CASE WHEN type='income' THEN amount ELSE 0 END) - SUM(CASE WHEN type='expense' THEN amount ELSE 0 END),
-                COUNT(*)
-            FROM transactions
-            WHERE deleted_at IS NULL
-            AND category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration')
-            AND tags NOT LIKE '%Silent%'
-            GROUP BY month
-        ''')
-
-        # 2. Update Category Summaries
-        conn.execute('''
-            INSERT OR REPLACE INTO category_summaries (month, category, total)
-            SELECT 
-                strftime('%Y-%m', date) as month,
-                category,
-                SUM(amount)
-            FROM transactions
-            WHERE type='expense' 
-            AND deleted_at IS NULL
-            AND category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration')
-            AND tags NOT LIKE '%Silent%'
-            GROUP BY month, category
-        ''')
-
-        # 3. Update Daily Summaries
-        last_month = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
-        conn.execute('''
-            INSERT OR REPLACE INTO daily_summaries (date, income_total, expense_total, tx_count)
-            SELECT 
-                date,
-                SUM(CASE WHEN type='income' THEN amount ELSE 0 END),
-                SUM(CASE WHEN type='expense' THEN amount ELSE 0 END),
-                COUNT(*)
-            FROM transactions
-            WHERE date >= ? 
-            AND deleted_at IS NULL
-            AND category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration')
-            AND tags NOT LIKE '%Silent%'
-            GROUP BY date
-        ''', (last_month,))
-
-        conn.commit()
-        conn.close()
-
+        try:
+            # 1. Calculate active threshold date (12 months ago)
+            today = datetime.today().date()
+            active_threshold = (today - timedelta(days=365)).isoformat()
+            active_month_threshold = active_threshold[:7]
+            active_year_threshold = active_threshold[:4]
+            
+            # 2. Clear only the active 12-month window summaries to preserve historical precomputed summaries
+            conn.execute("DELETE FROM daily_summaries WHERE date >= ?", (active_threshold,))
+            conn.execute("DELETE FROM weekly_summaries WHERE start_date >= ?", (active_threshold,))
+            conn.execute("DELETE FROM monthly_summaries WHERE month >= ?", (active_month_threshold,))
+            conn.execute("DELETE FROM yearly_summaries WHERE year >= ?", (active_year_threshold,))
+            conn.commit()
+            
+            # 3. Fetch active raw transactions (date >= active_threshold)
+            query = """
+                SELECT date, type, category, SUM(amount) as total, COUNT(*) as cnt
+                FROM transactions
+                WHERE date >= ? AND deleted_at IS NULL
+                GROUP BY date, type, category
+                ORDER BY date ASC
+            """
+            rows = conn.execute(query, (active_threshold,)).fetchall()
+            
+            # Group rows by date
+            daily_data = {}
+            for r in rows:
+                d_str = r['date'][:10]
+                if d_str not in daily_data:
+                    daily_data[d_str] = {'income': 0.0, 'expense': 0.0, 'cats': {}, 'cnt': 0}
+                daily_data[d_str]['cnt'] += r['cnt']
+                if r['type'] == 'income':
+                    daily_data[d_str]['income'] += float(r['total'])
+                elif r['type'] == 'expense':
+                    daily_data[d_str]['expense'] += float(r['total'])
+                    cat = r['category'] or 'Uncategorized'
+                    daily_data[d_str]['cats'][cat] = daily_data[d_str]['cats'].get(cat, 0.0) + float(r['total'])
+            
+            # Anchor calculations based on today's live assets/liabilities
+            from services.net_worth_service import NetWorthService
+            nw_today = 0.0
+            try:
+                nw_today = float(NetWorthService.calculate_net_worth()[0])
+            except Exception:
+                pass
+                
+            score_today = 80
+            try:
+                row_health = conn.execute("SELECT score FROM health_history ORDER BY date DESC LIMIT 1").fetchone()
+                if row_health:
+                    score_today = int(row_health['score'])
+            except Exception:
+                pass
+            
+            # Calculate savings and net worth walkback for active window
+            total_active_savings = 0.0
+            for d_str, data in daily_data.items():
+                total_active_savings += (data['income'] - data['expense'])
+                
+            nw_current = nw_today - total_active_savings
+            
+            # Retrieve health history cache for active period
+            health_rows = conn.execute("SELECT date, score FROM health_history WHERE date >= ?", (active_threshold,)).fetchall()
+            health_cache = {h['date']: h['score'] for h in health_rows}
+            
+            # Pre-aggregate active credit usage
+            credit_rows = conn.execute("""
+                SELECT date, SUM(amount) as total
+                FROM transactions
+                WHERE card_id IS NOT NULL AND type='expense' AND deleted_at IS NULL AND date >= ?
+                GROUP BY date
+            """, (active_threshold,)).fetchall()
+            credit_cache = {}
+            for cr in credit_rows:
+                d_key = cr['date'][:10]
+                credit_cache[d_key] = credit_cache.get(d_key, 0.0) + float(cr['total'])
+            
+            daily_records = []
+            curr_date = datetime.strptime(active_threshold, "%Y-%m-%d").date()
+            
+            while curr_date <= today:
+                d_str = curr_date.isoformat()
+                data = daily_data.get(d_str, {'income': 0.0, 'expense': 0.0, 'cats': {}, 'cnt': 0})
+                
+                nw_current += (data['income'] - data['expense'])
+                score = health_cache.get(d_str, score_today)
+                credit_val = credit_cache.get(d_str, 0.0)
+                
+                daily_records.append((
+                    d_str,
+                    data['income'],
+                    data['expense'],
+                    data['income'] - data['expense'],
+                    nw_current,
+                    score,
+                    credit_val,
+                    json.dumps(data['cats']),
+                    data['cnt'],
+                    1
+                ))
+                curr_date += timedelta(days=1)
+                
+            # Insert/Replace active daily summaries
+            conn.executemany("""
+                INSERT OR REPLACE INTO daily_summaries 
+                (date, income, expense, savings, net_worth, financial_score, credit_usage, category_totals, tx_count, summary_version)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, daily_records)
+            
+            # Aggregate Active Weekly Summaries
+            weekly_data = {}
+            for r in daily_records:
+                d_obj = datetime.strptime(r[0], "%Y-%m-%d").date()
+                year, week, weekday = d_obj.isocalendar()
+                week_str = f"{year}-W{week:02d}"
+                
+                if week_str not in weekly_data:
+                    weekly_data[week_str] = {
+                        'start': r[0], 'end': r[0],
+                        'income': 0.0, 'expense': 0.0, 'savings': 0.0,
+                        'nw': r[4], 'score': r[5], 'credit': 0.0,
+                        'cats': {}, 'cnt': 0
+                    }
+                w = weekly_data[week_str]
+                if r[0] < w['start']: w['start'] = r[0]
+                if r[0] > w['end']: w['end'] = r[0]
+                w['income'] += r[1]
+                w['expense'] += r[2]
+                w['savings'] += r[3]
+                w['nw'] = r[4]
+                w['score'] = r[5]
+                w['credit'] += r[6]
+                w['cnt'] += r[8]
+                
+                daily_cats = json.loads(r[7])
+                for c, v in daily_cats.items():
+                    w['cats'][c] = w['cats'].get(c, 0.0) + v
+                    
+            weekly_records = []
+            for wk, w in weekly_data.items():
+                weekly_records.append((
+                    wk, w['start'], w['end'],
+                    w['income'], w['expense'], w['savings'],
+                    w['nw'], w['score'], w['credit'],
+                    json.dumps(w['cats']), w['cnt'], 1
+                ))
+            conn.executemany("""
+                INSERT OR REPLACE INTO weekly_summaries 
+                (week, start_date, end_date, income, expense, savings, net_worth, financial_score, credit_usage, category_totals, tx_count, summary_version)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, weekly_records)
+            
+            # Aggregate Active Monthly Summaries
+            monthly_data = {}
+            for r in daily_records:
+                month_str = r[0][:7]
+                if month_str not in monthly_data:
+                    monthly_data[month_str] = {
+                        'income': 0.0, 'expense': 0.0, 'savings': 0.0,
+                        'nw': r[4], 'score': r[5], 'credit': 0.0,
+                        'cats': {}, 'cnt': 0
+                    }
+                m = monthly_data[month_str]
+                m['income'] += r[1]
+                m['expense'] += r[2]
+                m['savings'] += r[3]
+                m['nw'] = r[4]
+                m['score'] = r[5]
+                m['credit'] += r[6]
+                m['cnt'] += r[8]
+                
+                daily_cats = json.loads(r[7])
+                for c, v in daily_cats.items():
+                    m['cats'][c] = m['cats'].get(c, 0.0) + v
+                    
+            monthly_records = []
+            for mn, m in monthly_data.items():
+                monthly_records.append((
+                    mn, m['income'], m['expense'], m['savings'],
+                    m['nw'], m['score'], m['credit'],
+                    json.dumps(m['cats']), m['cnt'], 1
+                ))
+            conn.executemany("""
+                INSERT OR REPLACE INTO monthly_summaries 
+                (month, income, expense, savings, net_worth, financial_score, credit_usage, category_totals, tx_count, summary_version)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, monthly_records)
+            
+            # Aggregate Active Yearly Summaries
+            yearly_data = {}
+            for r in daily_records:
+                year_str = r[0][:4]
+                if year_str not in yearly_data:
+                    yearly_data[year_str] = {
+                        'income': 0.0, 'expense': 0.0, 'savings': 0.0,
+                        'nw': r[4], 'score': r[5], 'credit': 0.0,
+                        'cats': {}, 'cnt': 0
+                    }
+                y = yearly_data[year_str]
+                y['income'] += r[1]
+                y['expense'] += r[2]
+                y['savings'] += r[3]
+                y['nw'] = r[4]
+                y['score'] = r[5]
+                y['credit'] += r[6]
+                y['cnt'] += r[8]
+                
+                daily_cats = json.loads(r[7])
+                for c, v in daily_cats.items():
+                    y['cats'][c] = y['cats'].get(c, 0.0) + v
+                    
+            yearly_records = []
+            for yr, y in yearly_data.items():
+                yearly_records.append((
+                    yr, y['income'], y['expense'], y['savings'],
+                    y['nw'], y['score'], y['credit'],
+                    json.dumps(y['cats']), y['cnt'], 1
+                ))
+            conn.executemany("""
+                INSERT OR REPLACE INTO yearly_summaries 
+                (year, income, expense, savings, net_worth, financial_score, credit_usage, category_totals, tx_count, summary_version)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, yearly_records)
+            
+            conn.commit()
+        except Exception as e:
+            print(f"Error during refresh_summaries: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            conn.close()
+            
         # 4. Trigger Checks
         try:
             from services.notification_service import NotificationService
-            from services.health_service import HealthService
             NotificationService.check_all_triggers()
-            HealthService.calculate_current_score()
         except Exception as e:
             print(f"Periodic check failed: {e}")
 
     @staticmethod
     def archive_old_data():
-        """Moves transactions older than 1 year to archive."""
-        conn = get_db_connection()
-        one_year_ago = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
-        
-        conn.execute('''
-            INSERT INTO transaction_archive (id, account_id, amount, type, category, date, notes, created_at)
-            SELECT id, account_id, amount, type, category, date, notes, created_at
-            FROM transactions
-            WHERE date < ? AND deleted_at IS NULL
-        ''', (one_year_ago,))
-        
-        conn.execute("DELETE FROM transactions WHERE date < ? OR deleted_at IS NOT NULL", (one_year_ago,))
-        conn.commit()
-        conn.close()
+        """Retention Strategy: Delegate to HistoricalSummaryEngine."""
+        from services.historical_summary_service import HistoricalSummaryEngine
+        return HistoricalSummaryEngine.archive_older_transactions(12)
 
     @staticmethod
     def get_monthly_trends():
         conn = get_db_connection()
-        rows = conn.execute("SELECT * FROM monthly_summaries ORDER BY month DESC LIMIT 12").fetchall()
+        rows = conn.execute("SELECT month, income as income_total, expense as expense_total, savings, credit_usage, tx_count FROM monthly_summaries ORDER BY month DESC LIMIT 12").fetchall()
         conn.close()
         return [dict(r) for r in reversed(rows)]
 
@@ -103,9 +265,16 @@ class AnalyticsService:
         if not month:
             month = datetime.now().strftime('%Y-%m')
         conn = get_db_connection()
-        rows = conn.execute("SELECT category, total FROM category_summaries WHERE month = ? ORDER BY total DESC", (month,)).fetchall()
+        row = conn.execute("SELECT category_totals FROM monthly_summaries WHERE month = ?", (month,)).fetchone()
         conn.close()
-        return [dict(r) for r in rows]
+        if row and row['category_totals']:
+            try:
+                cats = json.loads(row['category_totals'])
+                res = [{'category': c, 'total': float(t)} for c, t in cats.items()]
+                return sorted(res, key=lambda x: x['total'], reverse=True)
+            except Exception:
+                pass
+        return []
 
     @staticmethod
     def get_quick_stats():
@@ -113,9 +282,9 @@ class AnalyticsService:
         this_month = datetime.now().strftime('%Y-%m')
         last_month = (datetime.now().replace(day=1) - timedelta(days=1)).strftime('%Y-%m')
         
-        # Monthly performance
-        row = conn.execute("SELECT * FROM monthly_summaries WHERE month = ?", (this_month,)).fetchone()
-        prev_row = conn.execute("SELECT * FROM monthly_summaries WHERE month = ?", (last_month,)).fetchone()
+        # Monthly performance (with aliasing for strict backwards compatibility)
+        row = conn.execute("SELECT income as income_total, expense as expense_total, savings, credit_usage, tx_count FROM monthly_summaries WHERE month = ?", (this_month,)).fetchone()
+        prev_row = conn.execute("SELECT income as income_total, expense as expense_total, savings, credit_usage, tx_count FROM monthly_summaries WHERE month = ?", (last_month,)).fetchone()
         
         # Account Balances (Liquid)
         liquid = conn.execute("SELECT SUM(balance) FROM accounts WHERE deleted_at IS NULL").fetchone()[0] or 0
@@ -155,7 +324,7 @@ class AnalyticsService:
         expense_change = ((expense_this - expense_prev) / expense_prev * 100) if expense_prev > 0 else 0
         
         # Chart Data: Trends (6 Months)
-        trend_rows = conn.execute("SELECT month, income_total, expense_total FROM monthly_summaries ORDER BY month DESC LIMIT 6").fetchall()
+        trend_rows = conn.execute("SELECT month, income as income_total, expense as expense_total FROM monthly_summaries ORDER BY month DESC LIMIT 6").fetchall()
         trend_rows = reversed(trend_rows)
         chart_trends = {"labels": [], "income": [], "expense": []}
         for tr in trend_rows:
@@ -164,9 +333,9 @@ class AnalyticsService:
             chart_trends["expense"].append(float(tr['expense_total']))
             
         # Chart Data: Category (This Month)
-        cat_rows = conn.execute("SELECT category, total FROM category_summaries WHERE month = ? ORDER BY total DESC LIMIT 10", (this_month,)).fetchall()
         chart_category = {"labels": [], "data": []}
-        for cr in cat_rows:
+        cats_dist = AnalyticsService.get_category_distribution(this_month)
+        for cr in cats_dist[:10]:
             chart_category["labels"].append(cr['category'])
             chart_category["data"].append(float(cr['total']))
 
@@ -221,20 +390,26 @@ class AnalyticsService:
         this_month = datetime.now().strftime('%Y-%m')
         last_month = (datetime.now().replace(day=1) - timedelta(days=1)).strftime('%Y-%m')
         
-        m1 = conn.execute("SELECT expense_total FROM monthly_summaries WHERE month = ?", (this_month,)).fetchone()
-        m2 = conn.execute("SELECT expense_total FROM monthly_summaries WHERE month = ?", (last_month,)).fetchone()
+        m1 = conn.execute("SELECT expense FROM monthly_summaries WHERE month = ?", (this_month,)).fetchone()
+        m2 = conn.execute("SELECT expense FROM monthly_summaries WHERE month = ?", (last_month,)).fetchone()
         
-        if m1 and m2 and m2[0] > 0:
+        if m1 and m2 and m2[0] and m2[0] > 0:
             change = ((m1[0] - m2[0]) / m2[0]) * 100
             if change > 10: 
                 insights.append({"type": "warning", "icon": "ph-trend-up", "text": f"Spending rose {change:.1f}% vs last month."})
             elif change < -5: 
                 insights.append({"type": "success", "icon": "ph-trend-down", "text": f"Spending down {abs(change):.1f}% vs last month."})
-
+ 
         # 2. Spending Category Spikes
-        spikes = conn.execute("SELECT category, total FROM category_summaries WHERE month = ? AND total > 5000 ORDER BY total DESC LIMIT 2", (this_month,)).fetchall()
-        for s in spikes: 
-            insights.append({"type": "tip", "icon": "ph-lightbulb", "text": f"{s[0]} is a top expense (₹{s[1]:.0f})."})
+        row_month = conn.execute("SELECT category_totals FROM monthly_summaries WHERE month = ?", (this_month,)).fetchone()
+        if row_month and row_month['category_totals']:
+            try:
+                cats = json.loads(row_month['category_totals'])
+                spikes = sorted([(c, float(t)) for c, t in cats.items() if float(t) > 5000], key=lambda x: x[1], reverse=True)[:2]
+                for s in spikes: 
+                    insights.append({"type": "tip", "icon": "ph-lightbulb", "text": f"{s[0]} is a top expense (₹{s[1]:.0f})."})
+            except Exception:
+                pass
 
         # 3. Budget Thresholds
         from services.budget_service import BudgetService

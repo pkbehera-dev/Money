@@ -56,6 +56,14 @@
                     <button type="submit" class="btn-primary" style="background: var(--expense-color); box-shadow: none;">Restore</button>
                 </form>
             </div>
+
+            <div style="margin-top: 24px; background: rgba(239, 68, 68, 0.05); padding: 24px; border-radius: 16px; border: 1px solid rgba(239, 68, 68, 0.25);">
+                <h4 style="color: var(--expense-color); margin-bottom: 12px;">Factory Reset</h4>
+                <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 20px;">This will completely purge all accounts, transactions, credit cards, loans, lent/borrow balances, assets, budgets, goals, and subscriptions, resetting the platform to a pristine state for a new user.</p>
+                <button type="button" onclick="hardResetDatabase()" class="btn-primary" style="background: var(--expense-color); border-color: var(--expense-color); font-weight: 700; width: auto; display: inline-flex; padding: 12px 24px; gap: 8px;">
+                    <i class="ph ph-warning-octagon" style="font-size: 1.2rem;"></i> Clear All Data (Reset)
+                </button>
+            </div>
         </div>
 
         <div class="card">
@@ -144,6 +152,34 @@
                 card.style.opacity = '1';
                 card.style.pointerEvents = 'auto';
             }
+        }
+    }
+
+    async function hardResetDatabase() {
+        const doubleCheck = confirm("⚠️ DANGER: This will permanently DELETE your entire database, purging all transactions, accounts, cards, loans, subscriptions, and goals.\n\nThis action CANNOT BE UNDONE.\n\nAre you absolutely sure you want to perform a factory reset?");
+        if (!doubleCheck) return;
+        
+        const finalConfirm = prompt("To confirm reset, please type 'RESET' below:");
+        if (finalConfirm !== 'RESET') {
+            alert('Reset cancelled. Confirmation input did not match.');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/settings/reset', {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const result = await response.json();
+            if (response.ok && result.status === 'success') {
+                alert('🎉 System restored to factory defaults! All data has been cleared.');
+                window.location.href = '/';
+            } else {
+                alert('Error resetting database: ' + (result.message || 'Unknown error'));
+            }
+        } catch (err) {
+            console.error('Reset failed:', err);
+            alert('Network error. Failed to reach the server.');
         }
     }
 

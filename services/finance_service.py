@@ -75,11 +75,15 @@ class FinanceService:
         borrowed_amount = row_borrowed['total'] if row_borrowed['total'] else 0.0
 
         transactions = conn.execute("""
-            SELECT * FROM transactions 
-            WHERE category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration')
-            AND COALESCE(tags, '') NOT LIKE '%Silent%'
-            AND deleted_at IS NULL
-            ORDER BY date DESC LIMIT 5
+            SELECT t.*, a1.name as account_name, a2.name as to_account_name, c.name as card_name
+            FROM transactions t
+            LEFT JOIN accounts a1 ON t.account_id = a1.id
+            LEFT JOIN accounts a2 ON t.to_account_id = a2.id
+            LEFT JOIN credit_cards c ON t.card_id = c.id
+            WHERE t.category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration')
+            AND COALESCE(t.tags, '') NOT LIKE '%Silent%'
+            AND t.deleted_at IS NULL
+            ORDER BY t.date DESC, t.id DESC LIMIT 5
         """).fetchall()
         # 3. Dynamic Card Reminders
         raw_cards = conn.execute("SELECT * FROM credit_cards WHERE status = 'active'").fetchall()

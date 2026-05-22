@@ -29,7 +29,15 @@
         </div>
         <div class="card">
             <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 8px;">Primary Source</div>
-            <div style="font-size: 1.5rem; font-weight: 700; font-family: 'Outfit';">Bank Account</div>
+            <div style="font-size: 1.5rem; font-weight: 700; font-family: 'Outfit'; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                 title="{% if accounts %}{% set highest_acc = accounts|sort(attribute='balance', reverse=true)|first %}{{ highest_acc.name }}{% else %}No accounts{% endif %}">
+                {% if accounts %}
+                    {% set highest_acc = accounts|sort(attribute='balance', reverse=true)|first %}
+                    {{ highest_acc.name }}
+                {% else %}
+                    None
+                {% endif %}
+            </div>
         </div>
     </div>
 

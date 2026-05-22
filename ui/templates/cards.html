@@ -46,7 +46,7 @@
                     <span style="font-weight: 700; font-size: 1.1rem;">{{ card.name }}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <div class="text-muted" style="font-size: 0.75rem;">Due on {{ card.due_date }}th</div>
+                    <div class="text-muted" style="font-size: 0.75rem;">{{ card.due_date|days_left }}</div>
                     <div class="action-reveal">
                         <button class="dot-menu" onclick="showContextMenu(event, '{{ card.id }}', 'card')">
                             <i class="ph ph-dots-three-vertical"></i>
@@ -63,7 +63,7 @@
                 <div style="height: 6px; background: var(--bg-main); border-radius: 3px; overflow: hidden;">
                     {% set util_pct = ((card.outstanding / card.card_limit * 100) if card.card_limit > 0 else 0) %}
                     {% set bar_class = 'progress-high' if util_pct > 80 else 'progress-normal' %}
-                    <div class="{{ bar_class }}" style="height: 100%; width: {{ util_pct }}%;"></div>
+                    <div class="{{ bar_class }}" style="height: 100%; --w: {{ util_pct }}%; width: var(--w);"></div>
                 </div>
             </div>
 
@@ -78,11 +78,11 @@
                 </div>
             </div>
 
-            <button class="btn-primary" style="width: 100%; justify-content: center; background: rgba(var(--primary-accent-rgb), 0.1); color: var(--primary-accent); border: 1px solid var(--primary-accent); box-shadow: none; margin-bottom: 8px;" onclick='openPayBillDrawer({{ card.id }}, {{ card.name|tojson }}, {{ card.outstanding }})'>
+            <button class="btn-primary" style="width: 100%; justify-content: center; background: rgba(var(--primary-accent-rgb), 0.1); color: var(--primary-accent); border: 1px solid var(--primary-accent); box-shadow: none; margin-bottom: 8px;" data-card-id="{{ card.id }}" data-card-name="{{ card.name }}" data-card-outstanding="{{ card.outstanding }}" onclick="openPayBillDrawer(this)">
                 <i class="ph ph-hand-coins"></i> Pay Bill
             </button>
             
-            <button class="btn-secondary" style="width: 100%; justify-content: center; font-size: 0.8rem; border: none; background: transparent;" onclick='closeCard({{ card.id }}, {{ card.name|tojson }}, {{ card.outstanding }})'>
+            <button class="btn-secondary" style="width: 100%; justify-content: center; font-size: 0.8rem; border: none; background: transparent;" data-card-id="{{ card.id }}" data-card-name="{{ card.name }}" data-card-outstanding="{{ card.outstanding }}" onclick="closeCard(this)">
                 <i class="ph ph-archive"></i> Close Card Account
             </button>
         </div>
@@ -107,7 +107,10 @@
         }
     }
 
-    function closeCard(id, name, outstanding) {
+    function closeCard(btn) {
+        const id = btn.getAttribute('data-card-id');
+        const name = btn.getAttribute('data-card-name');
+        const outstanding = parseFloat(btn.getAttribute('data-card-outstanding'));
         const drawer = document.getElementById('page-drawer');
         const content = document.getElementById('drawer-dynamic-content');
         
@@ -143,7 +146,10 @@
         openDrawer('page-drawer');
     }
 
-    function openPayBillDrawer(id, name, outstanding) {
+    function openPayBillDrawer(btn) {
+        const id = btn.getAttribute('data-card-id');
+        const name = btn.getAttribute('data-card-name');
+        const outstanding = parseFloat(btn.getAttribute('data-card-outstanding'));
         const drawer = document.getElementById('page-drawer');
         const content = document.getElementById('drawer-dynamic-content');
         

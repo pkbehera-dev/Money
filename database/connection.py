@@ -16,3 +16,42 @@ def init_db():
         conn.executescript(f.read())
     conn.commit()
     conn.close()
+
+def reset_db():
+    conn = get_db_connection()
+    tables = [
+        'accounts', 'transactions', 'recurring_transactions', 'credit_cards', 
+        'loans', 'loan_payments', 'people_ledger', 'daily_summaries', 
+        'monthly_summaries', 'category_summaries', 'transaction_archive', 
+        'notifications', 'budgets', 'assets', 'goals', 'subscriptions', 
+        'health_history', 'categories'
+    ]
+    for table in tables:
+        try:
+            conn.execute(f"DELETE FROM {table}")
+            conn.execute(f"DELETE FROM sqlite_sequence WHERE name='{table}'")
+        except sqlite3.OperationalError:
+            pass
+            
+    # Seed clean default categories
+    default_categories = [
+        ('Salary', 'income'),
+        ('Investment', 'income'),
+        ('Gift', 'income'),
+        ('Freelance', 'income'),
+        ('Food', 'expense'),
+        ('Bills', 'expense'),
+        ('Shopping', 'expense'),
+        ('Entertainment', 'expense'),
+        ('Travel', 'expense'),
+        ('Health', 'expense'),
+        ('Education', 'expense'),
+        ('Other', 'expense')
+    ]
+    conn.executemany("INSERT INTO categories (name, type) VALUES (?, ?)", default_categories)
+    conn.commit()
+    conn.close()
+    
+    # Surgical cache refresh
+    from services.analytics_service import AnalyticsService
+    AnalyticsService.refresh_summaries()

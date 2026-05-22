@@ -102,6 +102,23 @@ class AIService:
                 "expenses": float(monthly['exp'] or 0)
             }
             
+            # Enrich with precomputed multi-year comparison stats
+            try:
+                years_rows = conn.execute("SELECT year, income, expense, savings, net_worth, financial_score FROM yearly_summaries ORDER BY year ASC").fetchall()
+                summary['yearly_history'] = [
+                    {
+                        "year": y["year"],
+                        "income": float(y["income"] or 0),
+                        "expense": float(y["expense"] or 0),
+                        "savings": float(y["savings"] or 0),
+                        "net_worth": float(y["net_worth"] or 0),
+                        "score": int(y["financial_score"] or 80)
+                    }
+                    for y in years_rows
+                ]
+            except Exception:
+                pass
+            
         conn.close()
         return summary
 

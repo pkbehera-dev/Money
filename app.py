@@ -58,6 +58,42 @@ app.register_blueprint(budget_bp)
 app.register_blueprint(goal_bp)
 app.register_blueprint(subscription_bp)
 app.register_blueprint(action_bp)
+# Register Template Filters
+def days_left_filter(due_day):
+    if not due_day:
+        return "No due date"
+    try:
+        due_day = int(due_day)
+    except ValueError:
+        return "Invalid date"
+        
+    import datetime
+    import calendar
+    
+    today = datetime.date.today()
+    _, max_days = calendar.monthrange(today.year, today.month)
+    target_day = min(due_day, max_days)
+    
+    due_date = datetime.date(today.year, today.month, target_day)
+    if due_date < today:
+        next_month = today.month + 1
+        year = today.year
+        if next_month > 12:
+            next_month = 1
+            year += 1
+        _, next_max_days = calendar.monthrange(year, next_month)
+        due_date = datetime.date(year, next_month, min(due_day, next_max_days))
+        
+    delta = (due_date - today).days
+    
+    if delta == 0:
+        return "Due today"
+    elif delta == 1:
+        return "Due tomorrow"
+    else:
+        return f"Due in {delta} days"
+
+app.jinja_env.filters['days_left'] = days_left_filter
 
 # Background worker for analytics and archival
 def run_analytics_worker():
@@ -75,7 +111,10 @@ def run_analytics_worker():
             from services.notification_service import NotificationService
             NotificationService.check_all_triggers()
             
-            print(f"Background check completed at {datetime.now()}")
+            # 4. Perform transaction archival of logs older than 12 months
+            AnalyticsService.archive_old_data()
+            
+            print(f"Background check completed at {datetime.datetime.now()}")
             time.sleep(900) # Every 15 minutes
         except Exception as e:
             print(f"Worker Error: {e}")
@@ -85,4 +124,4 @@ worker_thread = Thread(target=run_analytics_worker, daemon=True)
 worker_thread.start()
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, host='::', port=5000)

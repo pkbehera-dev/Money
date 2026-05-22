@@ -35,3 +35,13 @@ def restore_db():
     if file:
         file.save(DB_PATH)
         return "Database restored successfully. Please restart the app.", 200
+
+@settings_bp.route('/settings/reset', methods=['POST'])
+def reset_database():
+    from flask import jsonify
+    from database.connection import reset_db
+    try:
+        reset_db()
+        return jsonify({"status": "success", "message": "Database reset successfully."})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
