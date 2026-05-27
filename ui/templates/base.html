@@ -202,6 +202,8 @@
                     <ul class="nav-items">
                         <li class="nav-item"><a href="{{ url_for('settings.settings_page') }}" class="nav-link"><i
                                     class="ph ph-gear"></i> <span>Settings</span></a></li>
+                        <li class="nav-item"><a href="{{ url_for('settings.updates_page') }}" class="nav-link"><i
+                                    class="ph ph-cloud-arrow-down"></i> <span>Updates</span></a></li>
                         <li class="nav-item"><a href="{{ url_for('action.trash_page') }}" class="nav-link"><i
                                     class="ph ph-trash"></i> <span>Trash Bin</span></a></li>
                     </ul>
@@ -280,10 +282,9 @@
                             </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
-                            <div style="text-align: right; line-height: 1;">
-                                <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary);">PRADYUMNA
-                                    BEHERA</div>
-                                <div style="font-size: 0.75rem; color: var(--success-color);">Pro Member</div>
+                            <div style="text-align: right; line-height: 1.2;">
+                                <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary);">{{ system_config.user_name }}</div>
+                                <div style="font-size: 0.7rem; color: var(--success-color); font-weight: 600;">{{ license_days_left }}</div>
                             </div>
                             <div
                                 style="width: 40px; height: 40px; border-radius: 12px; background: var(--bg-main); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; color: var(--primary-accent); font-size: 1.5rem;">
@@ -502,10 +503,17 @@
                         const linkUrl = new URL(link.href, window.location.origin);
                         const linkPath = linkUrl.pathname.replace(/\/$/, '') || '/';
                         
-                        // Exact match or sub-path match (excluding root)
-                        const isExact = (linkPath === current);
-                        const isParent = (linkPath !== '/' && current.startsWith(linkPath + '/'));
-                        const isActive = isExact || isParent;
+                        let isActive = false;
+                        if (linkPath === current) {
+                            isActive = true;
+                        } else if (linkPath !== '/' && current.startsWith(linkPath + '/')) {
+                            // Ensure settings doesn't match /settings/updates if updates itself has a distinct sidebar item
+                            if (linkPath === '/settings' && current === '/settings/updates') {
+                                isActive = false;
+                            } else {
+                                isActive = true;
+                            }
+                        }
                         
                         link.classList.toggle('active', isActive);
                         if (isActive) activeLink = link;
@@ -533,8 +541,23 @@
                 const path = url.split('?')[0].replace(/\/$/, '') || '/';
                 
                 try {
-                    // Always update UI when navigating manually
-                    await this.fetchAndCache(url, path, true, updateHistory, preserveScroll);
+                    // Try to load instantly from cache
+                    const cachedHtml = this.pageCache.get(path);
+                    if (cachedHtml) {
+                        const contentArea = document.querySelector('.content');
+                        if (contentArea) {
+                            contentArea.innerHTML = cachedHtml;
+                            contentArea.scrollTop = 0;
+                            setTimeout(() => this.initPageScripts(), 0);
+                            UIState.setPage(url);
+                            if (updateHistory) {
+                                history.pushState({ url }, '', url);
+                            }
+                        }
+                    }
+                    
+                    // Fetch fresh copy in the background (or foreground if not cached)
+                    await this.fetchAndCache(url, path, !cachedHtml, updateHistory, preserveScroll);
                 } finally {
                     this.isNavigating = false;
                 }
@@ -581,6 +604,7 @@
                         }
                     }
                     
+                    // Always cache the latest server rendering
                     this.pageCache.set(path, newMain.innerHTML);
                 } catch (err) {
                     console.error('Navigation failed:', err);

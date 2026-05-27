@@ -7,7 +7,7 @@
     <!-- Header Section -->
     <div style="margin-bottom: 40px; display: flex; justify-content: space-between; align-items: flex-end;">
         <div>
-            <h1 style="font-family: 'Outfit'; font-size: 2.5rem; margin-bottom: 8px;">Welcome back, Bapun!</h1>
+            <h1 style="font-family: 'Outfit'; font-size: 2.5rem; margin-bottom: 8px;">Welcome back, {{ system_config.user_nickname }}!</h1>
             <p class="text-muted">Your financial overview for <span
                     style="color: var(--text-primary); font-weight: 600;">{{ now.strftime('%B %Y') if now else 'This
                     Month' }}</span></p>

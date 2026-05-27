@@ -381,3 +381,15 @@ BEGIN
     WHERE id = OLD.loan_id;
 END;
 
+-- System Configuration Table
+CREATE TABLE IF NOT EXISTS system_config (
+    config_key TEXT PRIMARY KEY,
+    config_value TEXT
+);
+
+-- Seed default user name and nickname
+INSERT OR IGNORE INTO system_config (config_key, config_value) VALUES 
+('user_name', 'PRADYUMNA BEHERA'),
+('user_nickname', 'Bapun');
+
+

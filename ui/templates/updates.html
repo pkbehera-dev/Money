@@ -1,0 +1,210 @@
+{% extends "base.html" if not partial|default(false) else "blank.html" %}
+
+{% block title %}System Updates{% endblock %}
+
+{% block content %}
+<div class="animate-in" style="max-width: 800px; margin: 0 auto; padding-bottom: 50px;">
+    <h1 style="font-family: 'Outfit'; font-size: 2rem; margin-bottom: 8px;">System & Updates</h1>
+    <p class="text-muted" style="margin-bottom: 32px;">Manage software updates, active licenses, and developer details.</p>
+
+    <!-- App Details Card -->
+    <div class="card" style="margin-bottom: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+        <div>
+            <h3 style="font-family: 'Outfit'; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; color: var(--primary-accent);">
+                <i class="ph ph-info" style="font-size: 1.4rem;"></i>
+                Application Info
+            </h3>
+            
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                    <span class="text-muted">App Name</span>
+                    <strong style="color: var(--text-primary);">Finance Pro</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                    <span class="text-muted">App Version</span>
+                    <span style="background: var(--bg-main); padding: 2px 10px; border-radius: 20px; font-weight: 600; font-size: 0.85rem; border: 1px solid var(--border-color); color: var(--primary-accent);">v{{ app_version }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                    <span class="text-muted">Start Date (First Record)</span>
+                    <strong style="color: var(--text-primary);">{{ start_date }}</strong>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <h3 style="font-family: 'Outfit'; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; color: var(--success-color);">
+                <i class="ph ph-shield-check" style="font-size: 1.4rem;"></i>
+                Activation License
+            </h3>
+            
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                    <span class="text-muted">License Type</span>
+                    <strong style="color: var(--text-primary);">{{ license_type }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                    <span class="text-muted">License Expiry</span>
+                    <strong style="color: var(--text-primary);">{{ expiry_date }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                    <span class="text-muted">Device HWID</span>
+                    <code style="font-family: 'Consolas', monospace; font-size: 0.8rem; background: var(--bg-main); padding: 2px 8px; border-radius: 6px;">Active Lock</code>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Software Update Checking Card -->
+    <div class="card" style="margin-bottom: 32px; padding: 30px;">
+        <h3 style="font-family: 'Outfit'; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+            <i class="ph ph-cloud-arrow-down" style="font-size: 1.4rem; color: var(--primary-accent);"></i>
+            Software Updates
+        </h3>
+        <p class="text-muted" style="margin-bottom: 24px;">Check for software releases or auto-update details online.</p>
+
+        <div style="background: var(--bg-main); border: 1px solid var(--border-color); padding: 20px 24px; border-radius: 16px; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <div id="update-status-title" style="font-weight: 700; font-size: 1.05rem; margin-bottom: 4px; color: var(--text-primary);">Check for Updates</div>
+                <div id="update-status-desc" class="text-muted" style="font-size: 0.85rem;">Click the button on the right to look for new updates.</div>
+            </div>
+            
+            <button id="check-update-btn" onclick="checkForUpdates()" class="btn-primary" style="padding: 12px 24px; white-space: nowrap; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
+                <i class="ph ph-arrows-clockwise" id="check-icon"></i> Check Now
+            </button>
+        </div>
+
+        <!-- Update Available Box (Hidden by default) -->
+        <div id="update-available-box" style="display: none; margin-top: 20px; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 16px; padding: 20px 24px; align-items: center; justify-content: space-between;">
+            <div style="flex: 1;">
+                <div style="color: var(--success-color); font-weight: 700; font-size: 1.1rem; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                    <i class="ph-fill ph-arrow-circle-up"></i> New Release Available!
+                </div>
+                <div class="text-muted" style="font-size: 0.9rem;">
+                    A new version <strong id="new-version-str" style="color: var(--text-primary);">v1.0.0</strong> is ready. You can install the update automatically.
+                </div>
+            </div>
+            <button id="install-update-btn" onclick="startInstallUpdate()" class="btn-primary" style="background: var(--success-color); border-color: var(--success-color); font-weight: 700; padding: 12px 24px; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
+                <i class="ph ph-download-simple" id="install-icon"></i> Install Now
+            </button>
+        </div>
+    </div>
+
+    <!-- Developer Footer Details -->
+    <div style="text-align: center; margin-top: 50px; padding-top: 30px; border-top: 1px solid var(--border-color);">
+        <div style="font-size: 1.5rem; font-weight: 800; font-family: 'Outfit'; color: var(--text-primary); margin-bottom: 4px;">Finance Pro</div>
+        <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 16px;">Secure, Personal, and Autonomous Wealth Manager</p>
+        
+        <div style="display: inline-flex; align-items: center; gap: 20px; background: var(--card-bg); padding: 12px 24px; border-radius: 30px; border: 1px solid var(--border-color);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="ph-fill ph-user-circle" style="color: var(--primary-accent); font-size: 1.2rem;"></i>
+                <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">Pradyumna Behera (Bapun)</span>
+            </div>
+            <div style="width: 1px; height: 14px; background: var(--border-color);"></div>
+            <a href="https://github.com/pkbehera-dev" target="_blank" style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 600; color: var(--primary-accent); text-decoration: none;">
+                <i class="ph-bold ph-github-logo"></i> GitHub Profile
+            </a>
+        </div>
+        <div style="margin-top: 16px; font-size: 0.75rem; color: var(--text-secondary);">
+            &copy; 2026 Finance Pro. Made with Passion & Precision.
+        </div>
+    </div>
+</div>
+
+<script>
+    let activeDownloadUrl = null;
+
+    async function checkForUpdates() {
+        const btn = document.getElementById('check-update-btn');
+        const icon = document.getElementById('check-icon');
+        const title = document.getElementById('update-status-title');
+        const desc = document.getElementById('update-status-desc');
+        const updateBox = document.getElementById('update-available-box');
+        
+        // Start animation
+        btn.disabled = true;
+        icon.classList.add('ph-spin');
+        title.innerText = "Checking...";
+        desc.innerText = "Querying release servers for updates...";
+        updateBox.style.display = 'none';
+        
+        try {
+            const response = await fetch('{{ url_for("settings.run_update_check") }}', {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            
+            const result = await response.json();
+            
+            // Stop animation
+            btn.disabled = false;
+            icon.classList.remove('ph-spin');
+            
+            if (response.ok && result.success) {
+                if (result.update_available) {
+                    title.innerText = "Updates Available!";
+                    desc.innerText = `Online Version: v${result.online_version} | Installed Version: v${result.current_version}`;
+                    
+                    document.getElementById('new-version-str').innerText = `v${result.online_version}`;
+                    activeDownloadUrl = result.download_url;
+                    
+                    updateBox.style.display = 'flex';
+                } else {
+                    title.innerText = "System Up to Date";
+                    desc.innerText = `You are running the latest version of Finance Pro (v${result.current_version}).`;
+                }
+            } else {
+                title.innerText = "Check Failed";
+                desc.innerText = result.message || "Failed to reach release database.";
+            }
+        } catch (err) {
+            btn.disabled = false;
+            icon.classList.remove('ph-spin');
+            title.innerText = "Connection Failed";
+            desc.innerText = "Network timeout. Make sure you are connected to the internet.";
+            console.error('Update check failed:', err);
+        }
+    }
+
+    async function startInstallUpdate() {
+        if (!activeDownloadUrl) return;
+        
+        const installBtn = document.getElementById('install-update-btn');
+        const installIcon = document.getElementById('install-icon');
+        
+        if (!confirm("Are you sure you want to download and install this update now? The application will restart automatically.")) {
+            return;
+        }
+
+        installBtn.disabled = true;
+        installIcon.classList.add('ph-spin');
+        installBtn.style.opacity = '0.7';
+        
+        try {
+            const response = await fetch('{{ url_for("settings.install_update") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ download_url: activeDownloadUrl })
+            });
+            
+            const result = await response.json();
+            if (response.ok && result.success) {
+                alert("Download initiated! A progress bar dialog will appear and the app will restart momentarily.");
+            } else {
+                installBtn.disabled = false;
+                installIcon.classList.remove('ph-spin');
+                installBtn.style.opacity = '1';
+                alert("Failed to start update installation: " + (result.message || "Unknown error"));
+            }
+        } catch (err) {
+            installBtn.disabled = false;
+            installIcon.classList.remove('ph-spin');
+            installBtn.style.opacity = '1';
+            console.error("Installation request failed:", err);
+            alert("Network error. Failed to initiate update installation.");
+        }
+    }
+</script>
+{% endblock %}

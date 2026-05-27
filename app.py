@@ -16,6 +16,22 @@ is_werkzeug_parent = (os.environ.get('WERKZEUG_RUN_MAIN') is None) and (__name__
 
 if not is_werkzeug_parent:
     init_db()
+    
+    # Load Gemini API key from DB (for .exe users who configured it via Settings UI)
+    try:
+        from database.connection import get_db_connection
+        _conn = get_db_connection()
+        _row = _conn.execute("SELECT config_value FROM system_config WHERE config_key = 'gemini_api_key'").fetchone()
+        if _row and _row['config_value']:
+            db_key = _row['config_value']
+            env_key = os.environ.get('GEMINI_API_KEY', '')
+            # DB key takes priority, or use it if env is empty/placeholder
+            if not env_key or 'YOUR_GEMINI_API_KEY' in env_key:
+                os.environ['GEMINI_API_KEY'] = db_key
+        _conn.close()
+    except Exception:
+        pass
+    
     try:
         RecurringService.process_due_transactions()
         print("Recurring transactions processed.")
@@ -98,6 +114,54 @@ def days_left_filter(due_day):
         return f"Due in {delta} days"
 
 app.jinja_env.filters['days_left'] = days_left_filter
+
+# Context Processor for base template header config and license info
+@app.context_processor
+def inject_system_config():
+    from database.connection import get_db_connection
+    import json
+    
+    # 1. Fetch system configs from DB
+    configs = {'user_name': 'PRADYUMNA BEHERA', 'user_nickname': 'Bapun'}
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        rows = cursor.execute("SELECT config_key, config_value FROM system_config").fetchall()
+        for r in rows:
+            configs[r['config_key']] = r['config_value']
+        conn.close()
+    except Exception:
+        pass
+        
+    # 2. Get license days left
+    days_left_str = "Pro Member"
+    try:
+        from run_app import get_saved_license, check_license_online
+        key = get_saved_license()
+        if key:
+            res = check_license_online(key)
+            if res.get('success') and res.get('expires_at'):
+                from datetime import datetime
+                expires_str = res.get('expires_at')
+                try:
+                    expires_dt = datetime.strptime(expires_str.split(' ')[0], "%Y-%m-%d")
+                    delta = (expires_dt.date() - datetime.now().date()).days
+                    if delta > 0:
+                        days_left_str = f"{delta} days left"
+                    else:
+                        days_left_str = "License Expired"
+                except Exception:
+                    days_left_str = "Lifetime Member"
+            elif res.get('success'):
+                days_left_str = "Lifetime Member"
+    except Exception:
+        pass
+
+    return {
+        'system_config': configs,
+        'license_days_left': days_left_str
+    }
+
 
 # Background worker for analytics and archival
 def run_analytics_worker():

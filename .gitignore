@@ -19,8 +19,16 @@ Thumbs.db
 .vscode/
 .idea/
 
+# PyInstaller / Build outputs
+build/
+dist/
+updater.bat
+run_app.py
+run_app.spec
+
 # App Specific
 scratch/
 .gemini/
 static/uploads/*
 !static/uploads/.gitkeep
+

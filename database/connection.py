@@ -1,8 +1,15 @@
 import sqlite3
 import os
+import sys
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'finance.db')
+if getattr(sys, 'frozen', False):
+    # Save database in the same directory as the runnable .exe
+    DB_PATH = os.path.join(os.path.dirname(sys.executable), 'finance.db')
+else:
+    DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'finance.db')
+
 SCHEMA_PATH = os.path.join(os.path.dirname(__file__), 'schema.sql')
+
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH, timeout=30.0)
@@ -17,8 +24,35 @@ def init_db():
     conn = get_db_connection()
     with open(SCHEMA_PATH, 'r') as f:
         conn.executescript(f.read())
+    
+    # Ensure system_config is created and seeded for old databases too
+    conn.execute("CREATE TABLE IF NOT EXISTS system_config (config_key TEXT PRIMARY KEY, config_value TEXT)")
+    conn.execute("INSERT OR IGNORE INTO system_config (config_key, config_value) VALUES ('user_name', 'PRADYUMNA BEHERA'), ('user_nickname', 'Bapun')")
+    
+    # Seed default categories if they do not exist
+    default_categories = [
+        ('Salary', 'income', 'ph-bold ph-wallet', '#10b981'),
+        ('Investment', 'income', 'ph-bold ph-chart-line-up', '#3b82f6'),
+        ('Gift', 'income', 'ph-bold ph-gift', '#ec4899'),
+        ('Freelance', 'income', 'ph-bold ph-laptop', '#8b5cf6'),
+        ('Food', 'expense', 'ph-bold ph-fork-knife', '#f59e0b'),
+        ('Bills', 'expense', 'ph-bold ph-receipt', '#ef4444'),
+        ('Shopping', 'expense', 'ph-bold ph-shopping-bag', '#ec4899'),
+        ('Entertainment', 'expense', 'ph-bold ph-popcorn', '#8b5cf6'),
+        ('Travel', 'expense', 'ph-bold ph-airplane', '#06b6d4'),
+        ('Health', 'expense', 'ph-bold ph-first-aid', '#10b981'),
+        ('Education', 'expense', 'ph-bold ph-graduation-cap', '#6366f1'),
+        ('Other', 'expense', 'ph-bold ph-dots-three-circle', '#6b7280')
+    ]
+    for name, cat_type, icon, color in default_categories:
+        conn.execute(
+            "INSERT OR IGNORE INTO categories (name, type, icon, color) VALUES (?, ?, ?, ?)",
+            (name, cat_type, icon, color)
+        )
+        
     conn.commit()
     conn.close()
+
 
 def reset_db():
     conn = get_db_connection()
