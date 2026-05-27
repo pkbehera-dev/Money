@@ -43,7 +43,8 @@ Copyright © 2024-2026 Pradyumna Behera (Bapun). All Rights Reserved.
 ## 📖 What Is This?
 
 Money Manager is a **full-featured personal finance app** that runs locally on your computer.
-No cloud. No subscriptions. No ads. Just you and your money data — **100% private**.
+It is local-first, subscription-free, and has no ads. Your data is stored locally, but if you choose to use the advanced Gemini AI assistant, it will use cloud-based Gemini APIs to process financial questions.
+
 
 It helps you:
 - **Track your income and expenses** across multiple bank accounts
@@ -190,45 +191,17 @@ Or on Windows, just double-click **`run.bat`**.
 
 Open your browser and go to: **http://127.0.0.1:5000**
 
----
-
 ## 🔒 Privacy & Security
 
 | Feature | Detail |
 |---|---|
-| **Where is my data?** | Stored locally in `finance.db` on your computer. Nowhere else. |
-| **Does it need internet?** | Only for AI features (Gemini). Everything else works offline. |
-| **Is my data shared?** | Never. Your financial data stays on your machine. |
-| **Can others see my data?** | Not unless they access your computer. |
+| **Where is my data?** | Stored locally in `finance.db` on your computer. |
+| **Does it need internet?** | Yes, if using the Gemini AI feature. It runs offline if using local Ollama or with AI disabled. |
+| **Is my data shared?** | When you ask questions using Gemini, compressed transactional context summaries are sent to Google Gemini APIs. No direct personal identity details are sent. If using local Ollama, queries remain 100% local. |
+| **Can others see my data?** | Not unless they access your computer or intercept Gemini API calls. |
 
 ---
 
-## 🧠 Personal Tips for Bapun
-
-> [!TIP]
-> These are personal reminders to help you manage your finances better.
-
-1. **Pay off small debts first** — Clear the ₹400 bus ticket debt to Sana Mausi first. Small wins build momentum.
-
-2. **Track every single expense** — Even ₹10 tea money. The app makes it easy, so use it daily.
-
-3. **Set a monthly budget and stick to it** — Your expenses are exceeding your income. Use the Budget feature to set hard limits.
-
-4. **Build an emergency fund** — Try to save at least ₹5,000 as a safety net before any big purchases.
-
-5. **Don't borrow for wants** — Only borrow money for genuine needs (education, health). Not for gadgets or entertainment.
-
-6. **Check the dashboard every morning** — It takes 10 seconds. Know where you stand before you spend.
-
-7. **Use the AI assistant** — Ask it "Should I buy X?" before making any purchase over ₹500. It will give you honest advice based on your real data.
-
-8. **Back up your database weekly** — Go to Settings → Backup. One click. It could save you from data loss.
-
-9. **Record payments immediately** — When you pay back a loan or receive money, log it right away. Don't rely on memory.
-
-10. **Celebrate small wins** — When you hit a savings goal, take a moment to feel proud. You earned it. 🎉
-
----
 
 ## 🛠️ Tech Stack
 
