@@ -1,171 +1,284 @@
-# 🏦 Finance Pro | Intelligent Enterprise Wealth Engine
+# 💰 Money Manager — Personal Finance Tracker
 
-[![Python Version](https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python)](https://python.org)
-[![Flask Framework](https://img.shields.io/badge/Flask-3.0%2B-lightgrey?style=for-the-badge&logo=flask)](https://flask.palletsprojects.com/)
-[![SQLite Engine](https://img.shields.io/badge/SQLite-WAL%20Mode-003B57?style=for-the-badge&logo=sqlite)](https://sqlite.org)
-[![Gemini Enabled](https://img.shields.io/badge/AI-Gemini%20Flash-orange?style=for-the-badge&logo=google-gemini)](https://deepmind.google/technologies/gemini/)
+> **Built with love by Pradyumna Behera (Bapun)**
+> A smart, offline-first money manager that runs right on your computer.
 
-**Finance Pro** is a high-precision, state-of-the-art wealth management platform and proactive analytical engine. Architected for strict double-entry ledger parity, it dynamically handles complex multi-account interactions, credit card debts, amortized loans, and recurring subscriptions. Equipped with a Gemini-powered AI reasoning layer and an automated background synchronization engine, Finance Pro delivers real-time notifications, budget breaches, and custom predictive insights inside a stunning dark-mode SPA interface.
-
----
-
-## 👨‍💻 Author & Lead Architect
-**PRADYUMNA BEHERA (BAPUN)**  
-*Lead Software Architect & Developer*
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![Flask](https://img.shields.io/badge/Flask-3.0+-000000?style=for-the-badge&logo=flask)](https://flask.palletsprojects.com/)
+[![SQLite](https://img.shields.io/badge/SQLite-WAL_Mode-003B57?style=for-the-badge&logo=sqlite)](https://sqlite.org)
+[![AI](https://img.shields.io/badge/AI-Gemini_+_Ollama-FF6F00?style=for-the-badge&logo=google-gemini)](https://deepmind.google/technologies/gemini/)
 
 ---
 
-## 📐 System Architecture
+## 🚫 LICENSE & COPYRIGHT — PLEASE READ FIRST
 
-```mermaid
-graph TD
-    %% Client Tier
-    subgraph Client ["Client Layer (SPA UI)"]
-        UI["Modern Vanilla CSS & SPA Router"]
-        Poller["Notification Poller (60s loop)"]
-    end
-
-    %% Web Server Tier
-    subgraph Server ["Server Layer (Flask Application)"]
-        Routes["Blueprint Controllers"]
-        Services["Domain Services (Analytics, Goals, Subscriptions)"]
-    end
-
-    %% Database Tier
-    subgraph DB ["Data Tier (SQLite WAL Mode)"]
-        Tables["Core Tables (accounts, transactions, cards, loans)"]
-        Summaries["Summary Cache (daily_summaries, monthly_summaries)"]
-    end
-
-    %% Background Daemon
-    subgraph Daemon ["Background Workers"]
-        Worker["Daemon Sync Thread (15m loop)"]
-    end
-
-    %% AI Integration
-    subgraph AI ["AI Services"]
-        Gemini["Google Gemini API (1.5 Flash)"]
-    end
-
-    %% Connections
-    UI -->|AJAX / SPA Navigation| Routes
-    Poller -->|AJAX Polling| Routes
-    Routes --> Services
-    Services --> Tables
-    Services --> Summaries
-    Worker -->|1. Recalculates| Summaries
-    Worker -->|2. Snapshots| Tables
-    Worker -->|3. Triggers Alerts| Tables
-    Services -->|Context Summaries| Gemini
+```
+Copyright © 2024-2026 Pradyumna Behera (Bapun). All Rights Reserved.
 ```
 
----
+> [!CAUTION]
+> **This project is NOT open source for commercial use.**
+> Read the rules below carefully before using, copying, or sharing this code.
 
-## 💎 State-of-the-Art Features
+### ✅ What You CAN Do
+- Use this app **for yourself, on your own computer** (personal use).
+- Learn from the code and study how it works.
+- Modify it for your own personal needs.
 
-### 1. Unified Poly-Account & Dynamic Ledger Routing
-*   **Semantic Identifiers (`A`/`C`)**: The universal transaction system separates standard liquid accounts (`A`) and credit card liabilities (`C`) directly within a unified selection dropdown.
-*   **Directional Transaction Processing**:
-    *   **Card-based Purchases**: Accrues balance dynamically directly against `card_id` without bloating regular bank account outlays.
-    *   **Directional Transfers (Bill Payments)**: Deducts cash from liquid assets (`account_id`) and credits outstanding liability limits (`card_id`), maintaining exact ledger integrity.
-    *   **Cash Withdrawals**: Seamlessly tracks transfers out of liability limits into liquid banks.
-*   **Silent Transaction Flags**: Dedicated migration/EMI paths are tagged as `Silent` to establish debt entries without cluttering the monthly transactional feed.
+### ❌ What You CANNOT Do
+- **Sell this app** or any part of it.
+- **Use it in a business, company, or startup** to make money.
+- **Publish it as your own project** (on GitHub, a portfolio, a resume, etc.).
+- **Host it online as a service** for other people to use.
+- **Remove the author's name** from the code or the app.
+- **Redistribute or reshare** the code without written permission.
 
-### 2. Proactive Alert & Automation Engine
-*   **Multi-Daemon Worker Thread**: A background execution thread processes analytics, captures daily net-worth histories, and checks budget milestones every 15 minutes.
-*   **Real-time Push-Like Notifications**: The frontend polls the notifications API every 60 seconds, updating the unread badge and triggering warning alerts instantly.
-*   **Proactive Insights**:
-    *   **Budget Breach Audits**: Triggers multi-level warning thresholds (50%, 70%, 90%, 100%).
-    *   **Subscription Renewal Trackers**: Pre-calculates dues and alerts the user ahead of billing.
-    *   **Goal Velocity Metrics**: Automatically evaluates target date requirements.
-
-### 3. AI Reasoning Engine (Gemini-Powered)
-*   **Token-Shield Architecture**: Optimizes API payload sizes using compressed local JSON summaries, minimizing latency and token costs.
-*   **Hybrid Query Resolution**: Executes local SQL scripts for direct numerical stats, fallback to Gemini 1.5 Flash for holistic wealth advisory.
-*   **Double-Key Cache Guard**: Prevents API duplicate-polling for identical financial contexts.
-
-### 4. Premium Responsive SPA Interface
-*   **Zero White-Flash Reloads**: Full SPA client routing with visual transitions and cached pages.
-*   **Infinite Drawer Accessibility**: Side drawers support fully custom scrollbars matching the sidebar, making long, comprehensive forms fully accessible.
-*   **No Autofill Glitches**: Customized, hardware-accelerated CSS properties ensure inputs don't flicker or overlay white backgrounds on standard browser autofills.
+### ⚖️ In Simple Words
+> This is my personal project. You can look at it, learn from it, and run it on your own machine.
+> But you **cannot pretend you made it**, and you **cannot use it to earn money**.
+> If you want to use it in any other way, **ask me first**.
 
 ---
 
-## 🛠️ Project Structure
+## 📖 What Is This?
 
-```text
+Money Manager is a **full-featured personal finance app** that runs locally on your computer.
+No cloud. No subscriptions. No ads. Just you and your money data — **100% private**.
+
+It helps you:
+- **Track your income and expenses** across multiple bank accounts
+- **Manage credit cards** and see how much you owe
+- **Set savings goals** and watch your progress
+- **Create monthly budgets** and get alerts when you overspend
+- **Track loans and debts** — who you owe, who owes you
+- **Get AI-powered advice** about your finances (using Gemini or local Ollama)
+- **View reports and charts** to understand where your money goes
+- **Manage subscriptions** so you never forget a recurring payment
+
+---
+
+## ✨ Key Features
+
+### 🏦 Multi-Account Support
+Manage multiple bank accounts and credit cards in one place. Every transaction is linked to a specific account or card, so your balances are always accurate.
+
+### 💳 Credit Card Tracking
+Track credit card spending, payments, and available limits. Bill payments automatically deduct from your bank account and reduce your card balance.
+
+### 📊 Dashboard & Reports
+A beautiful dark-mode dashboard shows your total balance, monthly spending, income trends, and financial health score — all at a glance. Detailed reports break down spending by category and time period.
+
+### 🎯 Savings Goals
+Set goals like "New Laptop" or "Emergency Fund" with a target amount and date. The app tracks your progress and tells you if you're on track.
+
+### 💵 Budget Management
+Create monthly budgets for categories like Food, Transport, or Entertainment. Get automatic alerts at 50%, 70%, 90%, and 100% of your budget.
+
+### 🤝 Interpersonal Ledger (Debts & Loans)
+Track who you borrowed money from and who you lent money to. Record partial payments and see settlement progress in real time.
+
+### 🤖 AI Financial Assistant
+Ask questions about your finances in plain language:
+- *"Can I afford a new phone?"*
+- *"How much did I spend on food this month?"*
+- *"What is my total debt?"*
+
+The AI uses **Gemini** (Google's AI) for complex advice and **Ollama** (local AI) for quick data lookups — saving you API costs.
+
+### 🔔 Smart Notifications
+Background workers check your finances every 15 minutes and alert you about:
+- Budget overruns
+- Upcoming subscription renewals
+- Goal milestones
+- Unusual spending patterns
+
+### 🗑️ Trash & Recovery
+Accidentally deleted something? Everything goes to the trash first. You can restore it anytime before permanently deleting.
+
+### 💾 Backup & Restore
+Create safe backups of your entire database with one click. Restore from any previous backup if something goes wrong. Uses SQLite's native backup API for safety.
+
+### 📱 Asset Tracking
+Track your physical assets (phone, laptop, bike, etc.) along with purchase date and current value.
+
+### 🔍 Universal Search
+Search across transactions, accounts, and more — all from one search bar.
+
+---
+
+## 🏗️ How It's Built
+
+```
+Money/
+├── app.py                  ← Main server file (starts everything)
 ├── database/
-│   ├── connection.py        # WAL-enabled SQLite thread connection pooling
-│   └── schema.sql           # Complete relational schema (Accounts, Cards, Loans, KPI Caches)
-├── models/
-│   ├── account.py           # Dataclass maps for Financial Entities
-│   └── transaction.py       # Dataclass maps with AI serialization formatters
-├── routes/
-│   ├── dashboard_routes.py  # Dashboard KPI compiler
-│   ├── transaction_routes.py# Polymorphic ledger endpoints
-│   └── ai_routes.py         # AI Assistant interfaces
-├── services/
-│   ├── analytics_service.py # Core KPI aggregation & anomaly detection
-│   ├── net_worth_service.py # Dual-entry asset-liability calculus
-│   ├── credit_card_service.py # Dynamic credit utilization calculator
-│   └── health_service.py    # Algorithmic wealth-health scoring
+│   ├── connection.py       ← Database connection (SQLite with WAL mode)
+│   └── schema.sql          ← All database tables
+├── models/                 ← Data models (Account, Transaction, etc.)
+├── routes/                 ← URL handlers (what happens when you click things)
+│   ├── dashboard_routes.py
+│   ├── transaction_routes.py
+│   ├── ai_routes.py
+│   ├── goal_routes.py
+│   ├── settings_routes.py
+│   └── ... (17 route files)
+├── services/               ← Business logic (calculations, AI, analytics)
+│   ├── ai_service.py       ← AI query routing (Gemini + Ollama)
+│   ├── analytics_service.py
+│   ├── budget_service.py
+│   ├── transaction_service.py
+│   └── ... (26 service files)
 ├── ui/
 │   ├── static/
-│   │   ├── css/
-│   │   │   ├── style.css    # Premium CSS Variables & Glassmorphic rules
-│   │   │   └── themes.css   # Dynamic Light/Dark variables
-│   │   └── js/
-│   └── templates/
-│       ├── base.html        # Shell containing global drawers, notifications, and poller
-│       └── dashboard.html   # Main analytical dashboard view
-├── .env.example             # Configuration templates
-├── app.py                   # Server initialization, Blueprint registration, background workers
-└── requirements.txt         # Package requirements list
+│   │   ├── css/            ← Stylesheets (dark theme, glassmorphism)
+│   │   └── js/             ← Client-side JavaScript
+│   └── templates/          ← HTML pages (16 pages)
+│       ├── base.html       ← Main layout (sidebar, notifications)
+│       ├── dashboard.html
+│       ├── transactions.html
+│       └── ...
+├── utils/                  ← Helper functions
+├── requirements.txt        ← Python packages needed
+├── run.bat                 ← Quick start script for Windows
+└── .env                    ← Your secret keys (not shared)
 ```
 
 ---
 
-## 🚀 Installation & Local Environment Setup
+## 🚀 How to Set Up
 
-### 1. Prerequisites
-*   **Python**: Version 3.10 or higher.
-*   **OS**: Compatible with Windows, macOS, and Linux.
+### Step 1 — Install Python
+Make sure you have **Python 3.10 or newer** installed.
+Download it from [python.org](https://www.python.org/downloads/) if you don't have it.
 
-### 2. Standard Installation
+### Step 2 — Download This Project
 ```bash
-# Clone this high-performance ledger engine
-git clone https://github.com/yourusername/finance-pro.git
-cd finance-pro
+git clone https://github.com/pkbehera-dev/Money.git
+cd Money
+```
 
-# Spin up a localized virtual environment
+### Step 3 — Create a Virtual Environment
+```bash
 python -m venv venv
-source venv/bin/activate  # On Windows, run: venv\Scripts\activate
 
-# Install essential dependencies
+# On Windows:
+venv\Scripts\activate
+
+# On Mac/Linux:
+source venv/bin/activate
+```
+
+### Step 4 — Install Required Packages
+```bash
 pip install -r requirements.txt
 ```
 
-### 3. Environment Setup
-Configure your configuration file by copying the template:
-```bash
-cp .env.example .env
-```
-Populate your `.env`:
+### Step 5 — Set Up Your Environment File
+Create a `.env` file in the project folder:
 ```env
 FLASK_APP=app.py
 FLASK_ENV=development
-GEMINI_API_KEY=your_google_gemini_api_key
+GEMINI_API_KEY=your_gemini_api_key_here
 ```
+> **Don't have a Gemini API key?** That's fine! The app will fall back to Ollama (local AI) or work without AI features.
 
-### 4. Running the Engine
+### Step 6 — Run the App
 ```bash
 python app.py
 ```
-*   Your web environment will compile at `http://127.0.0.1:5000`
-*   The background worker starts up concurrently, showing `Analytics worker started.` in your server console logs.
+Or on Windows, just double-click **`run.bat`**.
+
+Open your browser and go to: **http://127.0.0.1:5000**
 
 ---
 
-## 🔒 Security & Mathematical Parity
-*   **Local Privacy Shield**: Absolute localized control. Your SQLite database is stored natively on-disk in `finance.db`.
-*   **No Double-Counting**: Transfers between bank accounts and credit cards do not get misattributed as double-expenses. They are dynamically isolated from core outlays, keeping your net worth calculations mathematically flawless.
+## 🔒 Privacy & Security
+
+| Feature | Detail |
+|---|---|
+| **Where is my data?** | Stored locally in `finance.db` on your computer. Nowhere else. |
+| **Does it need internet?** | Only for AI features (Gemini). Everything else works offline. |
+| **Is my data shared?** | Never. Your financial data stays on your machine. |
+| **Can others see my data?** | Not unless they access your computer. |
+
+---
+
+## 🧠 Personal Tips for Bapun
+
+> [!TIP]
+> These are personal reminders to help you manage your finances better.
+
+1. **Pay off small debts first** — Clear the ₹400 bus ticket debt to Sana Mausi first. Small wins build momentum.
+
+2. **Track every single expense** — Even ₹10 tea money. The app makes it easy, so use it daily.
+
+3. **Set a monthly budget and stick to it** — Your expenses are exceeding your income. Use the Budget feature to set hard limits.
+
+4. **Build an emergency fund** — Try to save at least ₹5,000 as a safety net before any big purchases.
+
+5. **Don't borrow for wants** — Only borrow money for genuine needs (education, health). Not for gadgets or entertainment.
+
+6. **Check the dashboard every morning** — It takes 10 seconds. Know where you stand before you spend.
+
+7. **Use the AI assistant** — Ask it "Should I buy X?" before making any purchase over ₹500. It will give you honest advice based on your real data.
+
+8. **Back up your database weekly** — Go to Settings → Backup. One click. It could save you from data loss.
+
+9. **Record payments immediately** — When you pay back a loan or receive money, log it right away. Don't rely on memory.
+
+10. **Celebrate small wins** — When you hit a savings goal, take a moment to feel proud. You earned it. 🎉
+
+---
+
+## 🛠️ Tech Stack
+
+| Technology | Why It's Used |
+|---|---|
+| **Python 3.10+** | Main programming language — reliable and easy to work with |
+| **Flask** | Lightweight web framework — perfect for a personal app |
+| **SQLite (WAL mode)** | Fast, file-based database — no server needed |
+| **Vanilla HTML/CSS/JS** | No heavy frameworks — keeps things fast and simple |
+| **Google Gemini AI** | Smart financial advice using Google's AI |
+| **Ollama** | Local AI model — works without internet, saves API costs |
+| **Mermaid** | Diagrams in documentation |
+
+---
+
+## 📜 Full Copyright Notice
+
+```
+MIT License — Modified for Personal Use Only
+
+Copyright © 2024-2026 Pradyumna Behera (Bapun)
+
+Permission is granted, free of charge, to any person obtaining a copy of
+this software, to use, copy, and modify it for PERSONAL and LOCAL purposes
+only, subject to the following conditions:
+
+1. This software SHALL NOT be used for any commercial, industrial, or
+   revenue-generating purpose.
+
+2. This software SHALL NOT be published, distributed, or presented as
+   someone else's work (in portfolios, resumes, job applications, or
+   any public platform).
+
+3. This software SHALL NOT be hosted as a public web service or SaaS
+   product.
+
+4. The above copyright notice and this permission notice SHALL be included
+   in all copies or substantial portions of the software.
+
+5. Any modifications made for personal use do not grant the modifier
+   any ownership or redistribution rights.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR
+OTHER LIABILITY ARISING FROM THE USE OF THIS SOFTWARE.
+```
+
+---
+
+<p align="center">
+  <b>Made with ❤️ by Pradyumna Behera (Bapun)</b><br>
+  <i>This is a personal project. Please respect the license.</i>
+</p>

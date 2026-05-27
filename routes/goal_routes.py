@@ -64,7 +64,14 @@ def edit_goal(goal_id):
     category = request.form.get('category')
     priority = request.form.get('priority', 'medium')
     
-    GoalService.update_goal(goal_id, name, target_amount, target_date, category, priority)
+    GoalService.update_goal(
+        goal_id,
+        name=name,
+        target_amount=target_amount,
+        target_date=target_date,
+        category=category,
+        priority=priority
+    )
     return {"status": "success"}
 
 @goal_bp.route('/goals/delete/<int:goal_id>', methods=['POST'])
