@@ -68,6 +68,38 @@ class GeminiService:
 class LocalAIService:
     @staticmethod
     def ask_llama(user_query, context):
-        """Simulated call to Llama 3.2:1B via local provider (e.g. Ollama)."""
-        # In a real implementation, use requests.post('http://localhost:11434/api/generate', ...)
-        return f"Local analysis: Based on your ₹{context.split(':')[1].split(',')[0]} balance, your spending pattern in {context.split('Spending: ')[1][:20]}... seems normal.", "Llama 3.2"
+        import requests
+        
+        system_instruction = (
+            "You are a helpful personal finance AI assistant. "
+            "All monetary values are in Indian Rupees (₹). Use '₹' for currency. "
+            "Use the provided database summary JSON context to answer the user query accurately."
+        )
+        
+        prompt = f"System: {system_instruction}\nContext: {context}\nUser: {user_query}\nResponse:"
+        
+        model = "llama3.2"
+        try:
+            # Try to fetch available models from local Ollama
+            models_resp = requests.get('http://localhost:11434/api/tags', timeout=2.0)
+            if models_resp.status_code == 200:
+                models_data = models_resp.json()
+                if models_data.get('models'):
+                    model = models_data['models'][0]['name']
+        except Exception:
+            pass
+            
+        try:
+            resp = requests.post('http://localhost:11434/api/generate', json={
+                'model': model,
+                'prompt': prompt,
+                'stream': False
+            }, timeout=15.0)
+            
+            if resp.status_code == 200:
+                res_json = resp.json()
+                return res_json.get('response', ''), model
+        except Exception as e:
+            raise RuntimeError(f"Ollama call failed: {e}")
+            
+        raise RuntimeError("Ollama returned non-200 status code")

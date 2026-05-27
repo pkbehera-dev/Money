@@ -51,7 +51,8 @@ def settle_person(person_id):
 @person_bp.route("/ledger/increase/<int:person_id>", methods=["POST"])
 def increase_debt(person_id):
     amount = float(request.form.get('amount'))
-    account_id = int(request.form.get('account_id'))
+    raw_acc = request.form.get('account_id')
+    account_id = int(raw_acc) if raw_acc else None
     date = request.form.get('date')
     PersonService.increase_debt(person_id, amount, account_id, date)
     return {"status": "success"}

@@ -392,59 +392,240 @@ class AnalyticsService:
         this_month = datetime.now().strftime('%Y-%m')
         last_month = (datetime.now().replace(day=1) - timedelta(days=1)).strftime('%Y-%m')
         
-        m1 = conn.execute("SELECT expense FROM monthly_summaries WHERE month = ?", (this_month,)).fetchone()
-        m2 = conn.execute("SELECT expense FROM monthly_summaries WHERE month = ?", (last_month,)).fetchone()
+        m1 = conn.execute("SELECT expense, income FROM monthly_summaries WHERE month = ?", (this_month,)).fetchone()
+        m2 = conn.execute("SELECT expense, income FROM monthly_summaries WHERE month = ?", (last_month,)).fetchone()
         
-        if m1 and m2 and m2[0] and m2[0] > 0:
-            change = ((m1[0] - m2[0]) / m2[0]) * 100
+        this_month_expense = 0.0
+        this_month_income = 0.0
+        if m1:
+            this_month_expense = float(m1['expense'] or 0.0)
+            this_month_income = float(m1['income'] or 0.0)
+            
+        last_month_expense = 0.0
+        last_month_income = 0.0
+        if m2:
+            last_month_expense = float(m2['expense'] or 0.0)
+            last_month_income = float(m2['income'] or 0.0)
+
+        # Helper function for next due date
+        def get_next_due_date_for_day(day):
+            import calendar
+            t = datetime.now()
+            _, max_days = calendar.monthrange(t.year, t.month)
+            due_this_month = datetime(t.year, t.month, min(day, max_days))
+            if due_this_month.date() < t.date():
+                # Next month
+                ny = t.year if t.month < 12 else t.year + 1
+                nm = t.month + 1 if t.month < 12 else 1
+                _, max_days_next = calendar.monthrange(ny, nm)
+                return datetime(ny, nm, min(day, max_days_next))
+            return due_this_month
+
+        # 1. Spending Trend (MoM)
+        if last_month_expense > 0:
+            change = ((this_month_expense - last_month_expense) / last_month_expense) * 100
             if change > 10: 
                 insights.append({"type": "warning", "icon": "ph-trend-up", "text": f"Spending rose {change:.1f}% vs last month."})
             elif change < -5: 
                 insights.append({"type": "success", "icon": "ph-trend-down", "text": f"Spending down {abs(change):.1f}% vs last month."})
- 
-        # 2. Spending Category Spikes
+            else:
+                insights.append({"type": "success", "icon": "ph-trend-down", "text": "Spending is stable compared to last month."})
+        else:
+            if this_month_expense > 0:
+                insights.append({"type": "tip", "icon": "ph-trend-up", "text": f"Total spending this month is ₹{this_month_expense:.0f}. MoM trend will be active next month."})
+
+        # 2. Spending Category Spikes (threshold: max of 500 or 20% of total monthly spending)
         row_month = conn.execute("SELECT category_totals FROM monthly_summaries WHERE month = ?", (this_month,)).fetchone()
         if row_month and row_month['category_totals']:
             try:
                 cats = json.loads(row_month['category_totals'])
-                spikes = sorted([(c, float(t)) for c, t in cats.items() if float(t) > 5000], key=lambda x: x[1], reverse=True)[:2]
+                threshold = max(500.0, this_month_expense * 0.20)
+                spikes = sorted([(c, float(t)) for c, t in cats.items() if float(t) > threshold], key=lambda x: x[1], reverse=True)[:2]
                 for s in spikes: 
+                    cat_name = s[0]
+                    cat_total = s[1]
+                    # Find the largest transaction in this category to see if it dominates
+                    largest_cat_tx = conn.execute("""
+                        SELECT amount 
+                        FROM transactions 
+                        WHERE type = 'expense' 
+                        AND category = ? 
+                        AND date LIKE ? 
+                        AND deleted_at IS NULL
+                        ORDER BY amount DESC 
+                        LIMIT 1
+                    """, (cat_name, f"{this_month}%")).fetchone()
+                    if largest_cat_tx:
+                        largest_cat_tx_amt = float(largest_cat_tx['amount'])
+                        # Suppress category spikes where a single transaction dominates (>= 70% of the total).
+                        # This justifies their separate creation reasons:
+                        # - Largest Single Expense focuses on one major expense.
+                        # - Spending Category Spikes focuses on cumulative/behavioral trends.
+                        if largest_cat_tx_amt >= cat_total * 0.70:
+                            continue
                     insights.append({"type": "tip", "icon": "ph-lightbulb", "text": f"{s[0]} is a top expense (₹{s[1]:.0f})."})
             except Exception:
                 pass
 
-        # 3. Budget Thresholds
-        from services.budget_service import BudgetService
-        budgets = BudgetService.get_all_budgets()
-        for b in budgets:
-            if b.get('status') == 'active' and b.get('progress', 0) > 80:
+        # 3. Daily Spending Pace & Projection
+        import calendar
+        today = datetime.now()
+        days_elapsed = today.day
+        _, total_days = calendar.monthrange(today.year, today.month)
+        if this_month_expense > 0:
+            daily_pace = this_month_expense / days_elapsed
+            projected_spending = daily_pace * total_days
+            
+            if this_month_income > 0 and projected_spending > this_month_income:
                 insights.append({
-                    "type": "warning" if b['progress'] >= 100 else "tip", 
-                    "icon": "ph-warning-circle" if b['progress'] >= 100 else "ph-info",
-                    "text": f"Budget '{b['name']}' is {b['progress']:.1f}% used."
+                    "type": "warning", 
+                    "icon": "ph-calendar-x", 
+                    "text": f"At your current pace (₹{daily_pace:.0f}/day), you are projected to spend ₹{projected_spending:.0f}, which exceeds your monthly income."
+                })
+            elif last_month_expense > 0 and projected_spending > last_month_expense * 1.15:
+                insights.append({
+                    "type": "tip", 
+                    "icon": "ph-chart-line-up", 
+                    "text": f"Current pace (₹{daily_pace:.0f}/day) projects to ₹{projected_spending:.0f}, higher than last month's ₹{last_month_expense:.0f}."
                 })
 
-        # 4. Goal Velocity Insights
-        from services.goal_service import GoalService
-        goals = GoalService.get_all_goals()
-        for g in goals:
-            if g['status'] == 'active':
-                if g['tracking_text'] == 'Behind':
-                    insights.append({"type": "warning", "icon": "ph-warning", "text": f"Goal '{g['name']}' is behind schedule. Consider increasing contributions."})
-                elif g['tracking_text'] == 'Ahead':
-                    insights.append({"type": "success", "icon": "ph-rocket-launch", "text": f"You're ahead of schedule on '{g['name']}'! Excellent velocity."})
+        # 4. Largest Single Expense
+        largest_tx = conn.execute("""
+            SELECT category, amount, notes 
+            FROM transactions 
+            WHERE type = 'expense' 
+            AND date LIKE ? 
+            AND deleted_at IS NULL 
+            AND category NOT IN ('Credit Card Entry', 'Initial Balance', 'Loan Principal Migration')
+            ORDER BY amount DESC 
+            LIMIT 1
+        """, (f"{this_month}%",)).fetchone()
+        if largest_tx:
+            desc = largest_tx['notes'] if (largest_tx['notes'] and largest_tx['notes'].strip()) else largest_tx['category']
+            if len(desc) > 30:
+                desc = desc[:27] + "..."
+            insights.append({
+                "type": "tip", 
+                "icon": "ph-shopping-cart", 
+                "text": f"Largest single expense: ₹{largest_tx['amount']:.0f} for '{desc}'."
+            })
 
-        # 5. Net Worth Insight
-        from services.net_worth_service import NetWorthService
-        nw_change = NetWorthService.get_monthly_change()
-        if nw_change > 2:
-            insights.append({"type": "success", "icon": "ph-chart-line-up", "text": f"Your net worth grew by {nw_change:.1f}% this month. Great job!"})
-        elif nw_change < -2:
-            insights.append({"type": "warning", "icon": "ph-chart-line-down", "text": f"Net worth decreased by {abs(nw_change):.1f}%. Check your latest liabilities."})
+        # 5. Credit Card Utilization Warning
+        try:
+            from services.credit_card_service import CreditCardService
+            cards = CreditCardService.get_all_cards()
+            for card in cards:
+                if card.get('status') == 'active' and card.get('card_limit', 0) > 0:
+                    usage = card['usage_pct']
+                    if usage >= 80:
+                        insights.append({
+                            "type": "warning",
+                            "icon": "ph-warning-circle",
+                            "text": f"Critical limit: {card['name']} utilization is at {usage:.1f}% (₹{card['outstanding']:.0f}/₹{card['card_limit']:.0f})."
+                        })
+                    elif usage >= 50:
+                        insights.append({
+                            "type": "tip",
+                            "icon": "ph-info",
+                            "text": f"High usage: {card['name']} utilization is at {usage:.1f}%."
+                        })
+        except Exception as e:
+            print(f"Error calculating card utilization: {e}")
 
-        # 6. General Tips
+        # 6. Upcoming Due Dates (within 7 days)
+        # Credit Card dues
+        try:
+            for card in cards:
+                if card.get('status') == 'active' and card.get('outstanding', 0) > 0 and card.get('due_date'):
+                    due_day = card['due_date']
+                    target_due = get_next_due_date_for_day(due_day)
+                    days_until = (target_due.date() - today.date()).days
+                    if 0 <= days_until <= 7:
+                        insights.append({
+                            "type": "warning",
+                            "icon": "ph-credit-card",
+                            "text": f"Upcoming bill: {card['name']} payment of ₹{card['outstanding']:.0f} is due in {days_until} days ({target_due.strftime('%b %d')})."
+                        })
+        except Exception as e:
+            print(f"Error calculating card due dates: {e}")
+
+        # Loan dues
+        try:
+            loans_rows = conn.execute("SELECT id, name, total_to_pay, paid_amount, tenure, due_date FROM loans WHERE status='active' AND deleted_at IS NULL").fetchall()
+            for l in loans_rows:
+                remaining = l['total_to_pay'] - l['paid_amount']
+                if remaining > 0 and l['due_date']:
+                    due_day = l['due_date']
+                    target_due = get_next_due_date_for_day(due_day)
+                    days_until = (target_due.date() - today.date()).days
+                    if 0 <= days_until <= 7:
+                        emi = l['total_to_pay'] / l['tenure'] if l['tenure'] > 0 else remaining
+                        insights.append({
+                            "type": "warning",
+                            "icon": "ph-calendar-warning",
+                            "text": f"Upcoming loan: '{l['name']}' EMI (approx ₹{emi:.0f}) is due in {days_until} days ({target_due.strftime('%b %d')})."
+                        })
+        except Exception as e:
+            print(f"Error calculating loan due dates: {e}")
+
+        # 7. Savings Rate Insight
+        if this_month_income > 0:
+            savings = this_month_income - this_month_expense
+            savings_rate = (savings / this_month_income) * 100
+            if savings_rate > 40:
+                insights.append({
+                    "type": "success",
+                    "icon": "ph-piggy-bank",
+                    "text": f"Excellent! Your savings rate is {savings_rate:.1f}% this month, well above the 40% goal."
+                })
+            elif savings_rate < 20:
+                insights.append({
+                    "type": "warning",
+                    "icon": "ph-trend-down",
+                    "text": f"Your savings rate is {savings_rate:.1f}% this month. Consider reducing non-essential expenses to hit 20%."
+                })
+
+        # 8. Budget Thresholds
+        try:
+            from services.budget_service import BudgetService
+            budgets = BudgetService.get_all_budgets()
+            for b in budgets:
+                if b.get('status') == 'active' and b.get('progress', 0) > 80:
+                    insights.append({
+                        "type": "warning" if b['progress'] >= 100 else "tip", 
+                        "icon": "ph-warning-circle" if b['progress'] >= 100 else "ph-info",
+                        "text": f"Budget '{b['name']}' is {b['progress']:.1f}% used."
+                    })
+        except Exception as e:
+            print(f"Error reading budget thresholds: {e}")
+
+        # 9. Goal Velocity Insights
+        try:
+            from services.goal_service import GoalService
+            goals = GoalService.get_all_goals()
+            for g in goals:
+                if g['status'] == 'active':
+                    if g['tracking_text'] == 'Behind':
+                        insights.append({"type": "warning", "icon": "ph-warning", "text": f"Goal '{g['name']}' is behind schedule. Consider increasing contributions."})
+                    elif g['tracking_text'] == 'Ahead':
+                        insights.append({"type": "success", "icon": "ph-rocket-launch", "text": f"You're ahead of schedule on '{g['name']}'! Excellent velocity."})
+        except Exception as e:
+            print(f"Error reading goal velocity: {e}")
+
+        # 10. Net Worth Insight
+        try:
+            from services.net_worth_service import NetWorthService
+            nw_change = NetWorthService.get_monthly_change()
+            if nw_change > 2:
+                insights.append({"type": "success", "icon": "ph-chart-line-up", "text": f"Your net worth grew by {nw_change:.1f}% this month. Great job!"})
+            elif nw_change < -2:
+                insights.append({"type": "warning", "icon": "ph-chart-line-down", "text": f"Net worth decreased by {abs(nw_change):.1f}%. Check your latest liabilities."})
+        except Exception as e:
+            print(f"Error checking net worth monthly change: {e}")
+
+        # 11. General Tips (Fallback)
         if not insights: 
-            insights.append({"type": "tip", "icon": "ph-sparkle", "text": "Keep tracking your daily expenses to get deeper AI insights."})
+            insights.append({"type": "tip", "icon": "ph-sparkle", "text": "Keep tracking your daily expenses to get deeper insights."})
         
         conn.close()
         return insights

@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     card_id INTEGER,
     person_id INTEGER,
     deleted_at DATETIME,
+    transfer_fee REAL DEFAULT 0.0,
     FOREIGN KEY(account_id) REFERENCES accounts(id),
     FOREIGN KEY(to_account_id) REFERENCES accounts(id)
 );
@@ -275,3 +276,108 @@ CREATE INDEX IF NOT EXISTS idx_transactions_account_id ON transactions (account_
 CREATE INDEX IF NOT EXISTS idx_people_ledger_deleted ON people_ledger (deleted_at);
 CREATE INDEX IF NOT EXISTS idx_loans_status_deleted ON loans (status, deleted_at);
 CREATE INDEX IF NOT EXISTS idx_categories_deleted ON categories (deleted_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_query ON notifications (deleted_at, read_status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_dup_check ON notifications (deleted_at, title, type, created_at DESC);
+
+-- Triggers to automatically sync paid_amount for interpersonal ledger (people_ledger)
+CREATE TRIGGER IF NOT EXISTS trg_transactions_insert
+AFTER INSERT ON transactions
+FOR EACH ROW
+WHEN NEW.person_id IS NOT NULL
+BEGIN
+    UPDATE people_ledger
+    SET paid_amount = (
+        SELECT COALESCE(SUM(amount), 0.0)
+        FROM transactions
+        WHERE person_id = NEW.person_id AND deleted_at IS NULL
+    )
+    WHERE id = NEW.person_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_transactions_update
+AFTER UPDATE ON transactions
+FOR EACH ROW
+BEGIN
+    -- Update for old person_id if it was changed
+    UPDATE people_ledger
+    SET paid_amount = (
+        SELECT COALESCE(SUM(amount), 0.0)
+        FROM transactions
+        WHERE person_id = OLD.person_id AND deleted_at IS NULL
+    )
+    WHERE id = OLD.person_id AND OLD.person_id IS NOT NULL;
+
+    -- Update for new person_id
+    UPDATE people_ledger
+    SET paid_amount = (
+        SELECT COALESCE(SUM(amount), 0.0)
+        FROM transactions
+        WHERE person_id = NEW.person_id AND deleted_at IS NULL
+    )
+    WHERE id = NEW.person_id AND NEW.person_id IS NOT NULL;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_transactions_delete
+AFTER DELETE ON transactions
+FOR EACH ROW
+WHEN OLD.person_id IS NOT NULL
+BEGIN
+    UPDATE people_ledger
+    SET paid_amount = (
+        SELECT COALESCE(SUM(amount), 0.0)
+        FROM transactions
+        WHERE person_id = OLD.person_id AND deleted_at IS NULL
+    )
+    WHERE id = OLD.person_id;
+END;
+
+-- Triggers to automatically sync paid_amount for loans
+CREATE TRIGGER IF NOT EXISTS trg_loan_payments_insert
+AFTER INSERT ON loan_payments
+FOR EACH ROW
+BEGIN
+    UPDATE loans
+    SET paid_amount = (
+        SELECT COALESCE(SUM(amount), 0.0)
+        FROM loan_payments
+        WHERE loan_id = NEW.loan_id
+    )
+    WHERE id = NEW.loan_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_loan_payments_update
+AFTER UPDATE ON loan_payments
+FOR EACH ROW
+BEGIN
+    -- Update old loan_id if changed
+    UPDATE loans
+    SET paid_amount = (
+        SELECT COALESCE(SUM(amount), 0.0)
+        FROM loan_payments
+        WHERE loan_id = OLD.loan_id
+    )
+    WHERE id = OLD.loan_id;
+
+    -- Update new loan_id
+    UPDATE loans
+    SET paid_amount = (
+        SELECT COALESCE(SUM(amount), 0.0)
+        FROM loan_payments
+        WHERE loan_id = NEW.loan_id
+    )
+    WHERE id = NEW.loan_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_loan_payments_delete
+AFTER DELETE ON loan_payments
+FOR EACH ROW
+BEGIN
+    UPDATE loans
+    SET paid_amount = (
+        SELECT COALESCE(SUM(amount), 0.0)
+        FROM loan_payments
+        WHERE loan_id = OLD.loan_id
+    )
+    WHERE id = OLD.loan_id;
+END;
+

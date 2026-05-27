@@ -228,7 +228,8 @@
 
                     <div>
                         <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">From/To Account</label>
-                        <select name="account_id" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                        <select name="account_id" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                            <option value="">No Account (History Only)</option>
                             {% for acc in accounts %}
                             <option value="{{ acc.id }}">{{ acc.name }} (₹{{ "%.2f"|format(acc.balance) }})</option>
                             {% endfor %}

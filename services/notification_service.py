@@ -64,24 +64,94 @@ class NotificationService:
         
         # 1. Budgets
         budget_notifs = BudgetService.check_budget_thresholds()
-        for n in budget_notifs:
-            NotificationService.add_notification(n['title'], n['message'], n['type'], n['priority'], action_link='/budgets')
             
-        # 2. Subscriptions
+        # 2. Subscriptions & 3. Goals
+        conn = get_db_connection()
         sub_notifs = SubscriptionService.get_upcoming_renewals(days=3)
+        to_notify_subs = []
         for s in sub_notifs:
             msg = f"Subscription {s['name']} is due on {s['next_due_date']} (₹{s['amount']})"
-            NotificationService.add_notification("Subscription Renewal", msg, "subscription", "high", action_link='/subscriptions')
+            exists = conn.execute("""
+                SELECT id FROM notifications 
+                WHERE type = 'subscription' AND message = ? AND deleted_at IS NULL
+            """, (msg,)).fetchone()
+            if not exists:
+                to_notify_subs.append(s)
             
-        # 3. Goals
         goals = GoalService.get_all_goals()
+        to_notify_goals = []
         for g in goals:
             if g['status'] == 'completed':
-                # Only notify if achieved recently (within 24h)
-                NotificationService.add_notification("Goal Achieved! 🎉", f"Congratulations! You've reached your target for '{g['name']}'.", "success", "high", action_link='/goals')
+                exists = conn.execute("""
+                    SELECT id FROM notifications 
+                    WHERE type = 'goal_achieved' AND message LIKE ? AND deleted_at IS NULL
+                """, (f"%'{g['name']}'%",)).fetchone()
+                if not exists:
+                    to_notify_goals.append({
+                        "title": "Goal Achieved! 🎉", 
+                        "message": f"Congratulations! You've reached your target for '{g['name']}'.", 
+                        "type": "goal_achieved", 
+                        "priority": "high"
+                    })
             elif g['tracking_text'] == 'Behind':
-                NotificationService.add_notification("Goal Behind Schedule", f"'{g['name']}' is falling behind. You may need to increase contributions.", "warning", "medium", action_link='/goals')
+                exists = conn.execute("""
+                    SELECT id FROM notifications 
+                    WHERE type = 'goal_behind' AND message LIKE ? AND created_at > datetime('now', '-7 days') AND deleted_at IS NULL
+                """, (f"%'{g['name']}'%",)).fetchone()
+                if not exists:
+                    to_notify_goals.append({
+                        "title": "Goal Behind Schedule", 
+                        "message": f"'{g['name']}' is falling behind. You may need to increase contributions.", 
+                        "type": "goal_behind", 
+                        "priority": "medium"
+                    })
             
+        conn.close()
+
+        # Execute all insertions on separate short-lived transactions
+        for n in budget_notifs:
+            NotificationService.add_notification(n['title'], n['message'], n['type'], n['priority'], action_link='/budgets')
+
+        for s in to_notify_subs:
+            msg = f"Subscription {s['name']} is due on {s['next_due_date']} (₹{s['amount']})"
+            NotificationService.add_notification("Subscription Renewal", msg, "subscription", "high", action_link='/subscriptions')
+
+        for g_notif in to_notify_goals:
+            NotificationService.add_notification(
+                g_notif["title"], 
+                g_notif["message"], 
+                g_notif["type"], 
+                g_notif["priority"], 
+                action_link='/goals'
+            )
+        
+        # 5. Credit Card Utilization
+        try:
+            from services.credit_card_service import CreditCardService
+            cards = CreditCardService.get_all_cards()
+            conn_cc = get_db_connection()
+            for card in cards:
+                if card.get('deleted_at') is not None:
+                    continue
+                usage_pct = card.get('usage_pct', 0)
+                if usage_pct >= 80:
+                    title = f"High Credit Card Utilization: {card['name']}"
+                    msg = f"Credit card '{card['name']}' utilization is at {usage_pct:.1f}% (₹{card['outstanding']:.0f}/₹{card['card_limit']:.0f})."
+                    # Check if warned in last 7 days to avoid spam
+                    exists = conn_cc.execute("""
+                        SELECT id FROM notifications 
+                        WHERE type = 'credit_card' AND title = ? AND created_at > datetime('now', '-7 days') AND deleted_at IS NULL
+                    """, (title,)).fetchone()
+                    if not exists:
+                        NotificationService.add_notification(
+                            title, msg, 'credit_card', 
+                            'high' if usage_pct >= 90 else 'medium', 
+                            action_link='/credit-cards'
+                        )
+            conn_cc.close()
+        except Exception as e:
+            print(f"Error checking credit card utilization triggers: {e}")
+        
         # 4. Asset Value Tracking
         NotificationService.check_asset_value_updates()
             
@@ -92,8 +162,10 @@ class NotificationService:
         conn = get_db_connection()
         today = datetime.now()
         assets = conn.execute("SELECT * FROM assets WHERE depreciation_enabled = 1 AND deleted_at IS NULL").fetchall()
+        assets_list = [dict(a) for a in assets]
+        conn.close()
         
-        for asset in assets:
+        for asset in assets_list:
             try:
                 p_date = datetime.strptime(asset['purchase_date'], '%Y-%m-%d')
                 # Trigger if it's the same day of the month
@@ -109,4 +181,3 @@ class NotificationService:
             except Exception as e:
                 print(f"Error checking asset {asset['name']}: {e}")
                 continue
-        conn.close()

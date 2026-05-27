@@ -28,8 +28,22 @@ class TransactionService:
                 query += " AND t.category = ?"
                 params.append(filters['category'])
             if filters.get('account_id'):
-                query += " AND t.account_id = ?"
-                params.append(filters['account_id'])
+                acc_val = str(filters['account_id'])
+                if acc_val.startswith('A'):
+                    acc_id = int(acc_val[1:])
+                    query += " AND (t.account_id = ? OR t.to_account_id = ?)"
+                    params.extend([acc_id, acc_id])
+                elif acc_val.startswith('C'):
+                    card_id = int(acc_val[1:])
+                    query += " AND t.card_id = ?"
+                    params.append(card_id)
+                else:
+                    try:
+                        acc_id = int(acc_val)
+                        query += " AND (t.account_id = ? OR t.to_account_id = ?)"
+                        params.extend([acc_id, acc_id])
+                    except ValueError:
+                        pass
             if filters.get('date_from'):
                 query += " AND t.date >= ?"
                 params.append(filters['date_from'])
@@ -43,19 +57,19 @@ class TransactionService:
                 query += " AND t.amount <= ?"
                 params.append(float(filters['max_amount']))
             if filters.get('search'):
-                query += " AND (t.category LIKE ? OR t.notes LIKE ? OR t.tags LIKE ?)"
+                query += " AND (t.category LIKE ? OR t.notes LIKE ? OR t.tags LIKE ? OR a1.name LIKE ? OR a2.name LIKE ? OR c.name LIKE ?)"
                 search_q = f"%{filters['search']}%"
-                params.extend([search_q, search_q, search_q])
+                params.extend([search_q, search_q, search_q, search_q, search_q, search_q])
 
         # Sorting
         sort_map = {
-            'date_desc': 'ORDER BY date DESC',
-            'date_asc': 'ORDER BY date ASC',
+            'date_desc': 'ORDER BY date DESC, id DESC',
+            'date_asc': 'ORDER BY date ASC, id ASC',
             'amount_desc': 'ORDER BY amount DESC',
             'amount_asc': 'ORDER BY amount ASC',
             'category': 'ORDER BY category ASC'
         }
-        query += " " + sort_map.get(sort_by, 'ORDER BY date DESC')
+        query += " " + sort_map.get(sort_by, 'ORDER BY date DESC, id DESC')
 
         rows = conn.execute(query, params).fetchall()
         conn.close()
@@ -68,8 +82,31 @@ class TransactionService:
                         card_id: int = None, person_id: int = None, emi_data: dict = None):
         """Adds a transaction and updates balances where necessary."""
         from services.loan_service import LoanService
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        
+        # Ensure account_id / card_id / to_account_id are parsed if strings are passed
+        if isinstance(account_id, str) and account_id:
+            if account_id.startswith('A'): 
+                account_id = int(account_id[1:])
+            elif account_id.startswith('C'): 
+                card_id = int(account_id[1:])
+                account_id = None
+            else:
+                try:
+                    account_id = int(account_id)
+                except ValueError:
+                    account_id = None
+
+        if isinstance(to_account_id, str) and to_account_id:
+            if to_account_id.startswith('A'): 
+                to_account_id = int(to_account_id[1:])
+            elif to_account_id.startswith('C'): 
+                card_id = int(to_account_id[1:])
+                to_account_id = -1
+            else:
+                try:
+                    to_account_id = int(to_account_id)
+                except ValueError:
+                    to_account_id = None
         
         # 1. If it's an EMI, we automatically create a loan entry
         if emi_data and type == 'expense':
@@ -90,25 +127,26 @@ class TransactionService:
             notes = f"[EMI PLAN] {notes or ''}"
             tags = f"{tags or ''} Silent".strip()
         
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
         cursor.execute('''
-            INSERT INTO transactions (type, amount, category, date, account_id, to_account_id, card_id, person_id, notes, tags)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (type, amount, category, date, account_id, to_account_id, card_id, person_id, notes, tags))
+            INSERT INTO transactions (type, amount, category, date, account_id, to_account_id, card_id, person_id, notes, tags, transfer_fee)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (type, amount, category, date, account_id, to_account_id, card_id, person_id, notes, tags, transfer_fee))
         
         # TRANSACTION DRIVEN: Only update liquid account balances
         # Credit Card and Loan balances are calculated dynamically from history
-        if account_id:
+        if account_id and account_id > 0:
             if type == 'income':
                 conn.execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', (amount, account_id))
             elif type == 'expense':
                 conn.execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', (amount, account_id))
             elif type == 'transfer':
-                # Deduct from source account (if specified)
-                if account_id:
-                    conn.execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', (amount + transfer_fee, account_id))
-                # Add to target account (if specified)
-                if to_account_id and to_account_id > 0:
-                    conn.execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', (amount, to_account_id))
+                conn.execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', (amount + transfer_fee, account_id))
+        
+        if type == 'transfer' and to_account_id and to_account_id > 0:
+            conn.execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', (amount, to_account_id))
         
         conn.commit()
         new_id = cursor.lastrowid
@@ -142,15 +180,16 @@ class TransactionService:
             return
             
         # REVERSE BALANCE
-        if tx['account_id']:
+        if tx['account_id'] and tx['account_id'] > 0:
             if tx['type'] == 'income':
                 conn.execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', (tx['amount'], tx['account_id']))
             elif tx['type'] == 'expense':
                 conn.execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', (tx['amount'], tx['account_id']))
             elif tx['type'] == 'transfer':
-                conn.execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', (tx['amount'], tx['account_id']))
-                if tx['to_account_id']:
-                    conn.execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', (tx['amount'], tx['to_account_id']))
+                conn.execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', (tx['amount'] + (tx['transfer_fee'] or 0.0), tx['account_id']))
+        
+        if tx['type'] == 'transfer' and tx['to_account_id'] and tx['to_account_id'] > 0:
+            conn.execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', (tx['amount'], tx['to_account_id']))
         
         from datetime import datetime
         now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -175,16 +214,18 @@ class TransactionService:
         account_id = tx['account_id']
         to_account_id = tx['to_account_id']
         type = tx['type']
+        transfer_fee = tx['transfer_fee'] or 0.0
 
-        if account_id:
+        if account_id and account_id > 0:
             if type == 'income':
                 conn.execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', (amount, account_id))
             elif type == 'expense':
                 conn.execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', (amount, account_id))
             elif type == 'transfer':
-                conn.execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', (amount, account_id))
-                if to_account_id:
-                    conn.execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', (amount, to_account_id))
+                conn.execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', (amount + transfer_fee, account_id))
+        
+        if type == 'transfer' and to_account_id and to_account_id > 0:
+            conn.execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', (amount, to_account_id))
         
         conn.execute("UPDATE transactions SET deleted_at = NULL WHERE id = ?", (tx_id,))
         conn.commit()
@@ -196,28 +237,46 @@ class TransactionService:
 
     @staticmethod
     def update_transaction(tx_id: int, type: str, amount: float, category: str, date: str, 
-                          account_id: int, to_account_id: int = None, notes: str = None, tags: str = None):
-        # 1. Delete and re-apply is the safest way for balance integrity
-        TransactionService.delete_transaction(tx_id)
-        # 2. Add as "new" but keep the ID (or just use the existing add logic)
-        # Actually, let's just use the add_transaction logic but allow specifying ID
+                          account_id: int = None, to_account_id: int = None, notes: str = None, 
+                          tags: str = None, card_id: int = None, transfer_fee: float = 0.0):
+        # 1. Fetch the existing transaction to preserve fields
         conn = get_db_connection()
+        tx = conn.execute("SELECT * FROM transactions WHERE id = ?", (tx_id,)).fetchone()
+        if not tx:
+            conn.close()
+            return
+        
+        person_id = tx['person_id']
+        recurring_id = tx['recurring_id']
+        if card_id is None:
+            card_id = tx['card_id']
+        conn.close()
+
+        # 2. Reverse balance and soft-delete
+        TransactionService.delete_transaction(tx_id)
+        
+        # 3. Physically delete to avoid UNIQUE constraint violation on re-inserting the same ID
+        conn = get_db_connection()
+        conn.execute("DELETE FROM transactions WHERE id = ?", (tx_id,))
+        
+        # 4. Insert updated transaction with the same ID and preserved fields
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO transactions (id, type, amount, category, date, account_id, to_account_id, notes, tags)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (tx_id, type, amount, category, date, account_id, to_account_id, notes, tags))
+            INSERT INTO transactions (id, type, amount, category, date, account_id, to_account_id, card_id, person_id, recurring_id, notes, tags, transfer_fee)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (tx_id, type, amount, category, date, account_id, to_account_id, card_id, person_id, recurring_id, notes, tags, transfer_fee))
         
-        if account_id:
+        # 5. Apply the new balances
+        if account_id and account_id > 0:
             if type == 'income':
                 conn.execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', (amount, account_id))
             elif type == 'expense':
                 conn.execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', (amount, account_id))
             elif type == 'transfer':
-                if account_id:
-                    conn.execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', (amount, account_id))
-                if to_account_id and to_account_id > 0:
-                    conn.execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', (amount, to_account_id))
+                conn.execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', (amount + transfer_fee, account_id))
+        
+        if type == 'transfer' and to_account_id and to_account_id > 0:
+            conn.execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', (amount, to_account_id))
         
         conn.commit()
         conn.close()

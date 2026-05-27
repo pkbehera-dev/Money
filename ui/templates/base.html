@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0e1118">
     <title>Finance Pro | Smart Wealth Management</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/themes.css') }}">
@@ -77,6 +78,26 @@
         .nav-link.active i {
             color: var(--primary-accent);
             opacity: 1;
+        }
+
+        /* Refresh advice badge animation and styling */
+        @keyframes pulse-warning {
+            0% {
+                box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 8px rgba(245, 158, 11, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+            }
+        }
+        #refresh-advice {
+            animation: pulse-warning 2s infinite;
+        }
+        #refresh-advice:hover {
+            background: rgba(245, 158, 11, 0.2) !important;
+            transform: scale(1.02);
         }
     </style>
 </head>
@@ -209,6 +230,12 @@
                             style="display: none; position: absolute; top: 110%; left: 0; right: 0; z-index: 1001; max-height: 400px; overflow-y: auto; padding: 12px;">
                         </div>
                     </div>
+                    <!-- Refresh Advice Badge -->
+                    <button id="refresh-advice" onclick="window.location.reload()" 
+                        style="display: none; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 20px; border: 1px solid #f59e0b; background: rgba(245, 158, 11, 0.1); color: #f59e0b; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all 0.2s ease-in-out; white-space: nowrap;">
+                        <i class="ph ph-arrows-clockwise" style="font-size: 1rem;"></i>
+                        <span>Click to Refresh Page</span>
+                    </button>
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 24px;">
@@ -328,7 +355,12 @@
                         <option value="">Select destination...</option>
                     </select>
                 </div>
-                <div>
+                <div id="universal-transfer-fee-container" style="display: none;">
+                    <label class="text-muted" style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Transfer Fee</label>
+                    <input type="number" step="0.01" name="transfer_fee" id="universal-transfer-fee-input" placeholder="0.00" value="0"
+                        style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                </div>
+                <div id="universal-category-container">
                     <label class="text-muted"
                         style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Category</label>
                     <select id="universal-category-select" name="category" required
@@ -419,7 +451,7 @@
             
             // Ensure data is synced (accounts, cards, categories)
             if (typeof loadUniversalData === 'function') {
-                loadUniversalData();
+                loadUniversalData(true);
             }
 
             drawer.classList.add('active');
@@ -437,6 +469,13 @@
             document.querySelectorAll('.drawer, .drawer-overlay, .drawer-right').forEach(d => d.classList.remove('active'));
             const backdrop = document.getElementById('overlay') || document.getElementById('drawer-backdrop');
             if (backdrop) backdrop.classList.remove('active');
+        }
+
+        function showRefreshAdvice() {
+            const refreshBtn = document.getElementById('refresh-advice');
+            if (refreshBtn) {
+                refreshBtn.style.display = 'flex';
+            }
         }
 
         // --- Centralized UI & Navigation State ---
@@ -634,6 +673,8 @@
                         
                         // Show success toast
                         showToast('Changes saved successfully!', 'success');
+                        
+                        showRefreshAdvice();
                     } else {
                         const errorText = await response.text();
                         console.error('Server Error:', errorText);
@@ -691,11 +732,11 @@
         let globalCards = [];
         let globalCategories = [];
 
-        async function loadUniversalData() {
+        async function loadUniversalData(force = false) {
             const select = document.getElementById('universal-account-select');
             
             // If already loading or loaded, just re-filter
-            if (globalAccounts.length > 0 && globalCards.length > 0 && globalCategories.length > 0) {
+            if (!force && globalAccounts.length > 0 && globalCards.length > 0 && globalCategories.length > 0) {
                 if (select) {
                     const currentType = document.querySelector('input[name="type"]:checked')?.value || 'expense';
                     filterAccounts(currentType);
@@ -767,12 +808,18 @@
             }
 
             // Toggle Transfer UI
+            const feeContainer = document.getElementById('universal-transfer-fee-container');
+            const feeInput = document.getElementById('universal-transfer-fee-input');
+
             if (txType === 'transfer') {
                 if (toContainer) toContainer.style.display = 'block';
+                if (feeContainer) feeContainer.style.display = 'block';
                 if (accountLabel) accountLabel.innerText = 'From Account';
                 if (toSelect) toSelect.required = true;
             } else {
                 if (toContainer) toContainer.style.display = 'none';
+                if (feeContainer) feeContainer.style.display = 'none';
+                if (feeInput) feeInput.value = '0';
                 if (accountLabel) accountLabel.innerText = 'Account';
                 if (toSelect) toSelect.required = false;
             }
@@ -797,10 +844,17 @@
             if (toSelect) toSelect.innerHTML = `<option value="">Select destination...</option>` + optionsHtml;
 
             // Filter Categories
+            const catContainer = document.getElementById('universal-category-container');
             if (catSelect) {
-                const filteredCats = globalCategories.filter(c => c.type === (txType === 'transfer' ? 'expense' : txType));
-                catSelect.innerHTML = `<option value="">Select category...</option>` +
-                    filteredCats.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+                if (txType === 'transfer') {
+                    if (catContainer) catContainer.style.display = 'none';
+                    catSelect.innerHTML = `<option value="Bank Transfer" selected>Bank Transfer</option>`;
+                } else {
+                    if (catContainer) catContainer.style.display = 'block';
+                    const filteredCats = globalCategories.filter(c => c.type === txType);
+                    catSelect.innerHTML = `<option value="">Select category...</option>` +
+                        filteredCats.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+                }
             }
         }
 
@@ -904,7 +958,7 @@
             const content = document.getElementById('drawer-dynamic-content');
 
             // Pre-load accounts/cards for dropdowns
-            await loadUniversalData();
+            await loadUniversalData(true);
 
             try {
                 let url = '';
@@ -956,28 +1010,96 @@
                         </form>
                     `;
                 } else if (type === 'transaction') {
+                    let options = [...globalAccounts];
+                    if (data.type === 'expense' || data.type === 'transfer') {
+                        options = [...options, ...globalCards];
+                    } else if (data.type === 'income') {
+                        options = globalAccounts.filter(acc => !(acc.type || '').toLowerCase().includes('card'));
+                    }
+                    
+                    const optionsHtml = options.map(acc => {
+                        const isCard = acc.balance === undefined;
+                        const idPrefix = isCard ? 'C' : 'A';
+                        const balance = isCard ? acc.available : acc.balance;
+                        const label = isCard ? 'Available' : 'Balance';
+                        const isSelected = isCard ? (data.card_id == acc.id) : (data.account_id == acc.id);
+                        return `<option value="${idPrefix}${acc.id}" ${isSelected ? 'selected' : ''}>${acc.name} (${label}: ₹${balance.toFixed(2)})</option>`;
+                    }).join('');
+
+                    let toSelectHtml = '';
+                    if (data.type === 'transfer') {
+                        const toOptions = [...globalAccounts, ...globalCards];
+                        toSelectHtml = `
+                            <div>
+                                <label class="text-muted">To Account / Card</label>
+                                <select name="to_account_id" required>
+                                    <option value="">Select destination...</option>
+                                    ${toOptions.map(acc => {
+                                        const isCard = acc.balance === undefined;
+                                        const idPrefix = isCard ? 'C' : 'A';
+                                        const balance = isCard ? acc.available : acc.balance;
+                                        const label = isCard ? 'Available' : 'Balance';
+                                        const isSelected = isCard ? (data.to_account_id == -1 && data.card_id == acc.id) : (data.to_account_id == acc.id);
+                                        return `<option value="${idPrefix}${acc.id}" ${isSelected ? 'selected' : ''}>${acc.name} (${label}: ₹${balance.toFixed(2)})</option>`;
+                                    }).join('')}
+                                </select>
+                            </div>
+                        `;
+                    }
+
+                    let categoryHtml = '';
+                    if (data.type === 'transfer') {
+                        categoryHtml = `<input type="hidden" name="category" value="Bank Transfer">`;
+                    } else {
+                        const filteredCats = globalCategories.filter(c => c.type === data.type);
+                        const hasCurrentCat = filteredCats.some(c => c.name === data.category);
+                        let catOptionsHtml = filteredCats.map(c => 
+                            `<option value="${c.name}" ${c.name === data.category ? 'selected' : ''}>${c.name}</option>`
+                        ).join('');
+                        if (!hasCurrentCat && data.category) {
+                            catOptionsHtml = `<option value="${data.category}" selected>${data.category}</option>` + catOptionsHtml;
+                        }
+                        categoryHtml = `
+                            <div>
+                                <label class="text-muted">Category</label>
+                                <select name="category" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
+                                    <option value="">Select category...</option>
+                                    ${catOptionsHtml}
+                                </select>
+                            </div>
+                        `;
+                    }
+
                     content.innerHTML = `
                         <h2 style="font-family: 'Outfit'; margin-bottom: 24px;">Edit Transaction</h2>
                         <form action="/transactions/edit/${id}" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 20px;">
+                            <input type="hidden" name="type" value="${data.type}">
                             <div>
                                 <label class="text-muted">Amount</label>
                                 <input type="number" step="0.01" name="amount" value="${data.amount}" required style="font-size: 1.25rem; font-weight: 700;">
                             </div>
                             <div>
-                                <label class="text-muted">Account</label>
+                                <label class="text-muted">Account / Card</label>
                                 <select name="account_id" required>
-                                    ${globalAccounts.map(acc => `<option value="${acc.id}" ${data.account_id == acc.id ? 'selected' : ''}>${acc.name}</option>`).join('')}
+                                    ${optionsHtml}
                                 </select>
                             </div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                                <div>
-                                    <label class="text-muted">Category</label>
-                                    <input type="text" name="category" value="${data.category}" required>
-                                </div>
+                            ${toSelectHtml}
+                            ${data.type === 'transfer' ? `
+                            <div>
+                                <label class="text-muted">Transfer Fee</label>
+                                <input type="number" step="0.01" name="transfer_fee" value="${data.transfer_fee || 0}" placeholder="0.00">
+                            </div>` : ''}
+                            <div style="${data.type === 'transfer' ? 'display: block;' : 'display: grid; grid-template-columns: 1fr 1fr; gap: 16px;'}">
+                                ${categoryHtml}
                                 <div>
                                     <label class="text-muted">Date</label>
                                     <input type="date" name="date" value="${data.date}" required>
                                 </div>
+                            </div>
+                            <div>
+                                <label class="text-muted">Tags (Comma-separated)</label>
+                                <input type="text" name="tags" value="${data.tags || ''}" placeholder="e.g. food, trip">
                             </div>
                             <div>
                                 <label class="text-muted">Notes</label>
@@ -1234,10 +1356,120 @@
             }
         }
 
+        function formatTimeAgo(dateStr) {
+            try {
+                let dStr = dateStr;
+                if (!dStr.includes('Z') && !dStr.includes('+')) {
+                    dStr = dStr.replace(' ', 'T');
+                }
+                const date = new Date(dStr);
+                const now = new Date();
+                const diffMs = now - date;
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMins / 60);
+                const diffDays = Math.floor(diffHours / 24);
+
+                if (diffMins < 1) return 'Just now';
+                if (diffMins < 60) return `${diffMins}m ago`;
+                if (diffHours < 24) return `${diffHours}h ago`;
+                if (diffDays === 1) return 'Yesterday';
+                if (diffDays < 7) return `${diffDays}d ago`;
+                return date.toLocaleDateString();
+            } catch (e) {
+                return dateStr;
+            }
+        }
+
+        function showNotificationToast(notification) {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                document.body.appendChild(container);
+            }
+            
+            const toast = document.createElement('div');
+            toast.className = 'toast-notification';
+            toast.style.setProperty('--toast-duration', '5s');
+            
+            let iconClass = 'ph ph-info';
+            let iconBg = 'rgba(79, 140, 255, 0.1)';
+            let iconColor = 'var(--primary-accent)';
+            
+            if (notification.type === 'budget') {
+                iconClass = 'ph ph-warning-octagon';
+                iconBg = 'rgba(239, 68, 68, 0.1)';
+                iconColor = 'var(--expense-color)';
+            } else if (notification.type === 'subscription') {
+                iconClass = 'ph ph-calendar-check';
+                iconBg = 'rgba(245, 158, 11, 0.1)';
+                iconColor = 'var(--warning-color)';
+            } else if (notification.type === 'goal_achieved') {
+                iconClass = 'ph ph-trophy';
+                iconBg = 'rgba(34, 197, 94, 0.1)';
+                iconColor = 'var(--success-color)';
+            } else if (notification.type === 'goal_behind') {
+                iconClass = 'ph ph-trend-down';
+                iconBg = 'rgba(245, 158, 11, 0.1)';
+                iconColor = 'var(--warning-color)';
+            } else if (notification.type === 'credit_card') {
+                iconClass = 'ph ph-credit-card';
+                iconBg = 'rgba(239, 68, 68, 0.1)';
+                iconColor = 'var(--expense-color)';
+            }
+            
+            toast.innerHTML = `
+                <div class="toast-icon" style="background: ${iconBg}; color: ${iconColor};">
+                    <i class="${iconClass}"></i>
+                </div>
+                <div class="toast-content" onclick="handleNotificationClick(${notification.id}, '${notification.action_link || ''}', event)">
+                    <div class="toast-title">${notification.title}</div>
+                    <div class="toast-message">${notification.message}</div>
+                </div>
+                <button class="toast-close" onclick="event.stopPropagation(); this.parentElement.remove();">
+                    <i class="ph ph-x"></i>
+                </button>
+                <div class="toast-progress"></div>
+            `;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, 5000);
+        }
+
         function updateNotificationUI(notifications) {
             const list = document.getElementById('notification-list');
             const badge = document.getElementById('unread-badge');
-            const unreadCount = notifications.filter(n => n.read_status === 0).length;
+            
+            let lastNotifiedId = parseInt(localStorage.getItem('last_notified_id') || '0', 10);
+            let unreadNotifs = notifications.filter(n => n.read_status === 0);
+            let unreadCount = unreadNotifs.length;
+            
+            let newNotifications = unreadNotifs.filter(n => n.id > lastNotifiedId);
+            
+            if (newNotifications.length > 0) {
+                let maxId = Math.max(...newNotifications.map(n => n.id));
+                localStorage.setItem('last_notified_id', maxId.toString());
+                
+                // Ring/shake the bell button
+                const bellIcon = document.querySelector('.ph-bell');
+                if (bellIcon) {
+                    const bellBtn = bellIcon.parentElement;
+                    bellBtn.classList.add('bell-ring');
+                    bellBtn.addEventListener('animationend', () => {
+                        bellBtn.classList.remove('bell-ring');
+                    }, { once: true });
+                }
+                
+                // Present dynamic premium in-app toast popups
+                newNotifications.slice(0, 3).forEach(n => {
+                    showNotificationToast(n);
+                });
+            }
 
             if (unreadCount > 0) {
                 badge.innerText = unreadCount;
@@ -1255,22 +1487,44 @@
             }
 
             if (notifications.length === 0) {
-                list.innerHTML = `<div style="padding: 40px; text-align: center; color: var(--text-secondary);">No notifications yet</div>`;
+                list.innerHTML = `<div style="padding: 40px; text-align: center; color: var(--text-secondary);"><i class="ph ph-bell-slash" style="font-size: 2rem; margin-bottom: 12px; display: block; opacity: 0.5;"></i>No notifications yet</div>`;
                 return;
             }
 
-            list.innerHTML = notifications.map(n => `
-                <div class="notification-item ${n.read_status === 0 ? 'unread' : ''}" onclick="handleNotificationClick(${n.id}, '${n.action_link}')">
-                    <div style="flex: 1;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            list.innerHTML = notifications.map(n => {
+                let iconClass = 'ph ph-info';
+                if (n.type === 'budget') iconClass = 'ph ph-warning-octagon';
+                else if (n.type === 'subscription') iconClass = 'ph ph-calendar-check';
+                else if (n.type === 'goal_achieved') iconClass = 'ph ph-trophy';
+                else if (n.type === 'goal_behind') iconClass = 'ph ph-trend-down';
+                else if (n.type === 'credit_card') iconClass = 'ph ph-credit-card';
+                
+                return `
+                <div class="notification-item ${n.read_status === 0 ? 'unread' : ''}" style="transition: all 0.3s ease-in-out;" data-id="${n.id}">
+                    <div class="notification-icon-container type-${n.type || 'default'}">
+                        <i class="${iconClass}"></i>
+                    </div>
+                    <div style="flex: 1; min-width: 0; cursor: pointer;" onclick="handleNotificationClick(${n.id}, '${n.action_link || ''}', event)">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
                             <span class="priority-badge priority-${n.priority}">${n.priority}</span>
-                            <span style="font-size: 0.7rem; color: var(--text-secondary);">${new Date(n.created_at).toLocaleDateString()}</span>
+                            <span style="font-size: 0.7rem; color: var(--text-secondary);">${formatTimeAgo(n.created_at)}</span>
                         </div>
-                        <div style="font-weight: 700; font-size: 0.9rem; margin-bottom: 4px;">${n.title}</div>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">${n.message}</div>
+                        <div style="font-weight: 700; font-size: 0.88rem; margin-bottom: 2px; color: var(--text-primary);">${n.title}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.3;">${n.message}</div>
+                    </div>
+                    <div class="notification-actions">
+                        ${n.read_status === 0 ? `
+                        <button class="notification-action-btn read-btn" onclick="markAsReadSingle(${n.id}, event)" title="Mark as read">
+                            <i class="ph ph-check"></i>
+                        </button>
+                        ` : ''}
+                        <button class="notification-action-btn delete-btn" onclick="deleteSingle(${n.id}, event)" title="Delete">
+                            <i class="ph ph-trash"></i>
+                        </button>
                     </div>
                 </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function toggleNotifications() {
@@ -1278,26 +1532,93 @@
             dropdown.classList.toggle('active');
             if (dropdown.classList.contains('active')) {
                 fetchNotifications();
-                // Request notification permission on first interaction
                 if (Notification.permission === "default") {
                     Notification.requestPermission();
                 }
             }
         }
 
-        async function handleNotificationClick(id, link) {
+        async function handleNotificationClick(id, link, event) {
+            if (event) event.stopPropagation();
             await fetch(`/api/notifications/read/${id}`, { method: 'POST' });
             if (link) {
                 AppRouter.navigate(link);
-                toggleNotifications();
+                const dropdown = document.getElementById('notification-dropdown');
+                if (dropdown) dropdown.classList.remove('active');
             } else {
                 fetchNotifications();
             }
         }
 
-        async function forceCheckNotifications() {
-            await fetch('/api/notifications/check', { method: 'POST' });
-            fetchNotifications();
+        async function markAsReadSingle(id, event) {
+            if (event) event.stopPropagation();
+            try {
+                const response = await fetch(`/api/notifications/read/${id}`, { method: 'POST' });
+                if (response.ok) {
+                    const item = document.querySelector(`.notification-item[data-id="${id}"]`);
+                    if (item) {
+                        item.classList.remove('unread');
+                        const readBtn = item.querySelector('.read-btn');
+                        if (readBtn) readBtn.remove();
+                    }
+                    fetchNotifications();
+                }
+            } catch (err) {
+                console.error("Failed to mark notification as read:", err);
+            }
+        }
+
+        async function deleteSingle(id, event) {
+            if (event) event.stopPropagation();
+            try {
+                const response = await fetch(`/api/notifications/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    const item = document.querySelector(`.notification-item[data-id="${id}"]`);
+                    if (item) {
+                        item.style.opacity = '0';
+                        item.style.transform = 'scale(0.95)';
+                        item.style.maxHeight = '0px';
+                        item.style.padding = '0px';
+                        item.style.border = 'none';
+                        setTimeout(() => {
+                            item.remove();
+                            const list = document.getElementById('notification-list');
+                            if (list && list.children.length === 0) {
+                                list.innerHTML = `<div style="padding: 40px; text-align: center; color: var(--text-secondary);"><i class="ph ph-bell-slash" style="font-size: 2rem; margin-bottom: 12px; display: block; opacity: 0.5;"></i>No notifications yet</div>`;
+                            }
+                        }, 300);
+                    }
+                    fetchNotifications();
+                }
+            } catch (err) {
+                console.error("Failed to delete notification:", err);
+            }
+        }
+
+        async function forceCheckNotifications(btn) {
+            const button = btn || document.querySelector('#notification-dropdown .notification-header button');
+            if (button && button.disabled) return;
+
+            let originalText = "";
+            if (button) {
+                originalText = button.innerText;
+                button.innerText = "Checking...";
+                button.disabled = true;
+                button.style.opacity = '0.6';
+            }
+
+            try {
+                await fetch('/api/notifications/check', { method: 'POST' });
+                await fetchNotifications();
+            } catch (err) {
+                console.error("Failed to check notifications:", err);
+            } finally {
+                if (button) {
+                    button.innerText = originalText;
+                    button.disabled = false;
+                    button.style.opacity = '1';
+                }
+            }
         }
 
         async function clearAllNotifications() {
@@ -1923,9 +2244,8 @@
                         });
 
                         SpotlightEngine.index = null; // Invalidate spotlight index
-
-                        // If we're on a specific page, we might want to refresh after some time
-                        // or just let the user continue.
+                        
+                        showRefreshAdvice();
                     }
                 }
             );
@@ -1970,10 +2290,8 @@
 
                 SpotlightEngine.index = null; // Invalidate spotlight index
                 closeUndoToast();
-                // If it's a complex page, reload might be better
-                if (window.location.pathname !== '/') {
-                    // window.location.reload(); 
-                }
+                
+                showRefreshAdvice();
             }
         }
 

@@ -110,10 +110,12 @@ def restore():
     elif db_table == 'people_ledger':
         UndoService.restore('people_ledger', int(item_id))
         from database.connection import get_db_connection
+        from services.transaction_service import TransactionService
         conn = get_db_connection()
-        conn.execute("UPDATE transactions SET deleted_at = NULL WHERE person_id = ?", (item_id,))
-        conn.commit()
+        txs = conn.execute("SELECT id FROM transactions WHERE person_id = ? AND deleted_at IS NOT NULL", (item_id,)).fetchall()
         conn.close()
+        for tx in txs:
+            TransactionService.restore_transaction(tx['id'])
     else:
         UndoService.restore(db_table, int(item_id))
         

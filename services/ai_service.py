@@ -16,20 +16,22 @@ class AIService:
         """Step 1: Determine intent without calling AI."""
         query = query.lower()
         
-        # 1. Direct Spending Queries
+        # 1. Debt / Ledger / Loan Queries (checked first because they might contain terms like 'how much')
+        if any(word in query for word in ['who owes', 'lent', 'borrow', 'debt', 'repayment', 'loan', 'loans', 'emi']):
+            return 'debt'
+            
+        # 2. Direct Spending Queries
         if any(word in query for word in ['spend', 'spent', 'how much', 'cost', 'expense']):
             return 'spending'
         
-        # 2. Salary / Income Queries
+        # 3. Salary / Income Queries
         if any(word in query for word in ['salary', 'my salary', 'income', 'paycheck', 'earning']):
             return 'salary'
         
-        # 3. Debt / Ledger Queries
-        if any(word in query for word in ['who owes', 'lent', 'borrow', 'debt', 'repayment']):
-            return 'debt'
         # 4. Income Summary Queries (e.g., highest income previous month)
         if any(word in query for word in ['highest income', 'max income', 'most income', 'previous month income', 'income last month']):
             return 'income_summary'
+            
         # Default fallback – treat as a reasoning/advice query
         return 'reasoning'
 
@@ -88,6 +90,14 @@ class AIService:
                 "they_owe": {r['person_name']: float(r['bal']) for r in lent},
                 "i_owe": {r['person_name']: float(r['bal']) for r in borrowed}
             }
+            try:
+                loans = conn.execute("SELECT name, total_to_pay, paid_amount, tenure FROM loans WHERE status='active' AND deleted_at IS NULL").fetchall()
+                summary['loans'] = [
+                    {"name": l['name'], "total_amount": float(l['total_to_pay']), "paid_amount": float(l['paid_amount']), "remaining_debt": float(l['total_to_pay'] - l['paid_amount']), "tenure_months": l['tenure']}
+                    for l in loans
+                ]
+            except Exception:
+                pass
 
         elif intent in ['reasoning', 'prediction']:
             # Current month stats (partial / month-to-date)
@@ -230,7 +240,7 @@ class AIService:
             return cached, "Cache"
 
         # 5. Choose response method based on intent
-        if intent in ['salary', 'spending']:
+        if intent in ['salary', 'spending', 'debt']:
             # Use the fast local model for straightforward data
             from services.ai_services import LocalAIService
             # Provide a concise textual summary to the local model
@@ -292,6 +302,18 @@ class AIService:
             mode = "Large"
         from services.ai_services import GeminiService
         response = GeminiService.ask_reasoning_minimal(query, summary_json, mode)
+        
+        # Fallback to Local AI if Gemini fails (e.g. 503 Service Unavailable / Rate limits)
+        if isinstance(response, str) and response.startswith("Service Error:"):
+            try:
+                from services.ai_services import LocalAIService
+                fallback_resp, _ = LocalAIService.ask_llama(query, summary_json)
+                response = fallback_resp + "\n\n*(Note: Handed over to Local AI due to Gemini unavailability)*"
+                cls.set_cache(query_hash, summary_hash, response)
+                return response, "Local (Fallback)"
+            except Exception:
+                pass # If local fallback fails, return the original Gemini Service Error
+                
         # 6. Save to cache
         cls.set_cache(query_hash, summary_hash, response)
         return response, f"Gemini ({mode})"

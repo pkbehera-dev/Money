@@ -11,12 +11,16 @@ from database.connection import init_db
 from services.recurring_service import RecurringService
 from services.analytics_service import AnalyticsService
 
-init_db()
-try:
-    RecurringService.process_due_transactions()
-    print("Recurring transactions processed.")
-except Exception as e:
-    print(f"Error processing recurring transactions: {e}")
+# Avoid dual-running initialization scripts or worker threads in Flask master process (debug mode)
+is_werkzeug_parent = (os.environ.get('WERKZEUG_RUN_MAIN') is None) and (__name__ == '__main__')
+
+if not is_werkzeug_parent:
+    init_db()
+    try:
+        RecurringService.process_due_transactions()
+        print("Recurring transactions processed.")
+    except Exception as e:
+        print(f"Error processing recurring transactions: {e}")
 
 app = Flask(__name__, template_folder='ui/templates', static_folder='ui/static')
 app.secret_key = 'super-secret-key-for-session'
@@ -120,8 +124,9 @@ def run_analytics_worker():
             print(f"Worker Error: {e}")
             time.sleep(60)
 
-worker_thread = Thread(target=run_analytics_worker, daemon=True)
-worker_thread.start()
+if not is_werkzeug_parent:
+    worker_thread = Thread(target=run_analytics_worker, daemon=True)
+    worker_thread.start()
 
 # Background worker for soft delete permanent cleanup
 def run_undo_cleanup_worker():
@@ -135,8 +140,9 @@ def run_undo_cleanup_worker():
             print(f"Undo cleanup error: {e}")
             time.sleep(10)
 
-cleanup_thread = Thread(target=run_undo_cleanup_worker, daemon=True)
-cleanup_thread.start()
+if not is_werkzeug_parent:
+    cleanup_thread = Thread(target=run_undo_cleanup_worker, daemon=True)
+    cleanup_thread.start()
 
 if __name__ == '__main__':
     app.run(debug=True, host='::', port=5000)

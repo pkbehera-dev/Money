@@ -13,6 +13,41 @@ class HealthService:
         Calculates the 0-100 Financial Health Score using weighted factors.
         """
         conn = get_db_connection()
+        this_month = datetime.now().strftime('%Y-%m')
+        
+        # 1. Liquid Cash (excluding deleted accounts)
+        liquid_cash = conn.execute("SELECT SUM(balance) FROM accounts WHERE deleted_at IS NULL").fetchone()[0] or 0.0
+        
+        # 2. Dynamic Credit Card Outstanding and Limits
+        from services.credit_card_service import CreditCardService
+        cards = CreditCardService.get_all_cards()
+        active_cards = [c for c in cards if c.get('status') == 'active' and not c.get('deleted_at')]
+        total_limit = sum([c['card_limit'] for c in active_cards])
+        credit_debt = sum([c['outstanding'] for c in active_cards])
+        
+        # 3. Dynamic Loan Repayments / Debt Repayments this month
+        loan_repayments = conn.execute("""
+            SELECT SUM(amount) 
+            FROM transactions 
+            WHERE category IN ('Loan Repayment', 'Debt Repayment') 
+            AND date LIKE ? 
+            AND deleted_at IS NULL
+        """, (f"{this_month}%",)).fetchone()[0] or 0.0
+        
+        # 4. Loan EMIs (dynamic monthly obligation)
+        loans_rows = conn.execute("""
+            SELECT total_to_pay, tenure 
+            FROM loans 
+            WHERE status = 'active' AND deleted_at IS NULL
+        """).fetchall()
+        monthly_loan_emi = 0.0
+        for l in loans_rows:
+            tenure = l['tenure']
+            if tenure > 0:
+                monthly_loan_emi += (l['total_to_pay'] / tenure)
+                
+        conn.close()
+
         stats = AnalyticsService.get_quick_stats()
         
         # 1. Savings Rate (20%) - Target > 20%
@@ -20,7 +55,9 @@ class HealthService:
         savings = stats.get('savings', 0)
         savings_rate = (savings / income * 100) if income > 0 else 0
         savings_score = min(savings_rate / 20 * 20, 20) if savings_rate > 0 else 0
-        if savings_rate < 0: savings_score = -5 # Penalty for spending more than earning
+        if savings_rate < 0:
+            # Apply a penalty based on severity of deficit, capped at -15
+            savings_score = max(-15, (savings_rate / 10) * 5)
         
         # 2. Budget Discipline (15%)
         budgets = BudgetService.get_all_budgets()
@@ -30,41 +67,67 @@ class HealthService:
         budget_score = max(0, budget_score)
         
         # 3. Credit Usage (15%) - Target < 30%
-        # Note: We use 100,000 as a default limit if cards table is empty for simplicity
-        limit_row = conn.execute("SELECT SUM(credit_limit) FROM credit_cards").fetchone()
-        total_limit = limit_row[0] or 100000 
-        credit_debt = stats.get('card_debt', 0)
         usage_ratio = (credit_debt / total_limit * 100) if total_limit > 0 else 0
-        
-        if usage_ratio <= 30: credit_score = 15
-        elif usage_ratio <= 50: credit_score = 10
-        elif usage_ratio <= 80: credit_score = 5
-        else: credit_score = 0
+        if total_limit == 0:
+            credit_score = 15 # No credit card debt is safe
+        elif usage_ratio <= 30: 
+            credit_score = 15
+        elif usage_ratio <= 50: 
+            credit_score = 10
+        elif usage_ratio <= 80: 
+            credit_score = 5
+        else: 
+            credit_score = 0
         
         # 4. Loan Burden (15%) - Loan payment / Income < 30%
-        loan_repayments = conn.execute("SELECT SUM(amount) FROM transactions WHERE category = 'Loan Repayment' AND strftime('%Y-%m', date) = strftime('%Y-%m', 'now')").fetchone()[0] or 0
         burden_ratio = (loan_repayments / income * 100) if income > 0 else 0
-        if burden_ratio <= 30: loan_score = 15
-        else: loan_score = max(0, 15 - (burden_ratio - 30))
+        if burden_ratio == 0:
+            loan_score = 15 # No loan burden is safe
+        elif burden_ratio <= 30: 
+            loan_score = 15
+        else: 
+            loan_score = max(0, 15 - (burden_ratio - 30))
         
-        # 5. EMI Pressure (10%) - Checks for upcoming dues vs liquid cash
-        upcoming_dues = stats.get('loan_debt', 0) + stats.get('card_debt', 0)
-        liquid_cash = conn.execute("SELECT SUM(balance) FROM accounts").fetchone()[0] or 0
-        if liquid_cash > upcoming_dues: emi_score = 10
-        else: emi_score = 5 # Pressure
+        # 5. EMI Pressure (10%) - Checks for upcoming short-term dues vs liquid cash
+        upcoming_dues = credit_debt + monthly_loan_emi
+        if upcoming_dues == 0:
+            emi_score = 10
+        elif liquid_cash > upcoming_dues: 
+            emi_score = 10
+        else: 
+            emi_score = 3 # High short-term pressure
         
         # 6. Goal Progress (10%)
         goals = GoalService.get_all_goals()
-        avg_progress = sum([g['progress'] for g in goals]) / len(goals) if goals else 0
-        goal_score = (avg_progress / 100 * 10)
+        active_goals = [g for g in goals if g.get('status') == 'active']
+        if not active_goals:
+            goal_score = 8 # Neutral/fair baseline if no goals are created
+            avg_progress = 0
+        else:
+            avg_progress = sum([g['progress'] for g in active_goals]) / len(active_goals)
+            goal_score = (avg_progress / 100 * 10)
         
         # 7. Net Worth Trend (10%) - Is it higher than last month?
-        prev_month = (datetime.now().replace(day=1) - timedelta(days=1)).strftime('%Y-%m')
-        # This logic is simplified; in production we'd query the snapshot table
-        net_trend_score = 10 # Assume positive for MVP
+        try:
+            from services.net_worth_service import NetWorthService
+            nw_change = NetWorthService.get_monthly_change()
+            if nw_change > 2:
+                net_trend_score = 10
+            elif nw_change >= 0:
+                net_trend_score = 6
+            else:
+                net_trend_score = 0 # Declining net worth
+        except Exception:
+            net_trend_score = 5
         
         # 8. Expense Stability (5%)
-        expense_stability_score = 5 # Baseline
+        expense_change = stats.get('expense_stats', {}).get('change_pct', 0)
+        if expense_change > 15:
+            expense_stability_score = 0
+        elif expense_change > 0:
+            expense_stability_score = 3
+        else:
+            expense_stability_score = 5
         
         # Final Total
         total_score = int(savings_score + budget_score + credit_score + loan_score + emi_score + goal_score + net_trend_score + expense_stability_score)
@@ -100,15 +163,18 @@ class HealthService:
             reasons.append("No budgets created to track discipline")
             
         # Credit usage feedback
-        if credit_debt > 0:
-            if usage_ratio > 50:
-                reasons.append(f"High credit utilization ({usage_ratio:.1f}%)")
-            elif usage_ratio > 30:
-                reasons.append(f"Moderate credit utilization ({usage_ratio:.1f}%)")
+        if total_limit > 0:
+            if credit_debt > 0:
+                if usage_ratio > 50:
+                    reasons.append(f"High credit utilization ({usage_ratio:.1f}%)")
+                elif usage_ratio > 30:
+                    reasons.append(f"Moderate credit utilization ({usage_ratio:.1f}%)")
+                else:
+                    reasons.append(f"Excellent credit card utilization ({usage_ratio:.1f}%)")
             else:
-                reasons.append(f"Excellent credit card utilization ({usage_ratio:.1f}%)")
+                reasons.append("Zero outstanding credit card balance")
         else:
-            reasons.append("Zero outstanding credit card balance")
+            reasons.append("No credit cards active")
             
         # Liquidity & upcoming dues feedback
         if upcoming_dues > 0:
@@ -120,14 +186,14 @@ class HealthService:
             reasons.append("No outstanding short-term debt/EMI pressure")
             
         # Goal progress feedback
-        if goals:
+        if active_goals:
             if avg_progress >= 50:
                 reasons.append(f"Excellent progress on active goals (avg: {avg_progress:.0f}%)")
             else:
                 reasons.append(f"Goal progress is slow (avg: {avg_progress:.0f}%) - consider contributing")
         else:
             reasons.append("No active financial goals established")
-
+ 
         res = {
             "score": total_score,
             "status": status,
@@ -138,7 +204,6 @@ class HealthService:
         # Cache to DB if score changed
         HealthService.save_to_history(res)
         
-        conn.close()
         return res
 
     @staticmethod

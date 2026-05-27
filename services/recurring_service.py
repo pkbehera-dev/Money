@@ -17,9 +17,16 @@ class RecurringService:
             'SELECT * FROM recurring_transactions WHERE is_paused = 0 AND next_due_date <= ?', 
             (today,)
         ).fetchall()
+        
+        recurring_list = [dict(r) for r in rows]
+        conn.close()
+        
+        if not recurring_list:
+            return
 
-        for row in rows:
-            # 1. Create the transaction
+        updates = []
+        for row in recurring_list:
+            # 1. Create the transaction (safely opens/closes its own connection)
             TransactionService.add_transaction(
                 type=row['type'],
                 amount=row['amount'],
@@ -53,11 +60,13 @@ class RecurringService:
             else:
                 next_due = current_due + datetime.timedelta(days=30) # Fallback
 
-            # 3. Update the recurring transaction record
-            conn.execute(
-                'UPDATE recurring_transactions SET next_due_date = ?, last_generated_date = ? WHERE id = ?',
-                (next_due.isoformat(), today, row['id'])
-            )
-        
+            updates.append((next_due.isoformat(), today, row['id']))
+            
+        # 3. Update the recurring transaction records in a separate, clean transaction
+        conn = get_db_connection()
+        conn.executemany(
+            'UPDATE recurring_transactions SET next_due_date = ?, last_generated_date = ? WHERE id = ?',
+            updates
+        )
         conn.commit()
         conn.close()

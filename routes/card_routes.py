@@ -27,8 +27,10 @@ def cards_page():
 def pay_bill():
     card_id = int(request.form.get('card_id'))
     amount = float(request.form.get('amount'))
-    account_id = int(request.form.get('account_id'))
-    CreditCardService.pay_bill(card_id, amount, account_id)
+    account_id_raw = request.form.get('account_id')
+    account_id = int(account_id_raw) if account_id_raw else None
+    date = request.form.get('date')
+    CreditCardService.pay_bill(card_id, amount, account_id, date)
     return {"status": "success"}
 
 @card_bp.route('/cards/add', methods=['POST'])

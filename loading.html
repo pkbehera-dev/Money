@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0b0d10">
+    <title>Finance Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="money_facts.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0d10;
+            --accent-color: #4f8cff;
+            --text-color: #f5f6f8;
+            --text-muted: #8892b0;
+            --card-bg: rgba(17, 22, 34, 0.65);
+            --card-border: rgba(79, 140, 255, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Outfit', sans-serif;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            background-image: radial-gradient(circle at 50% 50%, rgba(79, 140, 255, 0.08) 0%, transparent 60%);
+        }
+
+        .container {
+            text-align: center;
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 40px 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(79, 140, 255, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .logo-container {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .pulse-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid var(--accent-color);
+            animation: pulse 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+
+        .logo-icon {
+            font-size: 2.5rem;
+            color: var(--accent-color);
+            filter: drop-shadow(0 0 10px rgba(79, 140, 255, 0.5));
+            animation: float 3s ease-in-out infinite;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+        }
+
+        p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .fact-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            text-align: left;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.02);
+        }
+
+        .fact-header {
+            font-size: 0.7rem;
+            font-weight: 800;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .fact-text {
+            font-size: 0.85rem;
+            line-height: 1.45;
+            color: #d1d5db;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            height: 6px;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent-color), #82b1ff);
+            border-radius: 10px;
+            box-shadow: 0 0 8px rgba(79, 140, 255, 0.5);
+            transition: width 0.1s linear;
+        }
+
+        .timer-text {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--accent-color);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .manual-btn {
+            margin-top: 25px;
+            padding: 10px 20px;
+            background: rgba(79, 140, 255, 0.1);
+            border: 1px solid rgba(79, 140, 255, 0.2);
+            color: var(--accent-color);
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .manual-btn.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .manual-btn:hover {
+            background: rgba(79, 140, 255, 0.2);
+            border-color: rgba(79, 140, 255, 0.4);
+            transform: translateY(-2px);
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+            100% {
+                transform: scale(1.3);
+                opacity: 0;
+            }
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-6px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="logo-container">
+                <div class="pulse-ring"></div>
+                <i class="ph-bold ph-chart-pie-slice logo-icon"></i>
+            </div>
+            <h2>Finance Pro</h2>
+            <p>Initializing smart services & loading dashboard...</p>
+            
+            <!-- Fact Card -->
+            <div class="fact-card">
+                <div class="fact-header">
+                    <i class="ph-bold ph-lightbulb"></i>
+                    <span>Financial Fact / Tip</span>
+                </div>
+                <div class="fact-text" id="fact-content">Did you know? Consistent savings build long-term wealth.</div>
+            </div>
+            
+            <div class="progress-container">
+                <div class="progress-bar" id="bar"></div>
+            </div>
+            
+            <div class="timer-text" id="timer">Starting server... 3.0s</div>
+            
+            <a href="http://localhost:5000" class="manual-btn" id="manual-btn">Click here if not redirected</a>
+        </div>
+    </div>
+
+    <script>
+        // Select random money fact
+        if (typeof MONEY_FACTS !== 'undefined' && MONEY_FACTS.length > 0) {
+            const randomFact = MONEY_FACTS[Math.floor(Math.random() * MONEY_FACTS.length)];
+            document.getElementById('fact-content').innerText = randomFact;
+        }
+
+        const bar = document.getElementById('bar');
+        const timerText = document.getElementById('timer');
+        const manualBtn = document.getElementById('manual-btn');
+        const targetUrl = "http://localhost:5000";
+        
+        let connected = false;
+        let elapsed = 0;
+        const startTime = Date.now();
+
+        // Check connection
+        async function checkConnection() {
+            if (connected) return;
+            try {
+                // Use no-cors to prevent CORS issues on file:// protocol
+                await fetch(targetUrl + "/", { mode: "no-cors", cache: "no-store" });
+                connected = true;
+                onConnect();
+            } catch (err) {
+                // Not online yet, retry
+                setTimeout(checkConnection, 250);
+            }
+        }
+
+        function onConnect() {
+            bar.style.transition = 'width 0.2s ease-out';
+            bar.style.width = '100%';
+            timerText.innerText = "Connected! Redirecting...";
+            setTimeout(() => {
+                window.location.href = targetUrl;
+                // Show manual button after a delay if they're still here
+                setTimeout(() => {
+                    manualBtn.classList.add('show');
+                }, 1500);
+            }, 200);
+        }
+
+        function animateProgress() {
+            if (connected) return;
+            
+            elapsed = Date.now() - startTime;
+            
+            // Progress goes towards 90% in 5 seconds, then slows down asymptotically
+            let progress = 0;
+            if (elapsed < 5000) {
+                progress = (elapsed / 5000) * 90;
+            } else {
+                progress = 90 + (1 - Math.exp(-(elapsed - 5000) / 10000)) * 8;
+            }
+            
+            bar.style.width = progress.toFixed(1) + '%';
+            
+            const seconds = (elapsed / 1000).toFixed(1);
+            timerText.innerText = `Connecting to server... (${seconds}s)`;
+            
+            // If it takes too long (e.g. >10s), show manual button as helper
+            if (elapsed > 10000) {
+                manualBtn.classList.add('show');
+            }
+            
+            requestAnimationFrame(animateProgress);
+        }
+
+        // Start checking connection and animating progress bar
+        checkConnection();
+        requestAnimationFrame(animateProgress);
+    </script>
+</body>
+</html>

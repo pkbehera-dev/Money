@@ -12,7 +12,7 @@ class CreditCardService:
             # 1. Purchases (Direct expenses)
             purchases = conn.execute("SELECT SUM(amount) FROM transactions WHERE card_id = ? AND type = 'expense' AND deleted_at IS NULL", (card['id'],)).fetchone()[0] or 0
             # 2. Cash Withdrawals / Transfers FROM Card (Increases debt)
-            withdrawals = conn.execute("SELECT SUM(amount) FROM transactions WHERE card_id = ? AND type = 'transfer' AND account_id IS NULL AND to_account_id IS NOT NULL AND deleted_at IS NULL", (card['id'],)).fetchone()[0] or 0
+            withdrawals = conn.execute("SELECT SUM(amount + COALESCE(transfer_fee, 0.0)) FROM transactions WHERE card_id = ? AND type = 'transfer' AND account_id IS NULL AND to_account_id IS NOT NULL AND deleted_at IS NULL", (card['id'],)).fetchone()[0] or 0
             # 3. Bill Payments (Transfers TO Card from a bank account) (Decreases debt)
             payments = conn.execute("SELECT SUM(amount) FROM transactions WHERE card_id = ? AND type = 'transfer' AND account_id IS NOT NULL AND deleted_at IS NULL", (card['id'],)).fetchone()[0] or 0
             
@@ -94,7 +94,7 @@ class CreditCardService:
 
 
     @staticmethod
-    def pay_bill(card_id: int, amount: float, account_id: int):
+    def pay_bill(card_id: int, amount: float, account_id: int, date: str = None):
         from services.transaction_service import TransactionService
         conn = get_db_connection()
         card_name = conn.execute("SELECT name FROM credit_cards WHERE id = ?", (card_id,)).fetchone()[0]
@@ -105,7 +105,7 @@ class CreditCardService:
             type="transfer",
             amount=amount,
             category="Credit Card Bill",
-            date=datetime.now().strftime("%Y-%m-%d"),
+            date=date or datetime.now().strftime("%Y-%m-%d"),
             account_id=account_id,
             card_id=card_id,
             notes=f"Bill payment for {card_name}"

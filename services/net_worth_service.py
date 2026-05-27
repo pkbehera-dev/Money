@@ -120,6 +120,10 @@ class NetWorthService:
             current = conn.execute("SELECT networth FROM networth_history ORDER BY date DESC LIMIT 1").fetchone()
             prev = conn.execute("SELECT networth FROM networth_history WHERE date <= ? ORDER BY date DESC LIMIT 1", (first_of_month,)).fetchone()
             
+            if not prev and current:
+                # Fall back to the earliest available snapshot (e.g. when user just started this month)
+                prev = conn.execute("SELECT networth FROM networth_history ORDER BY date ASC LIMIT 1").fetchone()
+                
             if not current or not prev or prev[0] == 0:
                 return 0.0
             

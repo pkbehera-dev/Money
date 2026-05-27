@@ -38,6 +38,20 @@
                     <option value="transfer" {% if active_filters.type == 'transfer' %}selected{% endif %}>Transfer</option>
                 </select>
 
+                <select name="account_id" onchange="this.form.submit()" style="padding: 10px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); min-width: 160px;">
+                    <option value="">All Accounts & Cards</option>
+                    <optgroup label="Bank Accounts">
+                        {% for acc in accounts %}
+                            <option value="A{{ acc.id }}" {% if active_filters.account_id == 'A' ~ acc.id or active_filters.account_id == acc.id|string %}selected{% endif %}>{{ acc.name }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    <optgroup label="Credit Cards">
+                        {% for card in cards %}
+                            <option value="C{{ card.id }}" {% if active_filters.account_id == 'C' ~ card.id %}selected{% endif %}>{{ card.name }}</option>
+                        {% endfor %}
+                    </optgroup>
+                </select>
+
                 <select name="sort" onchange="this.form.submit()" style="padding: 10px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); min-width: 140px;">
                     <option value="date_desc" {% if active_sort == 'date_desc' %}selected{% endif %}>Newest</option>
                     <option value="amount_desc" {% if active_sort == 'amount_desc' %}selected{% endif %}>Highest Amount</option>
@@ -86,7 +100,7 @@
                         <div style="display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                             {% if tx.account_name %}
                                 <span style="color: var(--text-primary);">{{ tx.account_name }}</span>
-                            {% elif tx.card_name and not tx.to_account_name %}
+                            {% elif tx.card_name and not tx.account_id %}
                                 <span style="color: var(--text-primary);">{{ tx.card_name }}</span>
                             {% else %}
                                 <span style="color: var(--text-primary);">N/A</span>
@@ -96,7 +110,7 @@
                             
                             {% if tx.to_account_name %}
                                 <span style="color: var(--primary-accent);">{{ tx.to_account_name }}</span>
-                            {% elif tx.card_name and tx.account_name %}
+                            {% elif tx.card_name and tx.account_id %}
                                 <span style="color: var(--primary-accent);">{{ tx.card_name }}</span>
                             {% else %}
                                 <span style="color: var(--primary-accent);">N/A</span>
@@ -119,6 +133,11 @@
 
                 <div style="font-weight: 800; font-size: 1.1rem; text-align: right; font-family: 'Outfit';" class="{% if tx.type == 'income' %}text-success{% elif tx.type == 'expense' %}text-danger{% else %}text-main{% endif %}">
                     {% if tx.type == 'expense' %}-{% elif tx.type == 'income' %}+{% endif %}₹{{ "%.2f"|format(tx.amount) }}
+                    {% if tx.type == 'transfer' and tx.transfer_fee and tx.transfer_fee > 0 %}
+                    <div style="font-size: 0.65rem; font-weight: 600; color: var(--danger-color); opacity: 0.8; margin-top: 2px;">
+                        Fee: ₹{{ "%.2f"|format(tx.transfer_fee) }}
+                    </div>
+                    {% endif %}
                 </div>
 
                 <div style="text-align: right;">

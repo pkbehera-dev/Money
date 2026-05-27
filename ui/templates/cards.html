@@ -153,6 +153,9 @@
         const drawer = document.getElementById('page-drawer');
         const content = document.getElementById('drawer-dynamic-content');
         
+        const today = new Date();
+        const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+        
         content.innerHTML = `
             <form action="/cards/pay_bill" method="POST" class="ajax-form" style="display: flex; flex-direction: column; gap: 20px;">
                 <h2 style="font-family: 'Outfit'; margin-bottom: 8px;">Pay Credit Card Bill</h2>
@@ -164,6 +167,11 @@
                     <label class="text-muted" style="display: block; margin-bottom: 8px;">Payment Amount</label>
                     <input type="number" step="0.01" name="amount" value="${outstanding}" required style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 1.5rem; font-weight: 700;">
                     <p style="font-size: 0.75rem; color: var(--primary-accent); margin-top: 4px;">Outstanding: ₹${outstanding.toFixed(2)}</p>
+                </div>
+
+                <div>
+                    <label class="text-muted" style="display: block; margin-bottom: 8px;">Payment Date</label>
+                    <input type="date" name="date" value="${todayStr}" required style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary);">
                 </div>
 
                 <div>

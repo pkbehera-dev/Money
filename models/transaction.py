@@ -16,6 +16,7 @@ class Transaction:
     card_id: Optional[int] = None
     person_id: Optional[int] = None
     deleted_at: Optional[str] = None
+    transfer_fee: float = 0.0
     account_name: Optional[str] = None
     to_account_name: Optional[str] = None
     card_name: Optional[str] = None
@@ -35,7 +36,8 @@ class Transaction:
             recurring_id=row['recurring_id'],
             card_id=row.get('card_id'),
             person_id=row.get('person_id'),
-            deleted_at=row.get('deleted_at')
+            deleted_at=row.get('deleted_at'),
+            transfer_fee=row.get('transfer_fee', 0.0) or 0.0
         )
 
     def to_ai_format(self):
