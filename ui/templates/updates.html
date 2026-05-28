@@ -18,7 +18,7 @@
             <div style="display: flex; flex-direction: column; gap: 16px;">
                 <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
                     <span class="text-muted">App Name</span>
-                    <strong style="color: var(--text-primary);">Finance Pro</strong>
+                    <strong style="color: var(--text-primary);">{{ APP_NAME }}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
                     <span class="text-muted">App Version</span>
@@ -91,7 +91,7 @@
 
     <!-- Developer Footer Details -->
     <div style="text-align: center; margin-top: 50px; padding-top: 30px; border-top: 1px solid var(--border-color);">
-        <div style="font-size: 1.5rem; font-weight: 800; font-family: 'Outfit'; color: var(--text-primary); margin-bottom: 4px;">Finance Pro</div>
+        <div style="font-size: 1.5rem; font-weight: 800; font-family: 'Outfit'; color: var(--text-primary); margin-bottom: 4px;">{{ APP_NAME }}</div>
         <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 16px;">Secure, Personal, and Autonomous Wealth Manager</p>
         
         <div style="display: inline-flex; align-items: center; gap: 20px; background: var(--card-bg); padding: 12px 24px; border-radius: 30px; border: 1px solid var(--border-color);">
@@ -105,7 +105,7 @@
             </a>
         </div>
         <div style="margin-top: 16px; font-size: 0.75rem; color: var(--text-secondary);">
-            &copy; 2026 Finance Pro. Made with Passion & Precision.
+            &copy; 2026 {{ APP_NAME }}. Made with Passion & Precision.
         </div>
     </div>
 </div>
@@ -150,7 +150,7 @@
                     updateBox.style.display = 'flex';
                 } else {
                     title.innerText = "System Up to Date";
-                    desc.innerText = `You are running the latest version of Finance Pro (v${result.current_version}).`;
+                    desc.innerText = `You are running the latest version of {{ APP_NAME }}.`;
                 }
             } else {
                 title.innerText = "Check Failed";

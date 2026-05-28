@@ -157,9 +157,18 @@ def inject_system_config():
     except Exception:
         pass
 
+    # Get dynamic app version details
+    try:
+        from run_app import APP_VERSION, APP_NAME
+    except Exception:
+        APP_VERSION = "1.0.1"
+        APP_NAME = f"Finance Pro v{APP_VERSION}"
+
     return {
         'system_config': configs,
-        'license_days_left': days_left_str
+        'license_days_left': days_left_str,
+        'APP_NAME': APP_NAME,
+        'APP_VERSION': APP_VERSION
     }
 
 
