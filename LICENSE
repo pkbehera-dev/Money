@@ -1,123 +1,130 @@
-# Personal Use Source-Available License (PUSAL) v1.0
+PERSONAL USE SOURCE-AVAILABLE LICENSE (PUSAL) v1.0
 
 Copyright (c) 2024–2026 Pradyumna Behera (Bapun)
 
 All rights reserved.
 
-## 1. Permission Grant
+1. Permission Grant
 
-Subject to the terms and conditions of this License, permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software") to:
+Permission is granted, free of charge, to any person obtaining a copy
+of this Software and associated documentation files (the "Software")
+to use, study, and modify the Software solely for personal,
+private, and non-commercial purposes, subject to the conditions
+stated in this License.
 
-* use the Software for personal, private, and non-commercial purposes only;
-* study and review the source code;
-* modify the Software for personal and private use only.
+No rights are granted except those expressly stated herein.
 
-No other rights are granted except as expressly stated in this License.
+2. Non-Commercial Use Only
 
----
+The Software may not be used, directly or indirectly, for any
+commercial, business, organizational, institutional, governmental,
+or revenue-generating purpose without prior written permission
+from the copyright holder.
 
-## 2. Commercial Use Prohibited
-
-You may not use the Software, directly or indirectly, for any commercial, organizational, institutional, governmental, or revenue-generating purpose without prior written permission from the copyright holder.
-
-Prohibited commercial use includes, but is not limited to:
+Prohibited uses include, but are not limited to:
 
 * selling the Software;
 * offering paid services using the Software;
 * integrating the Software into commercial products or services;
-* using the Software within a business, company, startup, or organization;
-* monetizing the Software through advertisements, subscriptions, donations, sponsorships, or paid access;
-* using the Software to support commercial operations or clients.
+* using the Software within a business, company, startup,
+  institution, or organization;
+* monetizing the Software through advertisements, subscriptions,
+  sponsorships, donations, or paid access;
+* using the Software to support commercial clients or operations.
 
-Commercial rights are reserved exclusively by the copyright holder.
+All commercial rights are reserved exclusively by the copyright holder.
 
----
+3. Public Hosting Prohibited
 
-## 3. Public Hosting and Network Use Prohibited
+The Software may not be deployed, hosted, distributed, exposed,
+or made publicly accessible over any network or internet-based
+service without prior written permission from the copyright holder.
 
-You may not deploy, host, publish, distribute, expose, or make the Software available over any public or shared network, including but not limited to:
+This includes, but is not limited to:
 
 * websites;
 * SaaS platforms;
 * APIs;
 * cloud services;
 * public servers;
-* shared hosting environments;
-* multi-user systems.
+* shared hosting systems;
+* multi-user environments.
 
-This restriction applies whether the Software is modified or unmodified.
+This restriction applies to both modified and unmodified versions
+of the Software.
 
----
+4. Redistribution Prohibited
 
-## 4. Redistribution Prohibited
+You may not redistribute, sublicense, republish, reupload,
+mirror, sell, lease, rent, transfer, or share the Software,
+in whole or in part, in source code, binary, compiled,
+packaged, or modified form, without prior written permission
+from the copyright holder.
 
-You may not redistribute, sublicense, sell, lease, rent, transfer, mirror, reupload, republish, or share the Software, in whole or in part, in source code, binary, compiled, packaged, or modified form, without prior written permission from the copyright holder.
+Personal local backups made solely for private use are permitted.
 
-Private local backups made solely for personal use are permitted.
-
----
-
-## 5. No Claim of Authorship
+5. Attribution and Authorship
 
 You may not:
 
 * claim the Software as your own work;
-* remove or alter copyright notices, license notices, or attribution;
-* represent modified versions as original works created solely by you.
+* remove or alter copyright notices, license notices,
+  or author attribution;
+* represent modified versions as entirely original works.
 
-Any permitted copies or modifications must retain all original copyright and license notices.
+Any permitted copies or modifications of the Software must retain
+all original copyright and license notices.
 
----
+6. Modifications
 
-## 6. Modifications
+You may modify the Software solely for personal,
+private, and non-commercial use.
 
-You may modify the Software solely for personal, private, and non-commercial use.
+Modification of the Software does not grant ownership
+of the original Software or its intellectual property.
 
-Modification of the Software does not grant you ownership of the original Software or any intellectual property rights associated with it.
+Ownership of original modifications created by you applies only
+to the portions independently created by you and remains subject
+to the restrictions of this License.
 
-You acquire ownership only over your own original modifications, subject to the restrictions of this License.
+7. Source-Available Notice
 
----
-
-## 7. No Open Source Rights
-
-This Software is source-available but is not open-source software as defined by the Open Source Initiative (OSI).
+This Software is source-available but is not open-source software
+as defined by the Open Source Initiative (OSI).
 
 No rights are granted to:
 
-* redistribute the Software;
 * commercially use the Software;
+* redistribute the Software;
 * sublicense the Software;
 * publicly host the Software.
 
 All rights not expressly granted are reserved by the copyright holder.
 
----
+8. Termination
 
-## 8. Termination
+Any violation of this License automatically terminates all rights
+granted under this License.
 
-Any violation of this License automatically terminates all rights granted under this License.
+Upon termination, you must immediately stop using the Software
+and destroy all copies in your possession or control.
 
-Upon termination, you must immediately cease all use of the Software and destroy all copies in your possession or control.
+9. Disclaimer of Warranty
 
----
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE,
+AND NONINFRINGEMENT.
 
-## 9. Disclaimer of Warranty
+10. Limitation of Liability
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM,
+DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH
+THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-THE COPYRIGHT HOLDER SHALL NOT BE LIABLE FOR ANY CLAIM, DAMAGES, LIABILITY, OR OTHER LOSS ARISING FROM OR RELATED TO THE SOFTWARE OR ITS USE.
+11. Severability
 
----
-
-## 10. Limitation of Liability
-
-IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING LOSS OF DATA, PROFITS, BUSINESS, OR GOODWILL, ARISING FROM THE USE OF THE SOFTWARE.
-
----
-
-## 11. Governing Rights
-
-This License shall be interpreted in accordance with applicable copyright and intellectual property laws.
-
-If any provision of this License is found unenforceable, the remaining provisions shall remain in full force and effect.
+If any provision of this License is found to be unenforceable
+or invalid under applicable law, the remaining provisions
+shall remain in full force and effect.
