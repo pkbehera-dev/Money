@@ -211,7 +211,9 @@ def run_update_check():
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
-        response = requests.get(VERSION_URL, headers=headers, timeout=5)
+        import time
+        cache_buster_url = f"{VERSION_URL}?t={int(time.time())}"
+        response = requests.get(cache_buster_url, headers=headers, timeout=5)
         if response.status_code == 200:
             data = response.json()
             online_version = data.get("version")
