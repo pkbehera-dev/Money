@@ -98,6 +98,18 @@
                 <i class="ph ph-download-simple" id="install-icon"></i> Install Now
             </button>
         </div>
+
+        <!-- Progress Container (Hidden by default) -->
+        <div id="download-progress-container" style="display: none; margin-top: 20px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 16px; padding: 20px 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span id="progress-status-text" style="font-weight: 600; font-size: 0.95rem; color: var(--text-primary);">Downloading update...</span>
+                <span id="progress-percent-text" style="font-weight: 700; font-size: 0.95rem; color: var(--primary-accent);">0%</span>
+            </div>
+            <div style="width: 100%; background: rgba(255, 255, 255, 0.05); height: 8px; border-radius: 4px; overflow: hidden; border: 1px solid var(--border-color);">
+                <div id="progress-bar-fill" style="height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary-accent), #60a5fa); border-radius: 4px; transition: width 0.2s ease;"></div>
+            </div>
+            <div id="progress-error-text" style="color: var(--danger-color); font-size: 0.8rem; margin-top: 8px; display: none;"></div>
+        </div>
     </div>
 
     <!-- Developer Footer Details -->
@@ -113,6 +125,10 @@
             <div style="width: 1px; height: 14px; background: var(--border-color);"></div>
             <a href="https://github.com/pkbehera-dev" target="_blank" style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 600; color: var(--primary-accent); text-decoration: none;">
                 <i class="ph-bold ph-github-logo"></i> GitHub Profile
+            </a>
+            <div style="width: 1px; height: 14px; background: var(--border-color);"></div>
+            <a href="https://instagram.com/pkbehera_dev" target="_blank" style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 600; color: #e1306c; text-decoration: none;">
+                <i class="ph-bold ph-instagram-logo"></i> Instagram Profile
             </a>
         </div>
         <div style="margin-top: 16px; font-size: 0.75rem; color: var(--text-secondary);">
@@ -202,7 +218,79 @@
             
             const result = await response.json();
             if (response.ok && result.success) {
-                alert("Download initiated! A progress bar dialog will appear and the app will restart momentarily.");
+                const progressContainer = document.getElementById('download-progress-container');
+                const progressFill = document.getElementById('progress-bar-fill');
+                const progressPercent = document.getElementById('progress-percent-text');
+                const progressStatus = document.getElementById('progress-status-text');
+                const progressError = document.getElementById('progress-error-text');
+                
+                progressContainer.style.display = 'block';
+                progressError.style.display = 'none';
+                
+                const intervalId = setInterval(async () => {
+                    try {
+                        const statusRes = await fetch('{{ url_for("settings.download_status") }}');
+                        const statusData = await statusRes.json();
+                        
+                        if (statusData.status === 'downloading') {
+                            progressFill.style.width = statusData.percent + '%';
+                            progressPercent.innerText = statusData.percent + '%';
+                            progressStatus.innerText = `Downloading update... (${statusData.percent}%)`;
+                        } else if (statusData.status === 'installing') {
+                            progressFill.style.width = '100%';
+                            progressPercent.innerText = '100%';
+                            progressStatus.innerText = 'Installing and restarting... Please wait.';
+                            clearInterval(intervalId);
+                            
+                            // Start pinging the server to see when it comes back online
+                            const pingInterval = setInterval(async () => {
+                                try {
+                                    const testRes = await fetch('/');
+                                    if (testRes.ok) {
+                                        clearInterval(pingInterval);
+                                        progressStatus.innerText = 'Reconnected! Reloading...';
+                                        setTimeout(() => {
+                                            window.location.reload();
+                                        }, 1000);
+                                    }
+                                } catch (pingErr) {
+                                    // Keep pinging
+                                }
+                            }, 1000);
+                        } else if (statusData.status === 'error') {
+                            clearInterval(intervalId);
+                            progressStatus.innerText = 'Failed to install update.';
+                            progressError.innerText = statusData.error || 'Unknown error occurred.';
+                            progressError.style.display = 'block';
+                            installBtn.disabled = false;
+                            installIcon.classList.remove('ph-spin');
+                            installBtn.style.opacity = '1';
+                        }
+                    } catch (pollErr) {
+                        console.error("Error polling download status:", pollErr);
+                        // Server has likely shut down to perform the update.
+                        clearInterval(intervalId);
+                        progressFill.style.width = '100%';
+                        progressPercent.innerText = '100%';
+                        progressStatus.innerText = 'Application is restarting... Reconnecting...';
+                        
+                        // Ping server until back online
+                        const pingInterval = setInterval(async () => {
+                            try {
+                                const testRes = await fetch('/');
+                                if (testRes.ok) {
+                                    clearInterval(pingInterval);
+                                    progressStatus.innerText = 'Reconnected! Reloading...';
+                                    setTimeout(() => {
+                                        window.location.reload();
+                                    }, 1000);
+                                }
+                            } catch (pingErr) {
+                                // Keep pinging
+                            }
+                        }, 1000);
+                    }
+                }, 500);
             } else {
                 installBtn.disabled = false;
                 installIcon.classList.remove('ph-spin');
@@ -217,6 +305,7 @@
             alert("Network error. Failed to initiate update installation.");
         }
     }
+
 
     async function activateNewLicense() {
         const keyInput = document.getElementById('new-license-key');

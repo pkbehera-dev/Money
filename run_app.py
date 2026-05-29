@@ -10,7 +10,7 @@ from services.license_service import (
     APP_VERSION, VERSION_URL, PRODUCT_ID, ACTIVATION_URL, LICENSE_FILE,
     get_device_fingerprint, check_license_online,
     get_license_signature, save_license_locally, get_saved_license,
-    perform_auto_update
+    perform_auto_update, create_app_mutex
 )
 
 APP_NAME = f"Finance Pro v{APP_VERSION}"
@@ -252,7 +252,12 @@ def start_flask_server():
 
     app.run(host='127.0.0.1', port=5000, debug=False, use_reloader=False)
 
+
+
 def main():
+    # Create the named mutex for Inno Setup detection
+    create_app_mutex()
+    
     # 1. Check local key
     saved_key = get_saved_license()
     
@@ -265,6 +270,7 @@ def main():
     # 2. Show activation window (pywebview-based, no tkinter)
     if show_activation_window():
         launch_native_window()
+
 
 def launch_native_window():
     # Start flask server in background
@@ -398,7 +404,7 @@ def launch_native_window():
             <div class="card">
                 <div class="logo-container">
                     <div class="pulse-ring"></div>
-                    <div class="logo-icon">\\u26c1</div>
+                    <div class="logo-icon">&#x26c1;</div>
                 </div>
                 <h2>Finance Pro</h2>
                 <p>Starting secure backend systems...</p>

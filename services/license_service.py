@@ -7,7 +7,7 @@ import hashlib
 import json
 
 # Product config constants
-APP_VERSION = "1.0.5"
+APP_VERSION = "1.1.1"
 VERSION_URL = "https://raw.githubusercontent.com/pkbehera-dev/Money/master/version.json"
 PRODUCT_ID = "finance_pro"
 ACTIVATION_URL = "https://service.pkbehera.in/api/activate"
@@ -17,6 +17,27 @@ LICENSE_FILE = os.path.join(os.path.expanduser("~"), ".finance_pro_license")
 _update_status = "idle"
 _update_percent = 0
 _update_error = ""
+
+_app_mutex = None
+
+def create_app_mutex():
+    global _app_mutex
+    if sys.platform == 'win32':
+        try:
+            import ctypes
+            _app_mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "FinanceProMutexString")
+        except Exception:
+            pass
+
+def release_app_mutex():
+    global _app_mutex
+    if _app_mutex and sys.platform == 'win32':
+        try:
+            import ctypes
+            ctypes.windll.kernel32.CloseHandle(_app_mutex)
+            _app_mutex = None
+        except Exception:
+            pass
 
 def set_update_progress(status, percent, error=""):
     global _update_status, _update_percent, _update_error
@@ -81,12 +102,12 @@ def get_saved_license():
     return None
 
 def perform_auto_update(download_url):
-    """Downloads the new executable and spawns a batch updater to replace itself.
-    Progress is tracked via set_update_progress() and polled by the web UI."""
+    """Downloads the new installer and spawns it silently to replace the application files."""
     import requests
     import subprocess
     import sys
     import os
+    import time
     
     global _update_status
     
@@ -105,42 +126,41 @@ def perform_auto_update(download_url):
             set_update_progress("error", 0, "Application is not running as a packaged executable.")
             return
             
-        # Download new exe to temp file
-        temp_exe = os.path.join(os.path.dirname(current_exe), "new_run_app.exe")
+        # Download installer to Windows temp folder
+        temp_dir = os.environ.get("TEMP", os.path.dirname(current_exe))
+        temp_installer = os.path.join(temp_dir, "FinanceProSetup.exe")
+        
         r = requests.get(download_url, headers=headers, stream=True)
         total_size = int(r.headers.get('content-length', 0))
         downloaded = 0
         
-        with open(temp_exe, 'wb') as f:
+        with open(temp_installer, 'wb') as f:
             for chunk in r.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)
                     downloaded += len(chunk)
                     if total_size > 0:
                         percent = int((downloaded / total_size) * 100)
-                        set_update_progress("downloading", percent)
+                    else:
+                        percent = min(99, int((downloaded / (50 * 1024 * 1024)) * 100))
+                    set_update_progress("downloading", percent)
                             
         set_update_progress("installing", 100)
         
-        # Overwrite the running executable under its current name
-        exe_dir = os.path.dirname(current_exe)
-        current_exe_name = os.path.basename(current_exe)
-        batch_path = os.path.join(exe_dir, "updater.bat")
+        # Sleep brief moment to allow UI polling to fetch the "installing" state
+        time.sleep(2.0)
         
-        # updater.bat waits for old process to close, deletes old, renames new to match the current running name, restarts, and deletes itself
-        with open(batch_path, "w") as bf:
-            bf.write(f"""@echo off
-timeout /t 1 /nobreak > nul
-del /f /q "{current_exe_name}"
-rename "new_run_app.exe" "{current_exe_name}"
-start "" "{current_exe_name}"
-del "%~f0"
-""")
-            
-        # Spawn batch script in background
-        subprocess.Popen([batch_path], shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
-        # Exit running process immediately to unlock the file
-        sys.exit(0)
+        # Release the Windows mutex handle to prevent the installer from detecting it
+        release_app_mutex()
+        
+        # Launch the Inno Setup installer silently after a 1-second delay (via ping)
+        # to ensure the parent process has fully terminated and released the file lock
+        cmd = f'ping 127.0.0.1 -n 2 > nul && start "" "{temp_installer}" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART'
+        subprocess.Popen(cmd, shell=True)
+        
+        # Exit immediately to release file lock on our executable so installer can overwrite it
+        os._exit(0)
     except Exception as e:
         set_update_progress("error", 0, str(e))
+
 

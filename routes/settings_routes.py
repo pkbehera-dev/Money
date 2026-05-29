@@ -159,7 +159,7 @@ def update_api_key():
 
 @settings_bp.route('/settings/updates')
 def updates_page():
-    from run_app import APP_VERSION, check_license_online, get_saved_license
+    from services.license_service import APP_VERSION, check_license_online, get_saved_license
     import datetime
     
     # Defaults
@@ -205,7 +205,7 @@ def updates_page():
 @settings_bp.route('/settings/check_update', methods=['POST'])
 def run_update_check():
     from flask import jsonify
-    from run_app import VERSION_URL, APP_VERSION
+    from services.license_service import VERSION_URL, APP_VERSION
     import requests
     try:
         headers = {
@@ -232,7 +232,7 @@ def run_update_check():
 @settings_bp.route('/settings/install_update', methods=['POST'])
 def install_update():
     from flask import jsonify, request
-    from run_app import perform_auto_update
+    from services.license_service import perform_auto_update
     from threading import Thread
     
     download_url = request.json.get('download_url')
@@ -241,16 +241,23 @@ def install_update():
         
     try:
         # Run perform_auto_update in a background thread to prevent blocking Flask's json return
+        # Disable native Tkinter window since we are spawning this in background of Flask process
         t = Thread(target=perform_auto_update, args=(download_url,), daemon=True)
         t.start()
         return jsonify({"success": True, "message": "Update download started."})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
+@settings_bp.route('/settings/download_status')
+def download_status():
+    from flask import jsonify
+    from services.license_service import get_update_progress
+    return jsonify(get_update_progress())
+
 @settings_bp.route('/settings/activate_new_license', methods=['POST'])
 def activate_new_license():
     from flask import jsonify, request
-    from run_app import check_license_online, save_license_locally
+    from services.license_service import check_license_online, save_license_locally
     from database.connection import get_db_connection
     import datetime
     
@@ -262,7 +269,7 @@ def activate_new_license():
         # Verify the license key online
         res = check_license_online(license_key)
         if res.get('success'):
-            # Save license locally using run_app helper
+            # Save license locally
             save_license_locally(license_key)
             
             # Reset the activation date and cached expiry in the DB
@@ -290,4 +297,5 @@ def activate_new_license():
             return jsonify({"success": False, "message": res.get('message', 'Invalid key.')}), 400
     except Exception as e:
         return jsonify({"success": False, "message": f"Server error: {str(e)}"}), 500
+
 

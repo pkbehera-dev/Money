@@ -137,7 +137,7 @@ def inject_system_config():
     days_left_str = "Not Activated"
     license_tier = "Free Trial"
     try:
-        from run_app import get_saved_license, check_license_online
+        from services.license_service import get_saved_license, check_license_online
         key = get_saved_license()
         if key:
             res = check_license_online(key)
@@ -199,9 +199,8 @@ def inject_system_config():
 
     # Get dynamic app version details
     try:
-        from run_app import APP_VERSION, APP_NAME
+        from services.license_service import APP_VERSION
     except Exception:
-        # Parse version dynamically from run_app.py without importing to avoid manual changes
         APP_VERSION = "1.0.0"
         try:
             import os
@@ -215,7 +214,8 @@ def inject_system_config():
                             break
         except Exception:
             pass
-        APP_NAME = f"Finance Pro v{APP_VERSION}"
+    APP_NAME = f"Finance Pro v{APP_VERSION}"
+
 
     return {
         'system_config': configs,
