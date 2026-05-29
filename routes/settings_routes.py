@@ -247,3 +247,47 @@ def install_update():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
+@settings_bp.route('/settings/activate_new_license', methods=['POST'])
+def activate_new_license():
+    from flask import jsonify, request
+    from run_app import check_license_online, save_license_locally
+    from database.connection import get_db_connection
+    import datetime
+    
+    license_key = request.json.get('license_key')
+    if not license_key:
+        return jsonify({"success": False, "message": "License key is required."}), 400
+        
+    try:
+        # Verify the license key online
+        res = check_license_online(license_key)
+        if res.get('success'):
+            # Save license locally using run_app helper
+            save_license_locally(license_key)
+            
+            # Reset the activation date and cached expiry in the DB
+            conn = get_db_connection()
+            # Set activation date to today
+            today_str = datetime.date.today().strftime("%Y-%m-%d")
+            conn.execute("INSERT OR REPLACE INTO system_config (config_key, config_value) VALUES ('license_activated_at', ?)", (today_str,))
+            
+            expires_at = res.get('expires_at')
+            if expires_at:
+                conn.execute("INSERT OR REPLACE INTO system_config (config_key, config_value) VALUES ('license_expiry', ?)", (expires_at,))
+            else:
+                conn.execute("DELETE FROM system_config WHERE config_key = 'license_expiry'")
+                
+            conn.commit()
+            conn.close()
+            
+            # Return success details
+            return jsonify({
+                "success": True, 
+                "message": "Activation successful!",
+                "expires_at": expires_at or "Lifetime License"
+            })
+        else:
+            return jsonify({"success": False, "message": res.get('message', 'Invalid key.')}), 400
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Server error: {str(e)}"}), 500
+

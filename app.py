@@ -133,27 +133,67 @@ def inject_system_config():
     except Exception:
         pass
         
-    # 2. Get license days left
-    days_left_str = "Pro Member"
+    # 2. Get license days left and tier
+    days_left_str = "Not Activated"
+    license_tier = "Free Trial"
     try:
         from run_app import get_saved_license, check_license_online
         key = get_saved_license()
         if key:
             res = check_license_online(key)
-            if res.get('success') and res.get('expires_at'):
+            if res.get('success') or res.get('unreachable'):
                 from datetime import datetime
+                conn = get_db_connection()
+                
+                # Check for activation date in configs to keep tier static
+                activation_date_str = configs.get('license_activated_at')
+                if not activation_date_str:
+                    activation_date_str = datetime.now().strftime("%Y-%m-%d")
+                    conn.execute("INSERT OR REPLACE INTO system_config (config_key, config_value) VALUES ('license_activated_at', ?)", (activation_date_str,))
+                    conn.commit()
+                    configs['license_activated_at'] = activation_date_str
+                
+                activation_date = datetime.strptime(activation_date_str, "%Y-%m-%d").date()
+                
                 expires_str = res.get('expires_at')
-                try:
-                    expires_dt = datetime.strptime(expires_str.split(' ')[0], "%Y-%m-%d")
-                    delta = (expires_dt.date() - datetime.now().date()).days
-                    if delta > 0:
-                        days_left_str = f"{delta} days left"
-                    else:
-                        days_left_str = "License Expired"
-                except Exception:
+                # Cache expiry date locally to support offline validation
+                if expires_str:
+                    conn.execute("INSERT OR REPLACE INTO system_config (config_key, config_value) VALUES ('license_expiry', ?)", (expires_str,))
+                    conn.commit()
+                elif res.get('unreachable'):
+                    expires_str = configs.get('license_expiry')
+                
+                if expires_str:
+                    try:
+                        expires_dt = datetime.strptime(expires_str.split(' ')[0], "%Y-%m-%d").date()
+                        delta = (expires_dt - datetime.now().date()).days
+                        if delta > 0:
+                            days_left_str = f"{delta} days left"
+                        else:
+                            days_left_str = "License Expired"
+                            
+                        # Calculate original duration to determine the Tier Name
+                        original_days = (expires_dt - activation_date).days
+                        if original_days <= 7:
+                            license_tier = "Weekly Pass"
+                        elif original_days <= 30:
+                            license_tier = "Monthly Pass"
+                        elif original_days <= 180:
+                            license_tier = "Seasonal Pass"
+                        elif original_days <= 365:
+                            license_tier = "Yearly Pass"
+                        else:
+                            license_tier = "Lifetime Access"
+                    except Exception:
+                        days_left_str = "Lifetime Member"
+                        license_tier = "Lifetime Access"
+                else:
                     days_left_str = "Lifetime Member"
-            elif res.get('success'):
-                days_left_str = "Lifetime Member"
+                    license_tier = "Lifetime Access"
+                conn.close()
+            else:
+                days_left_str = "License Expired"
+                license_tier = "Free Trial"
     except Exception:
         pass
 
@@ -161,12 +201,26 @@ def inject_system_config():
     try:
         from run_app import APP_VERSION, APP_NAME
     except Exception:
-        APP_VERSION = "1.0.1"
+        # Parse version dynamically from run_app.py without importing to avoid manual changes
+        APP_VERSION = "1.0.0"
+        try:
+            import os
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            run_app_path = os.path.join(current_dir, "run_app.py")
+            if os.path.exists(run_app_path):
+                with open(run_app_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if line.strip().startswith("APP_VERSION ="):
+                            APP_VERSION = line.split("=")[1].strip().strip('"').strip("'")
+                            break
+        except Exception:
+            pass
         APP_NAME = f"Finance Pro v{APP_VERSION}"
 
     return {
         'system_config': configs,
         'license_days_left': days_left_str,
+        'license_tier': license_tier,
         'APP_NAME': APP_NAME,
         'APP_VERSION': APP_VERSION
     }

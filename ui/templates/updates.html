@@ -40,16 +40,27 @@
             <div style="display: flex; flex-direction: column; gap: 16px;">
                 <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
                     <span class="text-muted">License Type</span>
-                    <strong style="color: var(--text-primary);">{{ license_type }}</strong>
+                    <strong style="color: var(--text-primary);">{{ license_tier }}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
                     <span class="text-muted">License Expiry</span>
-                    <strong style="color: var(--text-primary);">{{ expiry_date }}</strong>
+                    <strong style="color: var(--text-primary);">{{ expiry_date }} <span style="font-size: 0.8rem; font-weight: 500; opacity: 0.7;">({{ license_days_left }})</span></strong>
                 </div>
                 <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
                     <span class="text-muted">Device HWID</span>
                     <code style="font-family: 'Consolas', monospace; font-size: 0.8rem; background: var(--bg-main); padding: 2px 8px; border-radius: 6px;">Active Lock</code>
                 </div>
+            </div>
+            
+            <!-- Upgrade / Change License Key -->
+            <div style="margin-top: 20px; padding: 16px; border: 1px dashed var(--border-color); border-radius: 12px; background: rgba(255, 255, 255, 0.01);">
+                <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">Upgrade Plan / Activate New Key</div>
+                <a href="https://service.pkbehera.in/buy" target="_blank" style="color: var(--primary-accent); font-size: 0.78rem; text-decoration: underline; display: inline-block; margin-bottom: 12px; font-weight: 600;">Don't have a license key? Buy one here &rarr;</a>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="new-license-key" placeholder="Enter license activation key..." style="flex: 1; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-main); color: var(--text-primary); font-size: 0.8rem; font-family: 'Consolas', monospace;">
+                    <button onclick="activateNewLicense()" class="btn-primary" style="padding: 8px 16px; font-size: 0.8rem; font-weight: 700; cursor: pointer; border-radius: 8px; white-space: nowrap;">Activate</button>
+                </div>
+                <div id="license-status-msg" style="margin-top: 8px; font-size: 0.75rem; font-weight: 600; display: none;"></div>
             </div>
         </div>
     </div>
@@ -204,6 +215,46 @@
             installBtn.style.opacity = '1';
             console.error("Installation request failed:", err);
             alert("Network error. Failed to initiate update installation.");
+        }
+    }
+
+    async function activateNewLicense() {
+        const keyInput = document.getElementById('new-license-key');
+        const statusMsg = document.getElementById('license-status-msg');
+        const key = keyInput.value.trim();
+        
+        if (!key) {
+            alert("Please enter a license key.");
+            return;
+        }
+        
+        statusMsg.style.display = 'block';
+        statusMsg.style.color = 'var(--text-secondary)';
+        statusMsg.innerText = "Validating with server...";
+        
+        try {
+            const response = await fetch('{{ url_for("settings.activate_new_license") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ license_key: key })
+            });
+            const result = await response.json();
+            if (response.ok && result.success) {
+                statusMsg.style.color = 'var(--success-color)';
+                statusMsg.innerText = "Activation Successful! Reloading app...";
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1200);
+            } else {
+                statusMsg.style.color = 'var(--danger-color)';
+                statusMsg.innerText = result.message || "Failed to activate license key.";
+            }
+        } catch (err) {
+            statusMsg.style.color = 'var(--danger-color)';
+            statusMsg.innerText = "Network error. Connection failed.";
         }
     }
 </script>
