@@ -1397,6 +1397,7 @@
         }
 
         // --- Notification System ---
+        let isFirstFetch = true;
         async function fetchNotifications() {
             try {
                 const response = await fetch('/api/notifications');
@@ -1499,6 +1500,18 @@
             let lastNotifiedId = parseInt(localStorage.getItem('last_notified_id') || '0', 10);
             let unreadNotifs = notifications.filter(n => n.read_status === 0);
             let unreadCount = unreadNotifs.length;
+            
+            // Suppress toast notifications for pre-existing unread notifications on startup
+            if (isFirstFetch) {
+                if (unreadNotifs.length > 0) {
+                    const maxId = Math.max(...unreadNotifs.map(n => n.id));
+                    if (maxId > lastNotifiedId) {
+                        lastNotifiedId = maxId;
+                        localStorage.setItem('last_notified_id', maxId.toString());
+                    }
+                }
+                isFirstFetch = false;
+            }
             
             let newNotifications = unreadNotifs.filter(n => n.id > lastNotifiedId);
             

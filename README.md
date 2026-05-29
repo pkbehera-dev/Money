@@ -1,7 +1,7 @@
-# 💰 Money Manager — Personal Finance Tracker
+# 💰 Finance Pro — Personal Finance Tracker
 
 > **Built with love by Pradyumna Behera (Bapun)**
-> A smart, offline-first money manager that runs right on your computer.
+> A smart, offline-first finance manager that runs right on your computer.
 
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Flask](https://img.shields.io/badge/Flask-3.0+-000000?style=for-the-badge&logo=flask)](https://flask.palletsprojects.com/)
@@ -42,7 +42,7 @@ Copyright © 2024-2026 Pradyumna Behera (Bapun). All Rights Reserved.
 
 ## 📖 What Is This?
 
-Money Manager is a **full-featured personal finance app** that runs locally on your computer.
+Finance Pro is a **full-featured personal finance app** that runs locally on your computer.
 It is local-first, subscription-free, and has no ads. Your data is stored locally, but if you choose to use the advanced Gemini AI assistant, it will use cloud-based Gemini APIs to process financial questions.
 
 

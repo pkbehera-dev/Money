@@ -23,6 +23,13 @@ WizardStyle=modern
 AppMutex=FinanceProMutexString
 ; PrivilegesRequired=lowest allows the installer to run without requiring Admin rights, installing to User AppData
 PrivilegesRequired=lowest
+AppCopyright=Copyright (C) 2026 {#MyAppPublisher}
+VersionInfoCopyright=Copyright (C) 2026 {#MyAppPublisher}
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoDescription={#MyAppName} Setup Installer
+VersionInfoProductName={#MyAppName}
+VersionInfoProductVersion={#MyAppVersion}
+VersionInfoVersion={#MyAppVersion}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
