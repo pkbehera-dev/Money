@@ -7,7 +7,7 @@ import hashlib
 import json
 
 # Product config constants
-APP_VERSION = "1.1.2"
+APP_VERSION = "1.1.3"
 VERSION_URL = "https://raw.githubusercontent.com/pkbehera-dev/Money/master/version.json"
 PRODUCT_ID = "finance_pro"
 ACTIVATION_URL = "https://service.pkbehera.in/api/activate"
