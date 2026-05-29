@@ -1,5 +1,5 @@
 #define MyAppName "Finance Pro"
-#define MyAppVersion "1.1.1"
+#define MyAppVersion "1.1.2"
 #define MyAppPublisher "Pradyumna Behera"
 #define MyAppExeName "Finance Pro.exe"
 
@@ -39,4 +39,71 @@ Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+; Launch the app automatically in silent mode (for background updates)
+Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; Flags: nowait; Check: WizardSilent
+
+; Launch the app via checkbox option in interactive mode
+Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent; Check: not WizardSilent
+
+[Code]
+#ifdef UNICODE
+  #define AW "W"
+#else
+  #define AW "A"
+#endif
+
+function SetEnvironmentVariable(lpName, lpValue: String): Boolean;
+external 'SetEnvironmentVariable{#AW}@kernel32.dll stdcall';
+
+function GetEnvironmentVariable(lpName: String; lpValue: String; nSize: Integer): Integer;
+external 'GetEnvironmentVariable{#AW}@kernel32.dll stdcall';
+
+function InitializeSetup(): Boolean;
+var
+  PathBuf: String;
+  PathLen: Integer;
+  NewPath: String;
+  P: Integer;
+  PathPart: String;
+  RemainingPath: String;
+begin
+  // Clear python environment variables
+  SetEnvironmentVariable('PYTHONHOME', '');
+  SetEnvironmentVariable('PYTHONPATH', '');
+
+  // Clean PATH variable from any inherited PyInstaller _MEI directories
+  PathLen := 4096;
+  SetLength(PathBuf, PathLen);
+  PathLen := GetEnvironmentVariable('PATH', PathBuf, PathLen);
+  if PathLen > 0 then
+  begin
+    SetLength(PathBuf, PathLen);
+    RemainingPath := PathBuf;
+    NewPath := '';
+    while Length(RemainingPath) > 0 do
+    begin
+      P := Pos(';', RemainingPath);
+      if P > 0 then
+      begin
+        PathPart := Copy(RemainingPath, 1, P - 1);
+        RemainingPath := Copy(RemainingPath, P + 1, Length(RemainingPath) - P);
+      end
+      else
+      begin
+        PathPart := RemainingPath;
+        RemainingPath := '';
+      end;
+      
+      // If the path part does not contain '_MEI', keep it
+      if Pos('_MEI', PathPart) = 0 then
+      begin
+        if NewPath <> '' then
+          NewPath := NewPath + ';' + PathPart
+        else
+          NewPath := PathPart;
+      end;
+    end;
+    SetEnvironmentVariable('PATH', NewPath);
+  end;
+  Result := True;
+end;

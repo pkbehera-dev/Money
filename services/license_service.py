@@ -7,7 +7,7 @@ import hashlib
 import json
 
 # Product config constants
-APP_VERSION = "1.1.1"
+APP_VERSION = "1.1.2"
 VERSION_URL = "https://raw.githubusercontent.com/pkbehera-dev/Money/master/version.json"
 PRODUCT_ID = "finance_pro"
 ACTIVATION_URL = "https://service.pkbehera.in/api/activate"
@@ -153,10 +153,23 @@ def perform_auto_update(download_url):
         # Release the Windows mutex handle to prevent the installer from detecting it
         release_app_mutex()
         
+        # Clean PyInstaller environment variables before spawning the installer
+        # so the child processes do not inherit the old _MEIPASS temp directory.
+        clean_env = os.environ.copy()
+        mei_dir = getattr(sys, '_MEIPASS', None)
+        if mei_dir and 'PATH' in clean_env:
+            paths = clean_env['PATH'].split(os.pathsep)
+            filtered_paths = [p for p in paths if mei_dir not in p]
+            clean_env['PATH'] = os.pathsep.join(filtered_paths)
+            
+        # Remove Python-specific env vars set by PyInstaller bootloader
+        for var in ['PYTHONHOME', 'PYTHONPATH']:
+            clean_env.pop(var, None)
+            
         # Launch the Inno Setup installer silently after a 1-second delay (via ping)
         # to ensure the parent process has fully terminated and released the file lock
         cmd = f'ping 127.0.0.1 -n 2 > nul && start "" "{temp_installer}" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART'
-        subprocess.Popen(cmd, shell=True)
+        subprocess.Popen(cmd, shell=True, env=clean_env)
         
         # Exit immediately to release file lock on our executable so installer can overwrite it
         os._exit(0)
