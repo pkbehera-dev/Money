@@ -301,24 +301,8 @@
                         } else if (statusData.status === 'installing') {
                             progressFill.style.width = '100%';
                             progressPercent.innerText = '100%';
-                            progressStatus.innerText = 'Installing and restarting... Please wait.';
+                            progressStatus.innerText = 'Update installed successfully. The application will close now. Please relaunch it from your shortcut.';
                             clearInterval(intervalId);
-                            
-                            // Start pinging the server to see when it comes back online
-                            const pingInterval = setInterval(async () => {
-                                try {
-                                    const testRes = await fetch('/');
-                                    if (testRes.ok) {
-                                        clearInterval(pingInterval);
-                                        progressStatus.innerText = 'Reconnected! Reloading...';
-                                        setTimeout(() => {
-                                            window.location.reload();
-                                        }, 1000);
-                                    }
-                                } catch (pingErr) {
-                                    // Keep pinging
-                                }
-                            }, 1000);
                         } else if (statusData.status === 'error') {
                             clearInterval(intervalId);
                             progressStatus.innerText = 'Failed to install update.';
@@ -330,27 +314,11 @@
                         }
                     } catch (pollErr) {
                         console.error("Error polling download status:", pollErr);
-                        // Server has likely shut down to perform the update.
+                        // Server has shut down.
                         clearInterval(intervalId);
                         progressFill.style.width = '100%';
                         progressPercent.innerText = '100%';
-                        progressStatus.innerText = 'Application is restarting... Reconnecting...';
-                        
-                        // Ping server until back online
-                        const pingInterval = setInterval(async () => {
-                            try {
-                                const testRes = await fetch('/');
-                                if (testRes.ok) {
-                                    clearInterval(pingInterval);
-                                    progressStatus.innerText = 'Reconnected! Reloading...';
-                                    setTimeout(() => {
-                                        window.location.reload();
-                                    }, 1000);
-                                }
-                            } catch (pingErr) {
-                                // Keep pinging
-                            }
-                        }, 1000);
+                        progressStatus.innerText = 'Update complete! The application has closed. Please double-click the shortcut to reopen.';
                     }
                 }, 500);
             } else {
