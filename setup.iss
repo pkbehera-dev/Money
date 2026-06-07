@@ -1,5 +1,5 @@
 #define MyAppName "Finance Pro"
-#define MyAppVersion "1.1.3"
+#define MyAppVersion "1.1.4"
 #define MyAppPublisher "Pradyumna Behera"
 #define MyAppExeName "Finance Pro.exe"
 

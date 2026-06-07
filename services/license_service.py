@@ -7,7 +7,7 @@ import hashlib
 import json
 
 # Product config constants
-APP_VERSION = "1.1.3"
+APP_VERSION = "1.1.4"
 VERSION_URL = "https://raw.githubusercontent.com/pkbehera-dev/Money/master/version.json"
 PRODUCT_ID = "finance_pro"
 ACTIVATION_URL = "https://service.pkbehera.in/api/activate"
@@ -53,9 +53,14 @@ def get_update_progress():
         "error": _update_error
     }
 
+_cached_fingerprint = None
+
 def get_device_fingerprint():
-    # Retrieve a secure MAC address based identifier
-    return str(uuid.getnode())
+    global _cached_fingerprint
+    if _cached_fingerprint is None:
+        # Retrieve a secure MAC address based identifier
+        _cached_fingerprint = str(uuid.getnode())
+    return _cached_fingerprint
 
 def check_license_online(key):
     payload = {
@@ -68,7 +73,7 @@ def check_license_online(key):
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
     try:
-        response = requests.post(ACTIVATION_URL, json=payload, headers=headers, timeout=8)
+        response = requests.post(ACTIVATION_URL, json=payload, headers=headers, timeout=2)
         return response.json()
     except Exception as e:
         return {"success": False, "unreachable": True, "message": f"Connection error: {str(e)}"}

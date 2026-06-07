@@ -270,6 +270,19 @@
         openDrawer('payment-drawer');
     }
 </script>
+
+<!-- Dedicated Drawer for Payments/Foreclosures to avoid overwriting the static New Loan form -->
+<div id="payment-drawer" class="drawer-overlay">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+        <h2 style="font-family: 'Outfit';">Loan Action</h2>
+        <button onclick="closeDrawer()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;">
+            <i class="ph ph-x"></i>
+        </button>
+    </div>
+    <div id="payment-drawer-content">
+        <!-- Dynamic content injected here -->
+    </div>
+</div>
 {% endblock %}
 
 {% block drawer_content %}
@@ -342,17 +355,3 @@
     </div>
 {% endblock %}
 
-{% block extra_body %}
-    <!-- Dedicated Drawer for Payments/Foreclosures to avoid overwriting the static New Loan form -->
-    <div id="payment-drawer" class="drawer-overlay">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
-            <h2 style="font-family: 'Outfit';">Loan Action</h2>
-            <button onclick="closeDrawer()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;">
-                <i class="ph ph-x"></i>
-            </button>
-        </div>
-        <div id="payment-drawer-content">
-            <!-- Dynamic content injected here -->
-        </div>
-    </div>
-{% endblock %}

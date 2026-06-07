@@ -115,6 +115,12 @@ def days_left_filter(due_day):
 
 app.jinja_env.filters['days_left'] = days_left_filter
 
+# Cache for license check to avoid slow page loads
+_license_cache = {
+    'result': None,
+    'timestamp': 0
+}
+
 # Context Processor for base template header config and license info
 @app.context_processor
 def inject_system_config():
@@ -140,7 +146,16 @@ def inject_system_config():
         from services.license_service import get_saved_license, check_license_online
         key = get_saved_license()
         if key:
-            res = check_license_online(key)
+            global _license_cache
+            current_time = time.time()
+            # Cache the license verification result for 1 hour (3600 seconds)
+            if _license_cache['result'] is not None and (current_time - _license_cache['timestamp'] < 3600):
+                res = _license_cache['result']
+            else:
+                res = check_license_online(key)
+                _license_cache['result'] = res
+                _license_cache['timestamp'] = current_time
+
             if res.get('success') or res.get('unreachable'):
                 from datetime import datetime
                 conn = get_db_connection()
@@ -158,8 +173,10 @@ def inject_system_config():
                 expires_str = res.get('expires_at')
                 # Cache expiry date locally to support offline validation
                 if expires_str:
-                    conn.execute("INSERT OR REPLACE INTO system_config (config_key, config_value) VALUES ('license_expiry', ?)", (expires_str,))
-                    conn.commit()
+                    if expires_str != configs.get('license_expiry'):
+                        conn.execute("INSERT OR REPLACE INTO system_config (config_key, config_value) VALUES ('license_expiry', ?)", (expires_str,))
+                        conn.commit()
+                        configs['license_expiry'] = expires_str
                 elif res.get('unreachable'):
                     expires_str = configs.get('license_expiry')
                 

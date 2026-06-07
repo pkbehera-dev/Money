@@ -301,7 +301,7 @@ class AnalyticsService:
         
         # Debt calculation
         loans_total = conn.execute("SELECT SUM(total_to_pay) FROM loans WHERE status = 'active' AND deleted_at IS NULL").fetchone()[0] or 0
-        loan_payments = conn.execute("SELECT SUM(amount) FROM loan_payments").fetchone()[0] or 0
+        loan_payments = conn.execute("SELECT SUM(amount) FROM loan_payments WHERE deleted_at IS NULL").fetchone()[0] or 0
         loan_debt = loans_total - loan_payments
         
         card_purchases = conn.execute("SELECT SUM(amount) FROM transactions WHERE card_id IS NOT NULL AND type = 'expense' AND deleted_at IS NULL").fetchone()[0] or 0

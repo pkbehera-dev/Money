@@ -78,8 +78,11 @@ CREATE TABLE IF NOT EXISTS loan_payments (
     date TEXT NOT NULL,
     type TEXT NOT NULL, -- EMI, Extra, Penalty, Fee, Adjustment
     notes TEXT,
+    transaction_id INTEGER,
+    deleted_at DATETIME,
     FOREIGN KEY(loan_id) REFERENCES loans(id)
 );
+
 
 CREATE TABLE IF NOT EXISTS people_ledger (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -340,7 +343,7 @@ BEGIN
     SET paid_amount = (
         SELECT COALESCE(SUM(amount), 0.0)
         FROM loan_payments
-        WHERE loan_id = NEW.loan_id
+        WHERE loan_id = NEW.loan_id AND deleted_at IS NULL
     )
     WHERE id = NEW.loan_id;
 END;
@@ -354,7 +357,7 @@ BEGIN
     SET paid_amount = (
         SELECT COALESCE(SUM(amount), 0.0)
         FROM loan_payments
-        WHERE loan_id = OLD.loan_id
+        WHERE loan_id = OLD.loan_id AND deleted_at IS NULL
     )
     WHERE id = OLD.loan_id;
 
@@ -363,7 +366,7 @@ BEGIN
     SET paid_amount = (
         SELECT COALESCE(SUM(amount), 0.0)
         FROM loan_payments
-        WHERE loan_id = NEW.loan_id
+        WHERE loan_id = NEW.loan_id AND deleted_at IS NULL
     )
     WHERE id = NEW.loan_id;
 END;
@@ -376,10 +379,11 @@ BEGIN
     SET paid_amount = (
         SELECT COALESCE(SUM(amount), 0.0)
         FROM loan_payments
-        WHERE loan_id = OLD.loan_id
+        WHERE loan_id = OLD.loan_id AND deleted_at IS NULL
     )
     WHERE id = OLD.loan_id;
 END;
+
 
 -- System Configuration Table
 CREATE TABLE IF NOT EXISTS system_config (

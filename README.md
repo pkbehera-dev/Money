@@ -1,7 +1,9 @@
-# 💰 Finance Pro — Personal Finance Tracker
+# 💰 Finance Pro — Personal Finance Tracker [ARCHIVED]
 
-> **Built with love by Pradyumna Behera (Bapun)**
-> A smart, offline-first finance manager that runs right on your computer.
+> [!WARNING]
+> **ARCHIVE NOTICE:** This project is no longer actively maintained or updated. It is preserved here as a historical archive. Anyone is welcome to clone, fork, study, and contribute to this repository freely under the terms of the MIT License.
+>
+> For the new, optimized, compiled, and lightning-fast desktop experience without AI latency, check out our new **Go + Wails + SQLite** version.
 
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Flask](https://img.shields.io/badge/Flask-3.0+-000000?style=for-the-badge&logo=flask)](https://flask.palletsprojects.com/)
@@ -10,33 +12,9 @@
 
 ---
 
-## 🚫 LICENSE & COPYRIGHT — PLEASE READ FIRST
+## 📜 LICENSE
 
-```
-Copyright © 2024-2026 Pradyumna Behera (Bapun). All Rights Reserved.
-```
-
-> [!CAUTION]
-> **This project is NOT open source for commercial use.**
-> Read the rules below carefully before using, copying, or sharing this code.
-
-### ✅ What You CAN Do
-- Use this app **for yourself, on your own computer** (personal use).
-- Learn from the code and study how it works.
-- Modify it for your own personal needs.
-
-### ❌ What You CANNOT Do
-- **Sell this app** or any part of it.
-- **Use it in a business, company, or startup** to make money.
-- **Publish it as your own project** (on GitHub, a portfolio, a resume, etc.).
-- **Host it online as a service** for other people to use.
-- **Remove the author's name** from the code or the app.
-- **Redistribute or reshare** the code without written permission.
-
-### ⚖️ In Simple Words
-> This is my personal project. You can look at it, learn from it, and run it on your own machine.
-> But you **cannot pretend you made it**, and you **cannot use it to earn money**.
-> If you want to use it in any other way, **ask me first**.
+This project is open-source and licensed under the standard **MIT License**. You are free to copy, modify, and distribute this software for personal and commercial projects, provided attribution is maintained. See the [LICENSE](file:///d:/PYTHON/Money/LICENSE) file for the full text.
 
 ---
 
@@ -220,38 +198,32 @@ Open your browser and go to: **http://127.0.0.1:5000**
 ## 📜 Full Copyright Notice
 
 ```
-MIT License — Modified for Personal Use Only
+MIT License
 
 Copyright © 2024-2026 Pradyumna Behera (Bapun)
 
-Permission is granted, free of charge, to any person obtaining a copy of
-this software, to use, copy, and modify it for PERSONAL and LOCAL purposes
-only, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-1. This software SHALL NOT be used for any commercial, industrial, or
-   revenue-generating purpose.
-
-2. This software SHALL NOT be published, distributed, or presented as
-   someone else's work (in portfolios, resumes, job applications, or
-   any public platform).
-
-3. This software SHALL NOT be hosted as a public web service or SaaS
-   product.
-
-4. The above copyright notice and this permission notice SHALL be included
-   in all copies or substantial portions of the software.
-
-5. Any modifications made for personal use do not grant the modifier
-   any ownership or redistribution rights.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR
-OTHER LIABILITY ARISING FROM THE USE OF THIS SOFTWARE.
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```
 
 ---
 
 <p align="center">
   <b>Made with ❤️ by Pradyumna Behera (Bapun)</b><br>
-  <i>This is a personal project. Please respect the license.</i>
+  <i>Licensed under the MIT License. Feel free to contribute!</i>
 </p>

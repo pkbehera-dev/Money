@@ -194,6 +194,15 @@ class TransactionService:
         from datetime import datetime
         now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         conn.execute("UPDATE transactions SET deleted_at = ? WHERE id = ?", (now, tx_id))
+        
+        # Soft-delete linked loan payment if exists
+        lp = conn.execute("SELECT * FROM loan_payments WHERE transaction_id = ?", (tx_id,)).fetchone()
+        if lp:
+            conn.execute("UPDATE loan_payments SET deleted_at = ? WHERE transaction_id = ?", (now, tx_id))
+            loan_id = lp['loan_id']
+            new_paid = conn.execute("SELECT SUM(amount) FROM loan_payments WHERE loan_id = ? AND deleted_at IS NULL", (loan_id,)).fetchone()[0] or 0.0
+            conn.execute("UPDATE loans SET paid_amount = ? WHERE id = ?", (new_paid, loan_id))
+            
         conn.commit()
         conn.close()
         
@@ -228,6 +237,15 @@ class TransactionService:
             conn.execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', (amount, to_account_id))
         
         conn.execute("UPDATE transactions SET deleted_at = NULL WHERE id = ?", (tx_id,))
+        
+        # Restore linked loan payment if exists
+        lp = conn.execute("SELECT * FROM loan_payments WHERE transaction_id = ?", (tx_id,)).fetchone()
+        if lp:
+            conn.execute("UPDATE loan_payments SET deleted_at = NULL WHERE transaction_id = ?", (tx_id,))
+            loan_id = lp['loan_id']
+            new_paid = conn.execute("SELECT SUM(amount) FROM loan_payments WHERE loan_id = ? AND deleted_at IS NULL", (loan_id,)).fetchone()[0] or 0.0
+            conn.execute("UPDATE loans SET paid_amount = ? WHERE id = ?", (new_paid, loan_id))
+            
         conn.commit()
         conn.close()
         

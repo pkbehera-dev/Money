@@ -82,6 +82,8 @@ class UndoService:
         # Cascading deletes
         if table == 'loans':
             cursor.execute("DELETE FROM loan_payments WHERE loan_id = ?", (item_id,))
+        elif table == 'transactions':
+            cursor.execute("DELETE FROM loan_payments WHERE transaction_id = ?", (item_id,))
         elif table == 'people_ledger':
             cursor.execute("DELETE FROM transactions WHERE person_id = ?", (item_id,))
         elif table == 'budgets':

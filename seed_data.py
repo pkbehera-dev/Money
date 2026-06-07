@@ -8,10 +8,8 @@ def seed_database():
     
     # 1. Paths and Connection
     db_path = os.path.join(os.path.dirname(__file__), 'finance.db')
-    if not os.path.exists(db_path):
-        print(f"Error: Database not found at {db_path}. Running init_db first...")
-        from database.connection import init_db
-        init_db()
+    from database.connection import init_db
+    init_db()
 
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()

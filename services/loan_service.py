@@ -13,18 +13,18 @@ class LoanService:
         
         for loan in loans:
             # DYNAMIC CALCULATION: Sum all payments from the ledger
-            paid_amount = conn.execute("SELECT SUM(amount) FROM loan_payments WHERE loan_id = ?", (loan['id'],)).fetchone()[0] or 0
+            paid_amount = conn.execute("SELECT SUM(amount) FROM loan_payments WHERE loan_id = ? AND deleted_at IS NULL", (loan['id'],)).fetchone()[0] or 0
             loan['paid_amount'] = paid_amount
             loan['remaining'] = loan['total_to_pay'] - paid_amount
             loan['progress'] = (paid_amount / loan['total_to_pay'] * 100) if loan['total_to_pay'] > 0 else 0
             loan['monthly_emi'] = (loan['total_to_pay'] / loan['tenure']) if loan['tenure'] > 0 else 0
             
             # Fetch last payment
-            last_p = conn.execute("SELECT amount, date FROM loan_payments WHERE loan_id = ? ORDER BY date DESC LIMIT 1", (loan['id'],)).fetchone()
+            last_p = conn.execute("SELECT amount, date FROM loan_payments WHERE loan_id = ? AND deleted_at IS NULL ORDER BY date DESC LIMIT 1", (loan['id'],)).fetchone()
             loan['last_payment'] = dict(last_p) if last_p else None
             
             # Fetch history
-            history = conn.execute("SELECT * FROM loan_payments WHERE loan_id = ? ORDER BY date DESC", (loan['id'],)).fetchall()
+            history = conn.execute("SELECT * FROM loan_payments WHERE loan_id = ? AND deleted_at IS NULL ORDER BY date DESC", (loan['id'],)).fetchall()
             loan['history'] = [dict(h) for h in history]
             
         conn.close()
@@ -90,18 +90,12 @@ class LoanService:
     def add_payment(loan_id: int, amount: float, date: str, p_type: str, notes: str, account_id: any = None):
         from services.transaction_service import TransactionService
         conn = get_db_connection()
-        # 1. Save payment record first
-        conn.execute('''
-            INSERT INTO loan_payments (loan_id, amount, date, type, notes)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (loan_id, amount, date, p_type, notes))
-        conn.commit()
-        
-        # 2. Fetch loan name
+        # 1. Fetch loan name
         loan_name = conn.execute("SELECT name FROM loans WHERE id = ?", (loan_id,)).fetchone()[0]
         conn.close()
         
-        # 3. Record the transaction separately
+        tx_id = None
+        # 2. Record the transaction separately first
         if account_id and account_id != "":
             act_id = None
             c_id = None
@@ -110,7 +104,7 @@ class LoanService:
             else:
                 act_id = int(account_id)
                 
-            TransactionService.add_transaction(
+            tx_id = TransactionService.add_transaction(
                 type='expense',
                 amount=amount,
                 category='Loan Repayment',
@@ -119,6 +113,15 @@ class LoanService:
                 card_id=c_id,
                 notes=f"Payment for {loan_name}: {p_type} - {notes}"
             )
+            
+        # 3. Save payment record
+        conn = get_db_connection()
+        conn.execute('''
+            INSERT INTO loan_payments (loan_id, amount, date, type, notes, transaction_id)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (loan_id, amount, date, p_type, notes, tx_id))
+        conn.commit()
+        conn.close()
             
     @staticmethod
     def delete_loan(loan_id: int):
@@ -157,7 +160,7 @@ class LoanService:
         loan_name = loan["name"]
         
         # Calculate remaining
-        paid = conn.execute("SELECT SUM(amount) FROM loan_payments WHERE loan_id = ?", (loan_id,)).fetchone()[0] or 0
+        paid = conn.execute("SELECT SUM(amount) FROM loan_payments WHERE loan_id = ? AND deleted_at IS NULL", (loan_id,)).fetchone()[0] or 0
         conn.close() # Close read connection
         
         remaining = total_to_pay - paid

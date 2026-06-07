@@ -1,130 +1,21 @@
-PERSONAL USE SOURCE-AVAILABLE LICENSE (PUSAL) v1.0
+MIT License
 
 Copyright (c) 2024–2026 Pradyumna Behera (Bapun)
 
-All rights reserved.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-1. Permission Grant
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-Permission is granted, free of charge, to any person obtaining a copy
-of this Software and associated documentation files (the "Software")
-to use, study, and modify the Software solely for personal,
-private, and non-commercial purposes, subject to the conditions
-stated in this License.
-
-No rights are granted except those expressly stated herein.
-
-2. Non-Commercial Use Only
-
-The Software may not be used, directly or indirectly, for any
-commercial, business, organizational, institutional, governmental,
-or revenue-generating purpose without prior written permission
-from the copyright holder.
-
-Prohibited uses include, but are not limited to:
-
-* selling the Software;
-* offering paid services using the Software;
-* integrating the Software into commercial products or services;
-* using the Software within a business, company, startup,
-  institution, or organization;
-* monetizing the Software through advertisements, subscriptions,
-  sponsorships, donations, or paid access;
-* using the Software to support commercial clients or operations.
-
-All commercial rights are reserved exclusively by the copyright holder.
-
-3. Public Hosting Prohibited
-
-The Software may not be deployed, hosted, distributed, exposed,
-or made publicly accessible over any network or internet-based
-service without prior written permission from the copyright holder.
-
-This includes, but is not limited to:
-
-* websites;
-* SaaS platforms;
-* APIs;
-* cloud services;
-* public servers;
-* shared hosting systems;
-* multi-user environments.
-
-This restriction applies to both modified and unmodified versions
-of the Software.
-
-4. Redistribution Prohibited
-
-You may not redistribute, sublicense, republish, reupload,
-mirror, sell, lease, rent, transfer, or share the Software,
-in whole or in part, in source code, binary, compiled,
-packaged, or modified form, without prior written permission
-from the copyright holder.
-
-Personal local backups made solely for private use are permitted.
-
-5. Attribution and Authorship
-
-You may not:
-
-* claim the Software as your own work;
-* remove or alter copyright notices, license notices,
-  or author attribution;
-* represent modified versions as entirely original works.
-
-Any permitted copies or modifications of the Software must retain
-all original copyright and license notices.
-
-6. Modifications
-
-You may modify the Software solely for personal,
-private, and non-commercial use.
-
-Modification of the Software does not grant ownership
-of the original Software or its intellectual property.
-
-Ownership of original modifications created by you applies only
-to the portions independently created by you and remains subject
-to the restrictions of this License.
-
-7. Source-Available Notice
-
-This Software is source-available but is not open-source software
-as defined by the Open Source Initiative (OSI).
-
-No rights are granted to:
-
-* commercially use the Software;
-* redistribute the Software;
-* sublicense the Software;
-* publicly host the Software.
-
-All rights not expressly granted are reserved by the copyright holder.
-
-8. Termination
-
-Any violation of this License automatically terminates all rights
-granted under this License.
-
-Upon termination, you must immediately stop using the Software
-and destroy all copies in your possession or control.
-
-9. Disclaimer of Warranty
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE,
-AND NONINFRINGEMENT.
-
-10. Limitation of Liability
-
-IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM,
-DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH
-THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-11. Severability
-
-If any provision of this License is found to be unenforceable
-or invalid under applicable law, the remaining provisions
-shall remain in full force and effect.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
